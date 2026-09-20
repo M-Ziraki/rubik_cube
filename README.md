@@ -104,9 +104,15 @@ choices do most of the work:
 3. **A ratcheting limit.** The search accepts a mediocre answer early and then
    tightens, because any answer prunes the rest of the search hard.
 
-Measured on this machine, 40 uniformly random positions with a 10-second budget:
-mean 18.98 moves, maximum 20, none longer. The superflip — the hardest position
-there is — reaches exactly 20 given 150 seconds.
+Measured on this machine over 30 uniformly random positions:
+
+- asked for a solution within God's number, it delivers one every time, with a
+  median of **223 ms** and a worst case of 6.4 seconds (`npm run bench:20`);
+- left to keep improving for 10 seconds per position, it averages **18.98**
+  moves with a maximum of 20 (`npm run bench`);
+- the superflip — the hardest position there is, and the one fixed by every
+  symmetry, so the six viewpoints collapse to one — reaches exactly 20 given
+  150 seconds (`npm run bench:hard`).
 
 ### Optimal solver
 
@@ -162,7 +168,8 @@ brute-force breadth-first search, and the complete 2×2×2 distance distribution
 ## Development scripts
 
 ```bash
-npm run bench        # solve 40 uniformly random positions and report the spread
+npm run bench        # solve 40 random positions, improving for the whole budget
+npm run bench:20     # how long it takes to reach a solution within God's number
 npm run bench:hard   # solve the two hardest known positions, with a long budget
 npm run smoke        # drive the built app in a real browser (needs `npm run preview` first)
 ```

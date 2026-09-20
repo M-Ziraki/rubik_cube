@@ -1,0 +1,250 @@
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 { font-family: var(--serif); font-weight: 600; line-height: 1.2; margin: 0 0 0.5em; letter-spacing: -0.01em; }
+h1 { font-size: clamp(1.9rem, 4vw, 2.7rem); }
+h2 { font-size: clamp(1.35rem, 2.6vw, 1.7rem); margin-top: 2rem; }
+h3 { font-size: 1.12rem; margin-top: 1.5rem; }
+p { margin: 0 0 1em; }
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+code, kbd { font-family: var(--mono); font-size: 0.88em; }
+ul, ol { margin: 0 0 1em; padding-left: 1.3em; }
+li { margin-bottom: 0.35em; }
+hr { border: 0; border-top: 1px solid var(--line); margin: 2rem 0; }
+button { font: inherit; color: inherit; }
+::selection { background: var(--accent-soft); }
+
+/* ------------------------------------------------------------- layout --- */
+
+.app {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+  min-height: 100%;
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  border-right: 1px solid var(--line);
+  background: var(--paper-raised);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.brand {
+  padding: 22px 20px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.brand-mark { display: flex; align-items: center; gap: 10px; }
+.brand-title { font-family: var(--serif); font-size: 1.12rem; font-weight: 700; letter-spacing: -0.015em; }
+.brand-sub { font-size: 0.72rem; color: var(--ink-faint); letter-spacing: 0.06em; text-transform: uppercase; margin-top: 4px; }
+
+.nav { padding: 12px 10px; flex: 1; }
+.nav-group-title {
+  font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink-faint); padding: 14px 10px 6px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 8px 10px; border-radius: var(--radius-s);
+  background: none; border: 0; cursor: pointer; text-align: left;
+  color: var(--ink-soft); font-size: 0.9rem;
+}
+.nav-item:hover { background: var(--paper-sunken); color: var(--ink); }
+.nav-item[aria-current='true'] { background: var(--accent-soft); color: var(--ink); font-weight: 500; }
+.nav-item .glyph { width: 18px; text-align: center; opacity: 0.8; font-size: 0.95rem; }
+.nav-badge { margin-left: auto; font-size: 0.7rem; color: var(--ink-faint); font-family: var(--mono); }
+
+.sidebar-foot { padding: 12px; border-top: 1px solid var(--line); display: grid; gap: 8px; }
+
+.main { min-width: 0; display: flex; flex-direction: column; }
+.page { padding: clamp(20px, 3vw, 44px); max-width: 1320px; width: 100%; margin: 0 auto; }
+.page-head { margin-bottom: 28px; }
+.page-head .eyebrow { font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-faint); }
+.lede { font-size: 1.04rem; color: var(--ink-soft); max-width: min(62ch, 100%); }
+
+/* -------------------------------------------------------------- cards --- */
+
+.card {
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px;
+  box-shadow: var(--shadow-s);
+}
+.card.flush { padding: 0; overflow: hidden; }
+.card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+.card-head > * { min-width: 0; }
+.card-head > :last-child:not(:first-child) { flex: 0 0 auto; }
+.card-title { font-family: var(--serif); font-weight: 600; font-size: 1rem; }
+.card-note { font-size: 0.78rem; color: var(--ink-faint); }
+
+/* Grid and flex children default to min-width:auto, which lets a wide canvas
+   or table push a column past the viewport. Everything here is allowed to
+   shrink; anything that genuinely needs width scrolls inside .scroll-x. */
+.grid > *, .split > *, .stack > *, .row > * { min-width: 0; }
+.card { min-width: 0; }
+
+.grid { display: grid; gap: 16px; }
+.grid.two { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+.grid.three { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.split { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.stack { display: grid; gap: 14px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.row.tight { gap: 5px; }
+.spacer { flex: 1; }
+
+/* ------------------------------------------------------------ controls --- */
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 7px 13px; border-radius: var(--radius-s);
+  border: 1px solid var(--line-strong); background: var(--paper-raised);
+  cursor: pointer; font-size: 0.86rem; font-weight: 500;
+  transition: background 0.12s, border-color 0.12s, transform 0.06s;
+  white-space: nowrap;
+}
+/* A button whose label is a paragraph rather than a word. */
+.btn.block {
+  display: block; width: 100%; text-align: left; white-space: normal;
+  height: auto; padding: 10px 12px;
+}
+.btn:hover:not(:disabled) { background: var(--paper-sunken); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+/* A translucent green button on cream paper turns into white-on-white, so
+   disabled primaries get their own readable palette instead. */
+.btn.primary:disabled {
+  opacity: 1; background: var(--paper-sunken); border-color: var(--line-strong); color: var(--ink-faint);
+}
+.btn:focus-visible, .seg button:focus-visible, .move-chip:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover:not(:disabled) { filter: brightness(1.08); }
+.btn.ghost { border-color: transparent; background: transparent; }
+.btn.ghost:hover:not(:disabled) { background: var(--paper-sunken); }
+.btn.small { padding: 4px 9px; font-size: 0.78rem; }
+.btn.mono { font-family: var(--mono); }
+
+.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: var(--radius-s); overflow: hidden; }
+.seg button {
+  padding: 5px 11px; border: 0; background: var(--paper-raised); cursor: pointer;
+  font-size: 0.8rem; border-right: 1px solid var(--line);
+}
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed='true'] { background: var(--accent-soft); font-weight: 600; }
+
+input[type='text'], input[type='number'], select, textarea {
+  font: inherit; padding: 6px 10px; border-radius: var(--radius-s);
+  border: 1px solid var(--line-strong); background: var(--paper);
+  color: var(--ink); width: 100%;
+}
+input[type='range'] { accent-color: var(--accent); width: 100%; }
+label.field { display: grid; gap: 4px; font-size: 0.8rem; color: var(--ink-soft); }
+
+/* ------------------------------------------------------------ notation --- */
+
+.move-chip {
+  font-family: var(--mono); font-size: 0.82rem; font-weight: 600;
+  padding: 3px 7px; border-radius: 5px;
+  border: 1px solid var(--line-strong); background: var(--paper);
+  cursor: pointer; min-width: 34px; text-align: center;
+}
+.move-chip:hover { background: var(--paper-sunken); }
+.move-chip.current { background: var(--accent); border-color: var(--accent); color: #fff; }
+.move-chip.done { opacity: 0.45; }
+.move-chip.plain { cursor: default; }
+
+.seq { display: flex; flex-wrap: wrap; gap: 4px; font-family: var(--mono); }
+.seq-empty { color: var(--ink-faint); font-size: 0.85rem; font-style: italic; }
+
+.tag {
+  display: inline-flex; align-items: center; gap: 5px; justify-self: start; width: fit-content;
+  font-size: 0.72rem; letter-spacing: 0.02em; padding: 2px 8px;
+  border-radius: 999px; border: 1px solid var(--line-strong); color: var(--ink-soft);
+}
+.tag.ok { border-color: var(--ok); color: var(--ok); }
+.tag.warn { border-color: var(--warn); color: var(--warn); }
+.tag.danger { border-color: var(--danger); color: var(--danger); }
+.tag.solid { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ---------------------------------------------------------- data bits --- */
+
+.stat { display: grid; gap: 2px; }
+.stat .value { font-family: var(--serif); font-size: 1.55rem; font-weight: 600; line-height: 1.1; }
+.stat .label { font-size: 0.74rem; color: var(--ink-faint); letter-spacing: 0.04em; text-transform: uppercase; }
+.stat .sub { font-size: 0.78rem; color: var(--ink-soft); }
+
+.meter { height: 6px; background: var(--paper-sunken); border-radius: 999px; overflow: hidden; }
+.meter > i { display: block; height: 100%; background: var(--accent); border-radius: 999px; transition: width 0.25s; }
+
+table.data { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+table.data th, table.data td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+table.data th { font-weight: 600; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); }
+table.data td.num, table.data th.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+.scene-host { width: 100%; aspect-ratio: 1 / 1; min-height: 260px; border-radius: var(--radius); overflow: hidden; background: radial-gradient(circle at 50% 38%, var(--paper-raised), var(--paper-sunken)); }
+.scene-host.short { aspect-ratio: 4 / 3; }
+
+.callout {
+  border-left: 3px solid var(--accent); background: var(--accent-soft);
+  padding: 12px 16px; border-radius: 0 var(--radius-s) var(--radius-s) 0;
+  font-size: 0.9rem;
+}
+.callout.warn { border-color: var(--warn); background: color-mix(in srgb, var(--warn) 9%, transparent); }
+.callout.danger { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 9%, transparent); }
+.callout h4 { margin: 0 0 4px; font-size: 0.92rem; }
+.callout p:last-child { margin-bottom: 0; }
+
+.prose { max-width: min(68ch, 100%); }
+.prose h3:first-child { margin-top: 0; }
+
+/* Lesson bodies mix prose with full-width widgets, so the reading measure is
+   applied to the text elements rather than to the container. */
+.lesson > p, .lesson > ul, .lesson > ol, .lesson > h3, .lesson > h4, .lesson > .callout {
+  max-width: min(70ch, 100%);
+}
+.lesson > h3 { margin-top: 0.6rem; }
+
+.scroll-x { overflow-x: auto; max-width: 100%; min-width: 0; }
+.scroll-x > table.data { min-width: 520px; }
+
+.shimmer {
+  background: linear-gradient(90deg, var(--paper-sunken) 25%, var(--paper-raised) 50%, var(--paper-sunken) 75%);
+  background-size: 200% 100%; animation: shimmer 1.4s linear infinite; border-radius: var(--radius-s);
+}
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+.mobile-nav { display: none; }
+
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .mobile-nav {
+    display: flex; gap: 6px; overflow-x: auto; padding: 10px 16px;
+    border-bottom: 1px solid var(--line); background: var(--paper-raised);
+    position: sticky; top: 0; z-index: 20;
+  }
+  .split { grid-template-columns: minmax(0, 1fr); }
+  .grid.two, .grid.three { grid-template-columns: minmax(0, 1fr); }
+  .page { padding: 16px; }
+  .scene-host { min-height: 220px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

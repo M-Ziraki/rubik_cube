@@ -1,0 +1,85 @@
+/*
+ * The palette is lifted from the reference animation: warm paper, muted ink,
+ * thin graphite arcs, and the six classic sticker colours used only where they
+ * carry meaning.
+ */
+:root {
+  --paper: #f4f2ea;
+  --paper-raised: #fbfaf5;
+  --paper-sunken: #eceadf;
+  --ink: #2d2b24;
+  --ink-soft: #5d594c;
+  --ink-faint: #8d8878;
+  --line: #d9d5c6;
+  --line-strong: #bdb8a5;
+  --graphite: #8a8574;
+
+  --u: #f5f3ec;
+  --r: #e2622c;
+  --f: #1c6b3f;
+  --d: #e8b525;
+  --l: #c2352c;
+  --b: #1f4f96;
+
+  --accent: #1c6b3f;
+  --accent-soft: #e4ece6;
+  --warn: #b4641f;
+  --danger: #b03127;
+  --ok: #2f7a4f;
+
+  --radius-s: 6px;
+  --radius: 12px;
+  --radius-l: 18px;
+  --shadow-s: 0 1px 2px rgba(45, 43, 36, 0.06), 0 2px 8px rgba(45, 43, 36, 0.04);
+  --shadow: 0 2px 6px rgba(45, 43, 36, 0.07), 0 12px 32px rgba(45, 43, 36, 0.07);
+
+  --serif: 'Fraunces', 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --sidebar-w: 248px;
+  color-scheme: light;
+}
+
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --paper: #17160f;
+    --paper-raised: #1f1e16;
+    --paper-sunken: #121109;
+    --ink: #ece7d8;
+    --ink-soft: #b3ad99;
+    --ink-faint: #837e6c;
+    --line: #322f24;
+    --line-strong: #474334;
+    --graphite: #6f6a59;
+    --accent: #5fbf8a;
+    --accent-soft: #1d2c23;
+    --warn: #dc9a4d;
+    --danger: #e0766a;
+    --ok: #5fbf8a;
+    --shadow-s: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
+    --shadow: 0 2px 6px rgba(0, 0, 0, 0.45), 0 12px 32px rgba(0, 0, 0, 0.4);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --paper: #17160f;
+  --paper-raised: #1f1e16;
+  --paper-sunken: #121109;
+  --ink: #ece7d8;
+  --ink-soft: #b3ad99;
+  --ink-faint: #837e6c;
+  --line: #322f24;
+  --line-strong: #474334;
+  --graphite: #6f6a59;
+  --accent: #5fbf8a;
+  --accent-soft: #1d2c23;
+  --warn: #dc9a4d;
+  --danger: #e0766a;
+  --ok: #5fbf8a;
+  --shadow-s: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow: 0 2px 6px rgba(0, 0, 0, 0.45), 0 12px 32px rgba(0, 0, 0, 0.4);
+  color-scheme: dark;
+}

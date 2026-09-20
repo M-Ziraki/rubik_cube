@@ -134,7 +134,9 @@ button { font: inherit; color: inherit; }
   outline: 2px solid var(--accent); outline-offset: 2px;
 }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-.btn.primary:hover:not(:disabled) { filter: brightness(1.08); }
+/* The generic hover rule is more specific than .btn.primary, so the primary
+   hover has to restate its own background or it turns white-on-white. */
+.btn.primary:hover:not(:disabled) { background: var(--accent); filter: brightness(1.12); }
 .btn.ghost { border-color: transparent; background: transparent; }
 .btn.ghost:hover:not(:disabled) { background: var(--paper-sunken); }
 .btn.small { padding: 4px 9px; font-size: 0.78rem; }

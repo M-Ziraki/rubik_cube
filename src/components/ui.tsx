@@ -1,11 +1,12 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { MOVE_NAMES, MOVE_FACE, FACE_COLORS, FACE_NAMES } from '../cube/defs';
 
-export function Card({ title, note, children, className = '', actions }: {
-  title?: ReactNode; note?: ReactNode; children: ReactNode; className?: string; actions?: ReactNode;
+export function Card({ title, note, children, className = '', actions, style }: {
+  title?: ReactNode; note?: ReactNode; children: ReactNode; className?: string;
+  actions?: ReactNode; style?: CSSProperties;
 }): JSX.Element {
   return (
-    <section className={`card ${className}`}>
+    <section className={`card ${className}`} style={style}>
       {(title || note || actions) && (
         <header className="card-head">
           <div>

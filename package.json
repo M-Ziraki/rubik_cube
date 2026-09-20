@@ -13,7 +13,8 @@
     "bench": "vite-node bench/solve.ts",
     "bench:hard": "vite-node bench/superflip.ts",
     "smoke": "node scripts/smoke.mjs",
-    "bench:20": "vite-node bench/target20.ts"
+    "bench:20": "vite-node bench/target20.ts",
+    "acceptance": "node scripts/acceptance.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",

@@ -20,6 +20,10 @@ const STICKER_LIFT = 0.503;
 export interface CubeSceneOptions {
   /** Called when the user drags a layer round. */
   onUserMove?: (move: number) => void;
+  /** Called when the user clicks a sticker without dragging. */
+  onStickerPick?: (facelet: number | null) => void;
+  /** Called as the pointer passes over stickers. */
+  onStickerHover?: (facelet: number | null) => void;
   /** Called when an animated move finishes. */
   onMoveComplete?: (move: number) => void;
   background?: string;
@@ -31,6 +35,9 @@ interface Cubie {
   position: Vec3;
   stickers: { mesh: THREE.Mesh; facelet: number }[];
 }
+
+/** A sticker's base colour, so emphasis can be applied and undone cleanly. */
+const DIM_MIX = 0.82;
 
 function roundedSquare(size: number, radius: number): THREE.ShapeGeometry {
   const s = new THREE.Shape();
@@ -71,6 +78,9 @@ export class CubeScene {
   // frame at the default 32 degree field of view.
   private distance = 10.2;
 
+  private emphasis: Set<number> | null = null;
+  private selected: number | null = null;
+  private marker: THREE.Mesh | null = null;
   private disposed = false;
   private resizeObserver: ResizeObserver;
   private clock = new THREE.Clock();
@@ -156,11 +166,49 @@ export class CubeScene {
   }
 
   private applyColors(): void {
+    const body = new THREE.Color(0xd6d1c2);
     for (const cubie of this.cubies) {
       for (const sticker of cubie.stickers) {
         const face = this.facelets[sticker.facelet] as keyof typeof FACE_COLORS;
         const mat = sticker.mesh.material as THREE.MeshStandardMaterial;
         mat.color.set(FACE_COLORS[face] ?? '#2b2b2b');
+        if (this.emphasis && !this.emphasis.has(sticker.facelet)) {
+          mat.color.lerp(body, DIM_MIX);
+        }
+      }
+    }
+    this.placeMarker();
+  }
+
+  /**
+   * Fade every sticker except these, so a move's reach is visible on the cube
+   * as well as on the map.
+   */
+  setEmphasis(facelets: Iterable<number> | null): void {
+    this.emphasis = facelets ? new Set(facelets) : null;
+    this.applyColors();
+  }
+
+  setSelected(facelet: number | null): void {
+    this.selected = facelet;
+    this.applyColors();
+  }
+
+  private placeMarker(): void {
+    if (this.marker) { this.marker.parent?.remove(this.marker); this.marker = null; }
+    if (this.selected === null) return;
+    for (const cubie of this.cubies) {
+      for (const sticker of cubie.stickers) {
+        if (sticker.facelet !== this.selected) continue;
+        const geom = roundedSquare(CUBIE_SIZE - STICKER_INSET * 2 + 0.1, 0.16);
+        const mat = new THREE.MeshBasicMaterial({ color: 0x1c6b3f, side: THREE.DoubleSide });
+        const m = new THREE.Mesh(geom, mat);
+        m.position.copy(sticker.mesh.position).multiplyScalar(1.004);
+        m.rotation.copy(sticker.mesh.rotation);
+        m.renderOrder = -1;
+        sticker.mesh.parent?.add(m);
+        this.marker = m;
+        return;
       }
     }
   }
@@ -279,6 +327,9 @@ export class CubeScene {
     let startX = 0, startY = 0;
     let startYaw = 0, startPitch = 0;
     let pick: { position: Vec3; normal: Vec3 } | null = null;
+    let pickFacelet: number | null = null;
+    let hoverFacelet: number | null = null;
+    let dragged = false;
 
     const pointerNdc = (e: PointerEvent): THREE.Vector2 => {
       const rect = el.getBoundingClientRect();
@@ -294,21 +345,30 @@ export class CubeScene {
       startYaw = this.targetYaw; startPitch = this.targetPitch;
       this.raycaster.setFromCamera(pointerNdc(e), this.camera);
       const hits = this.raycaster.intersectObjects(this.stickerMeshes, false);
+      dragged = false;
       if (hits.length && e.button === 0 && !e.shiftKey) {
         const data = hits[0].object.userData as { facelet: number; cubie: number[] };
         pick = {
           position: data.cubie as unknown as Vec3,
           normal: FACE_NORMAL[Math.floor(data.facelet / 9)],
         };
+        pickFacelet = data.facelet;
         mode = 'turn';
       } else {
         pick = null;
+        pickFacelet = null;
         mode = 'orbit';
       }
     });
 
     el.addEventListener('pointermove', (e) => {
-      if (mode === 'none') return;
+      if (mode === 'none') {
+        this.raycaster.setFromCamera(pointerNdc(e), this.camera);
+        const hit = this.raycaster.intersectObjects(this.stickerMeshes, false)[0];
+        const f = hit ? (hit.object.userData as { facelet: number }).facelet : null;
+        if (f !== hoverFacelet) { hoverFacelet = f; this.opts.onStickerHover?.(f); }
+        return;
+      }
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
       if (mode === 'orbit') {
@@ -320,12 +380,17 @@ export class CubeScene {
         const move = this.dragToMove(pick, dx, dy);
         mode = 'none';
         pick = null;
+        dragged = true;
         if (move >= 0) this.opts.onUserMove?.(move);
       }
     });
 
     const end = (): void => { mode = 'none'; pick = null; };
-    el.addEventListener('pointerup', end);
+    el.addEventListener('pointerup', (e) => {
+      const moved = Math.hypot(e.clientX - startX, e.clientY - startY) > 6;
+      if (!moved && !dragged) this.opts.onStickerPick?.(pickFacelet);
+      end();
+    });
     el.addEventListener('pointercancel', end);
     el.addEventListener('lostpointercapture', end);
     el.addEventListener('wheel', (e) => {

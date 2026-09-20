@@ -2,6 +2,7 @@ import type { ComponentType } from 'react';
 import { LessonNotation, LessonPieces, LessonLaws } from './part1';
 import { LessonGraph, LessonDistance, LessonSearch, LessonHeuristics } from './part2';
 import { LessonGroups, LessonLadder, LessonGodsNumber, LessonHumanVsMachine } from './part3';
+import { LessonStickerMap } from './stickerLesson';
 
 export interface Lesson {
   id: string;
@@ -36,6 +37,14 @@ export const LESSONS: Lesson[] = [
     summary: 'Why only one arrangement in twelve can actually be reached, and where the 43 quintillion comes from.',
     minutes: 10,
     component: LessonLaws,
+  },
+  {
+    id: 'sticker-map',
+    part: 'The graph',
+    title: 'The sticker map',
+    summary: 'The figure from the reference animation, taken apart: 54 dots, nine circles, and why it is not the graph people usually mean.',
+    minutes: 10,
+    component: LessonStickerMap,
   },
   {
     id: 'graph',

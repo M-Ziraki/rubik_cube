@@ -24,9 +24,9 @@ table, is computed in the browser.
 
 ## What is in it
 
-**The Atlas** — the reference picture, made live: a 3D cube beside the graph of
-everything reachable from it, plus the published distance distribution of the
-whole puzzle.
+**The Atlas** — the reference figure, rebuilt and made interactive: a 3D cube
+beside a map of its 54 stickers, both driven by one shared state, with
+transport controls for stepping, playing, previewing and comparing turns.
 
 **The Course** — eleven lessons from notation to God's number, each with
 interactive widgets and a question that is only answerable if you understood it.
@@ -34,9 +34,9 @@ interactive widgets and a question that is only answerable if you understood it.
 **Cube lab** — a full 3D cube you can drag, scramble, analyse and solve, with a
 scrubbable move history.
 
-**State space** — three views of the graph: the exact neighbourhood of any
-position, the *complete* graph of the 2×2×2, and the shape of the 3×3×3 in
-summary.
+**State space** — the *other* graph, the one whose vertices are whole
+configurations: the exact neighbourhood of any position, the *complete* graph
+of the 2×2×2, and the shape of the 3×3×3 in summary.
 
 **Solvers** — Kociemba's two-phase algorithm and a provably-optimal IDA* search,
 side by side, each labelled with what it can actually promise.
@@ -47,6 +47,42 @@ moves or fewer with a reason given for every move.
 
 **Training** — positions generated at a verified exact distance, graded against
 the true optimum.
+
+## The sticker map, and how it was recovered
+
+The animation this project started from was measured rather than guessed at.
+Extracting frames and locating every dot shows:
+
+- every frame holds exactly **54 dots, nine of each colour**;
+- the dots **never move** — mean displacement between the first and last frame
+  is 0.32 px — only their colours change.
+
+So the figure is a map of the 54 stickers, not a graph of cube configurations.
+The skeleton is an exact construction: **three families of circles** with their
+centres 120° apart at distance 1 from the middle, **three concentric circles
+per family** at radii 1.3918, 1.7700 and 2.1482, and the 54 dots are precisely
+the intersections of circles from *different* families — 3 family pairs × 3 × 3
+× 2 points, with nothing left over. Fitting those seven parameters to the
+measured dots gives an RMS error of **0.33 px**, so this is the construction the
+animator used rather than an approximation of it.
+
+It is also a cube. Each family stands for one axis and each circle for one
+layer, so a dot — lying on two circles and on one side of the third family —
+is exactly a (cubie, facing) pair, that is, a facelet. The nine dots of a face
+form its 3×3 grid drawn on arcs, and every circle threads the twelve facelets of
+one layer band. For the six outer circles that band is precisely the set of
+stickers a face turn carries round, which is why a turn slides dots a quarter of
+the way along one drawn circle. `src/graph/stickerMap.ts` builds all of this
+from the seven recovered numbers; `referenceNodes.json` holds the measured dot
+positions so the test suite can check the reconstruction against the video.
+
+**What is deliberately not copied.** The video's *motion* is decorative. In a
+real cube the six centre stickers can never change colour, so six dots would
+have to hold their colour throughout; in the clip only four do, and they are two
+orange and two green. Settled frames are not permutations of a legal cube
+either. The brief asked to prioritise correct sticker permutations over
+decorative fidelity, so the geometry here is the reference's and the movement is
+the cube's, driven by the same `CubieCube` the solvers use.
 
 ## How the mathematics is implemented
 
@@ -163,7 +199,17 @@ facelet round-trips, all three validation laws, known identities (the superflip,
 the 105-move order of `R U`, T-perm piece counts), coordinate round-trips,
 move-table agreement against real cube operations, pruning-table consistency,
 random-state solving within God's number, optimal-solver agreement with
-brute-force breadth-first search, and the complete 2×2×2 distance distribution.
+brute-force breadth-first search, the complete 2×2×2 distance distribution, and
+the sticker map — that it covers all 54 facelets once, that every circle is a
+genuine cube band, that a turn advances a band by three places, that a move and
+its inverse cancel, and that the generated geometry lands on the dots measured
+from the reference video.
+
+`npm run smoke` and `scripts/acceptance.mjs` drive the built app in a real
+browser and check the acceptance criteria end to end: 54 dots and nine arcs,
+six clean groups when solved, twenty stickers lit by a move preview, a turn and
+its inverse restoring the map, four quarter turns restoring it, scramble and
+solve staying synchronised, and picking a dot naming the right sticker.
 
 ## Development scripts
 

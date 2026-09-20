@@ -83,3 +83,29 @@
   --shadow: 0 2px 6px rgba(0, 0, 0, 0.45), 0 12px 32px rgba(0, 0, 0, 0.4);
   color-scheme: dark;
 }
+
+/* The sticker map borrows the reference animation's restrained palette:
+   near-white paper, hairline grey arcs, and one arc picked out in dark ink. */
+:root {
+  --map-paper: #faf8f2;
+  --map-arc: #9c968a;
+  --map-arc-active: #4a443a;
+  --map-dot-edge: #2b2721;
+  --map-focus: #1c6b3f;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --map-paper: #14130d;
+    --map-arc: #6a6559;
+    --map-arc-active: #d8d2c2;
+    --map-dot-edge: #0d0c08;
+    --map-focus: #5fbf8a;
+  }
+}
+:root[data-theme='dark'] {
+  --map-paper: #14130d;
+  --map-arc: #6a6559;
+  --map-arc-active: #d8d2c2;
+  --map-dot-edge: #0d0c08;
+  --map-focus: #5fbf8a;
+}

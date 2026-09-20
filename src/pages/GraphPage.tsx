@@ -22,9 +22,12 @@ export function GraphPage(): JSX.Element {
         <div className="eyebrow">Laboratory</div>
         <h1>The state space</h1>
         <p className="lede">
-          You cannot draw 43 quintillion vertices. What you can do is look at a small
-          neighbourhood in full detail, look at a smaller puzzle in <em>complete</em> detail, and
-          look at the shape of the whole thing in summary. All three are here.
+          A different object from the sticker map on the <a href="#/">Atlas</a>. There, each dot is
+          one of 54 stickers and the whole picture is a single position. Here, each dot is an{' '}
+          <em>entire position</em> — all 54 stickers at once — and the edges are face turns
+          between them. That graph has 43,252,003,274,489,856,000 vertices, so it can only be seen
+          three ways: a small neighbourhood in full detail, a smaller puzzle in <em>complete</em>{' '}
+          detail, and the shape of the whole thing in summary.
         </p>
         <div style={{ marginTop: 12 }}>
           <Segmented

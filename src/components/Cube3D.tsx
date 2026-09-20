@@ -10,6 +10,13 @@ export interface Cube3DProps {
   className?: string;
   height?: number;
   onUserMove?: (move: number) => void;
+  /** Clicking a sticker reports its facelet index. */
+  onStickerPick?: (facelet: number | null) => void;
+  onStickerHover?: (facelet: number | null) => void;
+  /** Fade every sticker except these. */
+  emphasis?: Iterable<number> | null;
+  /** Ring this sticker. */
+  selected?: number | null;
 }
 
 /**
@@ -17,20 +24,28 @@ export interface Cube3DProps {
  * truth; this component only decides whether a change should be animated as a
  * single turn or snapped to instantly.
  */
-export function Cube3D({ facelets, interactive = true, className, height, onUserMove }: Cube3DProps): JSX.Element {
+export function Cube3D({
+  facelets, interactive = true, className, height, onUserMove,
+  onStickerPick, onStickerHover, emphasis = null, selected = null,
+}: Cube3DProps): JSX.Element {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const sceneRef = useRef<CubeScene | null>(null);
   const lastRef = useRef({ origin: '', cursor: -1 });
   const turnSpeed = useAppState((s) => s.turnSpeed);
+  // Callbacks live in a ref so changing them never tears down the WebGL scene.
+  const cbRef = useRef({ onUserMove, onStickerPick, onStickerHover });
+  cbRef.current = { onUserMove, onStickerPick, onStickerHover };
 
   useEffect(() => {
     if (!hostRef.current) return undefined;
     const scene = new CubeScene(hostRef.current, {
       interactive,
       onUserMove: (move) => {
-        if (onUserMove) onUserMove(move);
+        if (cbRef.current.onUserMove) cbRef.current.onUserMove(move);
         else actions.applyMove(move);
       },
+      onStickerPick: (f) => cbRef.current.onStickerPick?.(f),
+      onStickerHover: (f) => cbRef.current.onStickerHover?.(f),
     });
     sceneRef.current = scene;
     scene.setTurnSpeed(getState().turnSpeed);
@@ -44,6 +59,9 @@ export function Cube3D({ facelets, interactive = true, className, height, onUser
   }, [interactive]);
 
   useEffect(() => { sceneRef.current?.setTurnSpeed(turnSpeed); }, [turnSpeed]);
+
+  useEffect(() => { sceneRef.current?.setEmphasis(emphasis ?? null); }, [emphasis]);
+  useEffect(() => { sceneRef.current?.setSelected(selected); }, [selected]);
 
   // Controlled mode: follow the given string exactly.
   useEffect(() => {

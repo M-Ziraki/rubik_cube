@@ -17,6 +17,7 @@ import {
   MAP_CIRCLES, MAP_EXTENT, STICKER_NODES, bandCircleForMove, faceletsAffectedBy,
   nodeForFacelet, siblingFacelets, sourceOf, type StickerNode,
 } from './stickerGeometry';
+import { useI18n } from '../i18n/I18nProvider';
 
 export interface StickerMapProps {
   /** 54-character facelet string, the current state. */
@@ -60,6 +61,7 @@ export function StickerMap({
   highlightMove = null, selected = null, onSelect, onHover, hovered = null,
   showFaceLabels = false, showGhost = false,
 }: StickerMapProps): JSX.Element {
+  const { t } = useI18n();
   const view = MAP_EXTENT + PAD;
   const [localHover, setLocalHover] = useState<number | null>(null);
   const hoverFacelet = hovered ?? localHover;
@@ -163,7 +165,7 @@ export function StickerMap({
       viewBox={`${-view} ${-view} ${2 * view} ${2 * view}`}
       style={{ width: '100%', aspectRatio: '1 / 1', display: 'block', touchAction: 'manipulation' }}
       role="img"
-      aria-label="Map of the cube's 54 stickers"
+      aria-label={t('atlas.map.aria')}
       onPointerMove={(e) => {
         const f = pick(e);
         setLocalHover(f);
@@ -182,6 +184,7 @@ export function StickerMap({
           return (
             <circle
               key={c.id}
+              className="map-arc"
               cx={c.cx}
               cy={c.cy}
               r={c.radius}

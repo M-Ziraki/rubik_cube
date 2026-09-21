@@ -11,10 +11,12 @@ import { requestPocketStats, preparePocket, requestStageStats, solveStage } from
 import type { PocketStats, StageStats } from '../solver/protocol';
 import { METHODS } from '../data/methods';
 import { TOTAL_STATES } from '../data/facts';
+import { T, useI18n } from '../i18n/I18nProvider';
 
 /* ============================================================= 8. groups --- */
 
 export function LessonGroups(): JSX.Element {
+  const { t } = useI18n();
   const [seq, setSeq] = useState("R U R' U'");
   const order = useMemo(() => {
     const moves = parseSequence(seq).moves;
@@ -29,76 +31,57 @@ export function LessonGroups(): JSX.Element {
 
   return (
     <LessonBody>
-      <p>
-        The positions of a cube do not just form a set — they form a <strong>group</strong>. That
-        one observation is what turns the puzzle from a curiosity into something with theorems.
-      </p>
+      <p>{t('l.groups.intro')}</p>
 
-      <h3>What makes it a group</h3>
+      <h3>{t('l.groups.whatMakes')}</h3>
       <ul>
-        <li>You can <strong>compose</strong> two positions: do the moves of one, then the other.</li>
-        <li>There is an <strong>identity</strong>: the solved cube, or equivalently doing nothing.</li>
-        <li>Every position has an <strong>inverse</strong>: run its moves backwards and negated.</li>
-        <li>Composition is <strong>associative</strong>, though usually not commutative — <code>R U</code> and <code>U R</code> are different positions.</li>
+        <li>{t('l.groups.b1')}</li>
+        <li>{t('l.groups.b2')}</li>
+        <li>{t('l.groups.b3')}</li>
+        <li><T k="l.groups.b4" /></li>
       </ul>
 
-      <h3>Order: how many times until you are home</h3>
-      <p>
-        Repeat any sequence often enough and the cube always returns to where it started. The number
-        of repetitions is that element's <em>order</em>, and it divides the size of the group. Try
-        some: <code>R U R&rsquo; U&rsquo;</code> takes 6 repetitions, <code>R U</code> takes 105,
-        and <code>R U2 D&rsquo; B D&rsquo;</code> takes 1260 — the largest order anywhere in the
-        cube group.
-      </p>
+      <h3>{t('l.groups.order')}</h3>
+      <p><T k="l.groups.orderBody" /></p>
 
-      <Card title="Measure the order of a sequence" className="stack">
+      <Card title={t('l.groups.measure')} className="stack">
         <div className="row">
-          <input type="text" value={seq} onChange={(e) => setSeq(e.target.value)} style={{ maxWidth: 320 }} />
+          <input
+            type="text"
+            className="mono-ltr"
+            value={seq}
+            onChange={(e) => setSeq(e.target.value)}
+            style={{ maxWidth: 320 }}
+          />
           <div className="row tight">
-            {["R U R' U'", 'R U', "R U2 D' B D'", "R L' F B'"].map((s) => (
-              <button key={s} className="btn small ghost mono" onClick={() => setSeq(s)}>{s}</button>
+            {["R U R' U'", 'R U', "R U2 D' B D'", "R L' F B'"].map((x) => (
+              <button key={x} className="btn small ghost mono-ltr" onClick={() => setSeq(x)}>{x}</button>
             ))}
           </div>
         </div>
         <Stat
           value={order > 0 ? order : '—'}
-          label="repetitions to return to solved"
-          sub={order > 0 ? `${order} × ${parseSequence(seq).moves.length} = ${order * parseSequence(seq).moves.length} moves in total` : 'enter a valid sequence'}
+          label={t('l.groups.repetitions')}
+          sub={order > 0
+            ? t('l.groups.totalMoves', {
+              order,
+              len: parseSequence(seq).moves.length,
+              total: order * parseSequence(seq).moves.length,
+            })
+            : t('l.groups.enterValid')}
         />
       </Card>
 
-      <h3>Subgroups and cosets</h3>
-      <p>
-        A <strong>subgroup</strong> is a subset that is still a group on its own. Restrict yourself
-        to only <code>U</code> and <code>D</code> turns and you can reach exactly 16 positions —
-        a tiny subgroup. Allow <code>U</code>, <code>D</code> and the four half turns{' '}
-        <code>L2 R2 F2 B2</code> and you can reach 19,508,428,800 — still only one two-billionth of
-        the cube, but enormous in its own right. That subgroup has a name in this app: <code>G1</code>.
-      </p>
-      <p>
-        A <strong>coset</strong> is a shifted copy of a subgroup. The whole cube group splits into
-        2,217,093,120 disjoint copies of <code>G1</code>, and every position lives in exactly one of
-        them. Both the two-phase algorithm and the proof of God's number are really statements
-        about cosets: "get into the right coset, then walk home inside it".
-      </p>
+      <h3>{t('l.groups.subgroups')}</h3>
+      <p><T k="l.groups.subgroupsBody" /></p>
+      <p>{t('l.groups.cosetsBody')}</p>
 
       <Quiz
         id="groups-q1"
-        question={<>Why does every sequence eventually return the cube to solved if you repeat it enough?</>}
-        options={[
-          'Because the cube has a finite number of positions, so repeating must eventually revisit one — and the first revisit has to be the start',
-          'Because every move has order 4',
-          'It does not; some sequences never return',
-          'Because the moves commute',
-        ]}
+        question={t('l.groups.q1')}
+        options={[t('l.groups.q1a'), t('l.groups.q1b'), t('l.groups.q1c'), t('l.groups.q1d')]}
         correct={0}
-        explain={
-          <p style={{ marginBottom: 0 }}>
-            In a finite group every element has finite order. Repeating a sequence traces a cycle,
-            and since every step is reversible the cycle must close at the identity rather than
-            somewhere in the middle.
-          </p>
-        }
+        explain={<p style={{ marginBottom: 0 }}>{t('l.groups.q1why')}</p>}
       />
     </LessonBody>
   );
@@ -107,6 +90,7 @@ export function LessonGroups(): JSX.Element {
 /* ======================================================= 9. the ladder --- */
 
 export function LessonLadder(): JSX.Element {
+  const { t } = useI18n();
   const [stats, setStats] = useState<StageStats | null>(null);
   const [moves, setMoves] = useState<number[]>([]);
   const [hint, setHint] = useState<{ moves: number[]; distance: number; goal: string } | null>(null);
@@ -115,7 +99,11 @@ export function LessonLadder(): JSX.Element {
   const cube = useMemo(() => CubieCube.fromMoves(parseSequence(scramble).moves).applyMoves(moves), [scramble, moves]);
   const r = useMemo(() => report(cube), [cube]);
 
-  useEffect(() => { requestStageStats().then(setStats).catch(() => undefined); }, []);
+  useEffect(() => {
+    let live = true;
+    requestStageStats().then((x) => { if (live) setStats(x); }).catch(() => undefined);
+    return () => { live = false; };
+  }, []);
 
   const askHint = async (stage: 'edge-orientation' | 'cross' | 'g1'): Promise<void> => {
     const res = await solveStage(faceletString(toFacelets(cube)), stage);
@@ -124,129 +112,143 @@ export function LessonLadder(): JSX.Element {
 
   return (
     <LessonBody>
-      <p>
-        In 1981 Morwen Thistlethwaite had an idea that still underlies every fast solver: instead of
-        searching the whole group at once, climb down a <strong>ladder of nested subgroups</strong>.
-        Each rung restricts which turns you are still allowed, which shrinks the space enough to
-        solve by table lookup.
-      </p>
+      <p>{t('l.ladder.intro')}</p>
 
       <div className="scroll-x">
         <table className="data">
-          <thead><tr><th>rung</th><th>generators still allowed</th><th className="num">size</th><th>what it means</th></tr></thead>
+          <thead>
+            <tr>
+              <th>{t('l.ladder.rung')}</th>
+              <th>{t('l.ladder.generators')}</th>
+              <th className="num">{t('l.ladder.size')}</th>
+              <th>{t('l.ladder.meaning')}</th>
+            </tr>
+          </thead>
           <tbody>
-            <tr><td>G₀</td><td><code>U D L R F B</code></td><td className="num">4.3 × 10¹⁹</td><td>anything at all</td></tr>
-            <tr><td>G₁</td><td><code>U D L R F2 B2</code></td><td className="num">2.1 × 10¹⁶</td><td>every edge oriented</td></tr>
-            <tr><td>G₂</td><td><code>U D L2 R2 F2 B2</code></td><td className="num">1.95 × 10¹⁰</td><td>corners oriented too, slice edges home</td></tr>
-            <tr><td>G₃</td><td><code>U2 D2 L2 R2 F2 B2</code></td><td className="num">663,552</td><td>every piece in its own orbit</td></tr>
-            <tr><td>G₄</td><td>—</td><td className="num">1</td><td>solved</td></tr>
+            {([
+              ['G₀', 'U D L R F B', '4.3 × 10¹⁹', 'l.ladder.g0'],
+              ['G₁', 'U D L R F2 B2', '2.1 × 10¹⁶', 'l.ladder.g1'],
+              ['G₂', 'U D L2 R2 F2 B2', '1.95 × 10¹⁰', 'l.ladder.g2'],
+              ['G₃', 'U2 D2 L2 R2 F2 B2', '663,552', 'l.ladder.g3'],
+              ['G₄', '—', '1', 'l.ladder.g4'],
+            ] as const).map(([name, gens, size, key]) => (
+              <tr key={name}>
+                <td className="mono-ltr">{name}</td>
+                <td><bdi className="mono-ltr">{gens}</bdi></td>
+                <td className="num">{size}</td>
+                <td>{t(key)}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
 
       <p>
-        Kociemba's insight, five years later, was that the middle two rungs could be merged: go
-        straight from anything into <code>G1 = ⟨U, D, L², R², F², B²⟩</code>, which takes at most 12
-        moves, then solve inside it, which takes at most 18. That is the two-phase algorithm, and
-        it is what the <a href="#/solver">Solvers page</a> runs.
+        <T k="l.ladder.kociemba" /> <a href="#/solver">{t('nav.solver')}</a>
       </p>
 
       {stats ? (
         <div className="grid two">
-          <Card title="Rung one, completely tabulated" note="orienting all twelve edges">
+          <Card title={t('l.ladder.rungOne')} note={t('l.ladder.rungOneSub')}>
             <p>
-              There are only {stats.flip.size.toLocaleString('en-US')} possible edge-orientation
-              patterns, so every one of them has been solved by brute force. The worst needs{' '}
-              <strong>{stats.flip.diameter}</strong> moves.
+              {t('l.ladder.rungOneBody', {
+                n: stats.flip.size.toLocaleString('en-US'),
+                d: stats.flip.diameter,
+              })}
             </p>
             <Histogram data={stats.flip.histogram} />
           </Card>
-          <Card title="The human first rung" note="the bottom cross">
+          <Card title={t('l.ladder.humanRung')} note={t('l.ladder.humanRungSub')}>
             <p>
-              Tracking four edges gives {stats.cross.size.toLocaleString('en-US')} states — also
-              fully solvable by table. The hardest cross takes <strong>{stats.cross.diameter}</strong>{' '}
-              moves, which is why speedcubers are told to plan the whole cross before starting.
+              {t('l.ladder.humanRungBody', {
+                n: stats.cross.size.toLocaleString('en-US'),
+                d: stats.cross.diameter,
+              })}
             </p>
             <Histogram data={stats.cross.histogram} />
           </Card>
         </div>
       ) : null}
 
-      <Card title="Climb the first rung yourself" className="stack">
+      <Card title={t('l.ladder.climb')} className="stack">
         <p style={{ marginBottom: 0 }}>
-          Scramble: <code>{scramble}</code>. Get every edge oriented, then get into G1. The
-          counters tell you how close you are; the buttons will give you a provably shortest route
-          to each sub-goal if you want to compare.
+          <bdi className="mono-ltr">{scramble}</bdi> — {t('l.ladder.climbBody')}
         </p>
         <div className="split" style={{ gap: 14 }}>
           <Cube3D facelets={faceletString(toFacelets(cube))} interactive={false} height={250} />
           <div className="stack">
             <MovePad onMove={(m) => setMoves((x) => [...x, m])} keyboard={false} />
             <div className="row tight">
-              <button className="btn small" onClick={() => setMoves((x) => x.slice(0, -1))} disabled={!moves.length}>Undo</button>
-              <button className="btn small ghost" onClick={() => { setMoves([]); setHint(null); }}>Reset</button>
-              <button className="btn small" onClick={() => askHint('edge-orientation')}>Optimal edge orientation</button>
-              <button className="btn small" onClick={() => askHint('g1')}>Optimal route into G1</button>
+              <button
+                className="btn small"
+                onClick={() => setMoves((x) => x.slice(0, -1))}
+                disabled={!moves.length}
+              >
+                {t('common.undo')}
+              </button>
+              <button className="btn small ghost" onClick={() => { setMoves([]); setHint(null); }}>
+                {t('common.reset')}
+              </button>
+              <button className="btn small" onClick={() => askHint('edge-orientation')}>
+                {t('l.ladder.optimalEo')}
+              </button>
+              <button className="btn small" onClick={() => askHint('g1')}>
+                {t('l.ladder.optimalG1')}
+              </button>
             </div>
             <div className="row" style={{ gap: 16 }}>
-              <Stat value={`${r.orientedEdges}/12`} label="edges oriented" />
-              <Stat value={`${r.orientedCorners}/8`} label="corners oriented" />
-              <Stat value={`${r.sliceEdgesHome}/4`} label="slice edges home" />
+              <Stat value={`${r.orientedEdges}/12`} label={t('scan.edgesOriented')} />
+              <Stat value={`${r.orientedCorners}/8`} label={t('scan.cornersOriented')} />
+              <Stat value={`${r.sliceEdgesHome}/4`} label={t('scan.sliceHome')} />
             </div>
             {r.inG1 ? (
-              <Callout title="You are in G1">
-                <p style={{ margin: 0 }}>
-                  From here the cube can be finished using nothing but <code>U</code>, <code>D</code>{' '}
-                  and half turns — at most 18 more moves. Try it: every other quarter turn is now
-                  a step backwards.
-                </p>
+              <Callout title={t('l.ladder.inG1')}>
+                <p style={{ margin: 0 }}><T k="l.ladder.inG1Body" /></p>
               </Callout>
             ) : null}
             {hint ? (
               <div>
                 <div className="card-note" style={{ marginBottom: 4 }}>
-                  Shortest route to {hint.goal} — {hint.distance} move{hint.distance === 1 ? '' : 's'}
+                  {t('l.ladder.shortestTo', {
+                    goal: t(`l.ladder.goal.${hint.goal}`),
+                    n: hint.distance,
+                  })}
                 </div>
                 <Sequence moves={hint.moves} />
-                <button className="btn small" style={{ marginTop: 6 }} onClick={() => { setMoves((x) => [...x, ...hint.moves]); setHint(null); }}>Apply</button>
+                <button
+                  className="btn small"
+                  style={{ marginTop: 6 }}
+                  onClick={() => { setMoves((x) => [...x, ...hint.moves]); setHint(null); }}
+                >
+                  {t('common.apply')}
+                </button>
               </div>
             ) : null}
-            <div className="card-note">your moves: <code>{moves.length}</code></div>
+            <div className="card-note">{t('l.ladder.yourMoves', { n: moves.length })}</div>
           </div>
         </div>
       </Card>
 
       <Quiz
         id="ladder-q1"
-        question={<>Why does the ladder produce longer solutions than an optimal search?</>}
-        options={[
-          'Because the tables are approximate',
-          'Because each rung is solved optimally in isolation, and the best route down the whole ladder need not pass through the best route on each rung',
-          'Because it uses fewer generators',
-          'It does not — it is optimal',
-        ]}
+        question={t('l.ladder.q1')}
+        options={[t('l.ladder.q1a'), t('l.ladder.q1b'), t('l.ladder.q1c'), t('l.ladder.q1d')]}
         correct={1}
-        explain={
-          <p style={{ marginBottom: 0 }}>
-            This is the central trade-off of the whole field. Decomposing a hard problem into easy
-            sub-problems makes it solvable; it also throws away the possibility that a worse first
-            step leads to a much better second one. The two-phase algorithm claws some of this back
-            by deliberately trying <em>worse</em> phase-one routes to find shorter phase-two tails.
-          </p>
-        }
+        explain={<p style={{ marginBottom: 0 }}>{t('l.ladder.q1why')}</p>}
       />
     </LessonBody>
   );
 }
 
 function Histogram({ data }: { data: number[] }): JSX.Element {
+  const { t } = useI18n();
   const max = Math.max(...data, 1);
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 60 }}>
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 60, direction: 'ltr' }}>
       {data.map((v, i) => (
         <div key={i} style={{ flex: 1, textAlign: 'center' }}>
           <div
-            title={`${v.toLocaleString('en-US')} at distance ${i}`}
+            title={`${v.toLocaleString('en-US')} · ${t('common.distance')} ${i}`}
             style={{ height: `${Math.max(2, (v / max) * 46)}px`, background: 'var(--accent)', borderRadius: '2px 2px 0 0' }}
           />
           <span style={{ fontSize: '0.6rem', color: 'var(--ink-faint)', fontFamily: 'var(--mono)' }}>{i}</span>
@@ -259,89 +261,66 @@ function Histogram({ data }: { data: number[] }): JSX.Element {
 /* ===================================================== 10. god's number --- */
 
 export function LessonGodsNumber(): JSX.Element {
+  const { t } = useI18n();
   const [pocket, setPocket] = useState<PocketStats | null>(null);
-  useEffect(() => { preparePocket().then(requestPocketStats).then(setPocket).catch(() => undefined); }, []);
+  useEffect(() => {
+    let live = true;
+    preparePocket()
+      .then(requestPocketStats)
+      .then((s) => { if (live) setPocket(s); })
+      .catch(() => undefined);
+    return () => { live = false; };
+  }, []);
 
   return (
     <LessonBody>
-      <p>
-        "Every position can be solved in 20 moves or fewer" is a theorem, and it is worth
-        understanding how such a thing gets proved — because the method is not clever, it is
-        relentless.
-      </p>
+      <p>{t('l.gods.intro')}</p>
 
-      <h3>The two halves of the claim</h3>
+      <h3>{t('l.gods.twoHalves')}</h3>
       <ul>
-        <li>
-          <strong>Twenty is enough.</strong> This is an upper bound and it is hard: you must show
-          that <em>no</em> position needs 21, which means accounting for all 43 quintillion of them.
-        </li>
-        <li>
-          <strong>Twenty is needed.</strong> This is a lower bound and it is comparatively easy:
-          exhibit one position that provably cannot be done in 19. The superflip was known to be
-          such a position in 1995, fifteen years before the upper bound came down to meet it.
-        </li>
+        <li>{t('l.gods.upper')}</li>
+        <li>{t('l.gods.lower')}</li>
       </ul>
 
-      <h3>How the upper bound was closed</h3>
-      <p>
-        Rokicki, Kociemba, Davidson and Dethridge partitioned the cube into 2,217,093,120 cosets of
-        the subgroup <code>⟨U, D, L², R², F², B²⟩</code>. Symmetry collapses those to 55,882,296 that
-        genuinely need checking. For each one, a program showed that every position it contains can
-        be solved in 20 moves — not by finding the optimal solution for each, which would have been
-        impossible, but by finding <em>some</em> solution of length ≤ 20 for all of them at once.
-        The whole computation took about 35 CPU-years on hardware donated by Google, and finished
-        in July 2010.
-      </p>
+      <h3>{t('l.gods.closed')}</h3>
+      <p><T k="l.gods.closedBody" /></p>
 
-      <Callout title="The shortcut that made it possible">
-        <p style={{ marginBottom: 0 }}>
-          Solving 43 quintillion positions individually is impossible. Solving two billion
-          <em> sets</em> of positions, where each set shares most of its structure, is merely very
-          hard. That reduction — from positions to cosets — is the entire proof strategy.
-        </p>
+      <Callout title={t('l.gods.shortcut')}>
+        <p style={{ marginBottom: 0 }}>{t('l.gods.shortcutBody')}</p>
       </Callout>
 
       {pocket ? (
-        <Card title="The same proof, at a size you can watch" className="stack">
+        <Card title={t('l.gods.sameProof')} className="stack">
           <p>
-            The 2×2×2 has {pocket.states.toLocaleString('en-US')} positions — about{' '}
-            {formatApprox(TOTAL_STATES / pocket.states)} times fewer. That is few enough to simply
-            visit them all, which this page did in <strong>{pocket.millis} ms</strong>. The result
-            is not an estimate or a bound: it is the complete answer.
+            {t('l.gods.sameProofBody', {
+              states: pocket.states.toLocaleString('en-US'),
+              ratio: formatApprox(TOTAL_STATES / pocket.states),
+              ms: pocket.millis,
+            })}
           </p>
           <div className="row" style={{ gap: 20 }}>
-            <Stat value={pocket.godsNumber} label="God's number for the 2×2×2" sub="computed here, not quoted" />
-            <Stat value={pocket.histogram[pocket.godsNumber].toLocaleString('en-US')} label="positions that need all of them" />
-            <Stat value={formatApprox(pocket.states)} label="positions checked" />
+            <Stat
+              value={pocket.godsNumber}
+              label={t('l.gods.pocketGod')}
+              sub={t('l.gods.computedHere')}
+            />
+            <Stat
+              value={pocket.histogram[pocket.godsNumber].toLocaleString('en-US')}
+              label={t('l.gods.needAll')}
+            />
+            <Stat value={formatApprox(pocket.states)} label={t('l.gods.checked')} />
           </div>
-          <p style={{ marginBottom: 0 }} className="card-note">
-            Exactly the same method, exactly the same certainty. The only difference between this
-            and the 2010 proof is thirteen orders of magnitude — and thirteen orders of magnitude is
-            the difference between a moment and a datacentre.
-          </p>
-          <a className="btn" href="#/graph">Open the 2×2×2 atlas</a>
+          <p style={{ marginBottom: 0 }} className="card-note">{t('l.gods.sameCertainty')}</p>
+          <a className="btn" href="#/graph">{t('l.gods.openAtlas')}</a>
         </Card>
       ) : null}
 
       <Quiz
         id="gods-q1"
-        question={<>A solver returns an 18-move solution for a scrambled cube. What can you conclude?</>}
-        options={[
-          'The position is exactly 18 moves from solved',
-          'The position is at most 18 moves from solved',
-          'The position is at least 18 moves from solved',
-          'Nothing, without knowing which solver it was',
-        ]}
+        question={t('l.gods.q1')}
+        options={[t('l.gods.q1a'), t('l.gods.q1b'), t('l.gods.q1c'), t('l.gods.q1d')]}
         correct={1}
-        explain={
-          <p style={{ marginBottom: 0 }}>
-            Any solution is an upper bound on the distance. To claim the distance <em>is</em> 18 you
-            need the other half: a proof that 17 is impossible. That is what the optimal solver
-            provides and the two-phase solver does not — and why this app labels every answer with
-            what it can actually promise.
-          </p>
-        }
+        explain={<p style={{ marginBottom: 0 }}>{t('l.gods.q1why')}</p>}
       />
     </LessonBody>
   );
@@ -350,85 +329,52 @@ export function LessonGodsNumber(): JSX.Element {
 /* ================================================= 11. humans vs machines --- */
 
 export function LessonHumanVsMachine(): JSX.Element {
+  const { t } = useI18n();
   const max = Math.max(...METHODS.map((m) => m.typicalMoves));
   return (
     <LessonBody>
-      <p>
-        It is tempting to think that a human method is just a worse version of what a computer
-        does. It is not. They are solving different problems under different constraints, and the
-        gap between 55 moves and 18 is almost entirely explained by three things a human cannot do.
-      </p>
+      <p>{t('l.human.intro')}</p>
 
-      <h3>What a computer has that you do not</h3>
+      <h3>{t('l.human.whatComputer')}</h3>
       <ul>
-        <li>
-          <strong>Memory measured in millions.</strong> The solver consults tables with millions of
-          exact answers. You can hold perhaps a hundred algorithms, and recalling one takes a
-          second.
-        </li>
-        <li>
-          <strong>Willingness to go backwards.</strong> An optimal solution routinely destroys
-          finished work because it leads somewhere better. Humans protect what they have solved,
-          because they cannot see far enough ahead to know that breaking it pays.
-        </li>
-        <li>
-          <strong>Search instead of recognition.</strong> A human method is a decision tree over
-          memorised cases. A solver explores millions of positions per second. These are not the
-          same activity.
-        </li>
+        <li>{t('l.human.b1')}</li>
+        <li>{t('l.human.b2')}</li>
+        <li>{t('l.human.b3')}</li>
       </ul>
 
-      <Card title="The same scramble, different worlds">
+      <Card title={t('l.human.sameScramble')}>
         <div className="stack" style={{ gap: 10 }}>
           {METHODS.map((m) => (
-            <div key={m.name}>
+            <div key={m.id}>
               <div className="row" style={{ justifyContent: 'space-between' }}>
-                <strong style={{ fontSize: '0.92rem' }}>{m.name}</strong>
-                <span className="card-note">{m.typicalMoves} moves</span>
+                <strong style={{ fontSize: '0.92rem' }}>{t(`method.${m.id}.name`)}</strong>
+                <span className="card-note">{t('training.attemptMoves', { n: m.typicalMoves })}</span>
               </div>
               <div className="meter"><i style={{ width: `${(m.typicalMoves / max) * 100}%` }} /></div>
-              <div className="card-note">{m.whyNotOptimal}</div>
+              <div className="card-note">{t(`method.${m.id}.why`)}</div>
             </div>
           ))}
         </div>
       </Card>
 
-      <h3>So what is actually achievable?</h3>
-      <p>
-        Being honest about this matters more than being encouraging. Nobody finds 20-move solutions
-        at the table — not world champions, not the people who wrote the solvers. What is genuinely
-        within reach, with real practice:
-      </p>
+      <h3>{t('l.human.achievable')}</h3>
+      <p>{t('l.human.achievableBody')}</p>
       <ul>
-        <li><strong>Executing</strong> a computed 20-move solution on a physical cube. Entirely achievable today, from <a href="#/scan">your cube</a>.</li>
-        <li><strong>Verifying</strong> that a solution is optimal, for positions close enough to solved. The optimal solver here does that.</li>
-        <li><strong>Reading</strong> a cube the way a solver does — counting misoriented edges, spotting when you are in G1.</li>
-        <li><strong>Solving by hand in the forties</strong> using block building or the subgroup ladder, rather than the hundreds a beginner method takes.</li>
+        <li>{t('l.human.a1')} <a href="#/scan">{t('nav.scan')}</a></li>
+        <li>{t('l.human.a2')}</li>
+        <li>{t('l.human.a3')}</li>
+        <li>{t('l.human.a4')}</li>
       </ul>
       <p>
-        That last one is the real prize, and it is the only item on the list that takes months
-        rather than minutes. The <a href="#/training">training page</a> measures exactly how far
-        from optimal your own solutions are, which is the only honest way to make progress on it.
+        {t('l.human.lastOne')} <a href="#/training">{t('nav.training')}</a>
       </p>
 
       <Quiz
         id="human-q1"
-        question={<>Why do human methods spend so many moves on the last layer?</>}
-        options={[
-          'The last layer is mathematically the hardest part',
-          'Because every last-layer algorithm must leave the first two layers untouched, which costs a great deal of setting up and undoing',
-          'Because people learn them badly',
-          'Because the pieces are further from home',
-        ]}
+        question={t('l.human.q1')}
+        options={[t('l.human.q1a'), t('l.human.q1b'), t('l.human.q1c'), t('l.human.q1d')]}
         correct={1}
-        explain={
-          <p style={{ marginBottom: 0 }}>
-            A last-layer algorithm has to be a <em>commutator-like</em> sequence that returns
-            everything below it to where it was. That constraint is expensive — typically 8 to 15
-            moves to achieve what an unconstrained search would do in 5. An optimal solver has no
-            such constraint, and it shows.
-          </p>
-        }
+        explain={<p style={{ marginBottom: 0 }}>{t('l.human.q1why')}</p>}
       />
     </LessonBody>
   );

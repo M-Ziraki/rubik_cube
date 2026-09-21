@@ -11,32 +11,28 @@ import {
 import type { GraphPayload, PocketStats } from '../solver/protocol';
 import { MOVE_NAMES, N_MOVES } from '../cube/defs';
 import { HTM_DISTANCE_DISTRIBUTION, TOTAL_STATES } from '../data/facts';
+import { player } from '../state/player';
+import { useI18n } from '../i18n/I18nProvider';
 
 type View = 'near' | 'pocket' | 'growth';
 
 export function GraphPage(): JSX.Element {
+  const { t } = useI18n();
   const [view, setView] = useState<View>('near');
   return (
     <>
       <header className="page-head">
-        <div className="eyebrow">Laboratory</div>
-        <h1>The state space</h1>
-        <p className="lede">
-          A different object from the sticker map on the <a href="#/">Atlas</a>. There, each dot is
-          one of 54 stickers and the whole picture is a single position. Here, each dot is an{' '}
-          <em>entire position</em> — all 54 stickers at once — and the edges are face turns
-          between them. That graph has 43,252,003,274,489,856,000 vertices, so it can only be seen
-          three ways: a small neighbourhood in full detail, a smaller puzzle in <em>complete</em>{' '}
-          detail, and the shape of the whole thing in summary.
-        </p>
+        <div className="eyebrow">{t('graph.eyebrow')}</div>
+        <h1>{t('graph.title')}</h1>
+        <p className="lede">{t('graph.lede')}</p>
         <div style={{ marginTop: 12 }}>
           <Segmented
             value={view}
             onChange={setView}
             options={[
-              { value: 'near', label: 'Neighbourhood' },
-              { value: 'pocket', label: '2×2×2 atlas' },
-              { value: 'growth', label: 'Growth & shape' },
+              { value: 'near', label: t('graph.tab.near') },
+              { value: 'pocket', label: t('graph.tab.pocket') },
+              { value: 'growth', label: t('graph.tab.growth') },
             ]}
           />
         </div>
@@ -49,8 +45,13 @@ export function GraphPage(): JSX.Element {
 /* ---------------------------------------------------------- neighbourhood --- */
 
 function NeighbourhoodView(): JSX.Element {
+  const { t } = useI18n();
   const state = useAppState((s) => s);
-  const facelets = useMemo(() => currentFacelets(state), [state.origin, state.cursor, state.moves]);
+  const facelets = useMemo(
+    () => currentFacelets(state),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [state.origin, state.cursor, state.moves],
+  );
   const [graph, setGraph] = useState<GraphPayload | null>(null);
   const [depth, setDepth] = useState(2);
   const [selected, setSelected] = useState<number | null>(null);
@@ -59,11 +60,12 @@ function NeighbourhoodView(): JSX.Element {
 
   useEffect(() => {
     if (!state.tablesReady) return;
-    const t = ++token.current;
+    const id = ++token.current;
     setBusy(true);
     requestNeighbourhood(facelets, depth, depth >= 3 ? 4000 : 1000)
-      .then((g) => { if (t === token.current) { setGraph(g); setSelected(null); } })
-      .finally(() => { if (t === token.current) setBusy(false); });
+      .then((g) => { if (id === token.current) { setGraph(g); setSelected(null); } })
+      .catch(() => undefined)
+      .finally(() => { if (id === token.current) setBusy(false); });
   }, [facelets, depth, state.tablesReady]);
 
   const pathToSelected = useMemo(() => {
@@ -95,21 +97,29 @@ function NeighbourhoodView(): JSX.Element {
     <div className="split">
       <div className="stack">
         <Card
-          title="Explore from here"
-          note={graph ? `${graph.nodes.length} distinct positions, ${graph.edges.length} moves drawn` : 'building…'}
-          actions={
+          title={t('graph.explore')}
+          note={graph
+            ? t('graph.exploreSub', { nodes: graph.nodes.length, edges: graph.edges.length })
+            : t('common.building')}
+          actions={(
             <div className="row tight">
               <div className="seg">
                 {[1, 2, 3].map((d) => (
                   <button key={d} aria-pressed={depth === d} onClick={() => setDepth(d)}>{d}</button>
                 ))}
               </div>
-              <button className="btn small" onClick={async () => {
-                const r = await requestScramble(12, false);
-                actions.setPosition(r.facelets, r.moves);
-              }}>New position</button>
+              <button
+                className="btn small"
+                onClick={async () => {
+                  player.yieldToUser();
+                  const r = await requestScramble(12, false);
+                  actions.setPosition(r.facelets, r.moves);
+                }}
+              >
+                {t('graph.newPosition')}
+              </button>
             </div>
-          }
+          )}
         >
           {busy && !graph ? <div className="shimmer" style={{ height: 460 }} /> : (
             <GraphCanvas
@@ -118,57 +128,57 @@ function NeighbourhoodView(): JSX.Element {
               path={pathToSelected}
               selected={selected}
               onSelect={(n) => setSelected(n.id)}
-              caption="click to select · drag to pan · scroll to zoom"
+              caption={t('graph.caption')}
             />
           )}
         </Card>
 
-        <Card title="Why the rings do not grow eighteen-fold">
-          <p>
-            Every position has exactly 18 neighbours, so a naive count says the first ring should
-            hold 18 positions, the second 324, the third 5,832. The true counts are{' '}
-            <strong>18</strong>, <strong>243</strong> and <strong>3,240</strong>. Two things shrink
-            them: turning the same face twice in a row is never new, and turning two opposite faces
-            commutes, so <code>U D</code> and <code>D U</code> land in the same place.
-          </p>
+        <Card title={t('graph.whyNot18')}>
+          <p>{t('graph.whyNot18.p1')}</p>
           <p style={{ marginBottom: 0 }}>
-            In the picture above, {duplicates > 0 ? <>{duplicates} of the drawn edges close a loop rather than opening new ground.</> : 'every drawn edge opens new ground at this depth.'}
-            {' '}That redundancy is what makes the graph interesting — and what makes finding the
-            <em> shortest</em> route hard.
+            {duplicates > 0
+              ? t('graph.whyNot18.p2', { n: duplicates })
+              : t('graph.whyNot18.p2none')}
           </p>
         </Card>
       </div>
 
       <div className="stack">
-        <Card title="Selected position" note={selected === null ? 'nothing selected' : `${movesToSelected.length} move${movesToSelected.length === 1 ? '' : 's'} away`}>
+        <Card
+          title={t('graph.selected')}
+          note={selected === null
+            ? t('graph.selectedNone')
+            : t('graph.movesAway', { n: movesToSelected.length })}
+        >
           {selected !== null && graph ? (
             <>
               <Cube3D facelets={graph.nodes[selected].facelets} interactive={false} />
               <div style={{ marginTop: 10 }}>
-                <div className="card-note" style={{ marginBottom: 4 }}>Route from the centre</div>
+                <div className="card-note" style={{ marginBottom: 4 }}>{t('graph.routeFromCentre')}</div>
                 <Sequence moves={movesToSelected} />
               </div>
               <div className="row" style={{ marginTop: 10 }}>
-                <button className="btn" onClick={() => actions.applyMoves(movesToSelected)}>Travel here</button>
+                <button
+                  className="btn"
+                  onClick={() => { player.yieldToUser(); actions.applyMoves(movesToSelected); }}
+                >
+                  {t('graph.travelHere')}
+                </button>
               </div>
             </>
           ) : (
-            <p className="card-note" style={{ margin: 0 }}>
-              Click any dot in the map to inspect that position and the turns that reach it.
-            </p>
+            <p className="card-note" style={{ margin: 0 }}>{t('graph.selectedHelp')}</p>
           )}
         </Card>
 
-        <Card title="Your cube">
-          <Cube3D />
+        <Card title={t('graph.yourCube')}>
+          <Cube3D onUserMove={(m) => { player.yieldToUser(); actions.applyMove(m); }} />
         </Card>
 
-        <Callout title="Reading the picture">
+        <Callout title={t('graph.reading')}>
           <p style={{ marginBottom: 0 }}>
-            Straight spokes are the shortest route found to each position — the breadth-first tree.
-            The faint curved strands are the other moves: edges that join two positions already on
-            the map. Those are the cycles, and every cycle is an identity of the cube group, like
-            <code> U D U&rsquo; D&rsquo; </code>doing nothing at all.
+            {t('graph.reading.body')}{' '}
+            <bdi className="mono-ltr">U D U&rsquo; D&rsquo;</bdi>
           </p>
         </Callout>
       </div>
@@ -179,6 +189,7 @@ function NeighbourhoodView(): JSX.Element {
 /* ------------------------------------------------------------- pocket --- */
 
 function PocketView(): JSX.Element {
+  const { t } = useI18n();
   const [stats, setStats] = useState<PocketStats | null>(null);
   const [building, setBuilding] = useState(false);
   const [distance, setDistance] = useState(0);
@@ -188,11 +199,14 @@ function PocketView(): JSX.Element {
   const [target, setTarget] = useState(7);
 
   useEffect(() => {
+    let live = true;
     setBuilding(true);
     preparePocket()
       .then(() => requestPocketStats())
-      .then(setStats)
-      .finally(() => setBuilding(false));
+      .then((s) => { if (live) setStats(s); })
+      .catch(() => undefined)
+      .finally(() => { if (live) setBuilding(false); });
+    return () => { live = false; };
   }, []);
 
   const shells = useMemo(
@@ -222,31 +236,32 @@ function PocketView(): JSX.Element {
     <div className="split">
       <div className="stack">
         <Card
-          title="The whole graph of the 2×2×2"
-          note={stats ? `${stats.states.toLocaleString('en-US')} positions, every one of them measured in ${stats.millis} ms in this browser` : 'enumerating…'}
+          title={t('graph.pocket.title')}
+          note={stats
+            ? t('graph.pocket.sub', { n: stats.states.toLocaleString('en-US'), ms: stats.millis })
+            : t('common.building')}
         >
           {building || !stats ? <div className="shimmer" style={{ height: 420 }} /> : (
             <ShellCanvas
               spec={shells}
               height={420}
               highlight={distance || null}
-              subtitle="Every ring is exact. No estimates, no sampling of the counts — this is the complete distance profile of the puzzle."
+              subtitle={t('graph.pocket.subtitle')}
             />
           )}
         </Card>
 
         {stats ? (
-          <Callout title={`God's number for the 2×2×2 is ${stats.godsNumber}`}>
+          <Callout title={t('graph.pocket.godTitle', { n: stats.godsNumber })}>
             <p>
-              Not quoted from a paper — computed here, just now, by visiting all{' '}
-              {stats.states.toLocaleString('en-US')} positions and recording how far each one is
-              from solved. The furthest are {stats.godsNumber} moves away, and there are exactly{' '}
-              {stats.histogram[stats.godsNumber].toLocaleString('en-US')} of them.
+              {t('graph.pocket.godBody', {
+                states: stats.states.toLocaleString('en-US'),
+                n: stats.godsNumber,
+                count: stats.histogram[stats.godsNumber].toLocaleString('en-US'),
+              })}
             </p>
             <p style={{ marginBottom: 0 }}>
-              This is the same method that settled the 3×3×3 at 20 — exhaustive search. The only
-              difference is scale: {formatApprox(TOTAL_STATES / stats.states)} times more positions,
-              which is why that proof needed a datacentre and this one needed a moment.
+              {t('graph.pocket.godBody2', { ratio: formatApprox(TOTAL_STATES / stats.states) })}
             </p>
           </Callout>
         ) : null}
@@ -254,22 +269,30 @@ function PocketView(): JSX.Element {
 
       <div className="stack">
         <Card
-          title="Walk an optimal path"
-          note={solution.length ? `${distance} moves from solved` : 'pick a distance'}
+          title={t('graph.pocket.walk')}
+          note={solution.length
+            ? t('graph.pocket.fromSolved', { n: distance })
+            : t('graph.pocket.pick')}
         >
           <div className="row" style={{ marginBottom: 12 }}>
             <label className="field" style={{ flex: 1 }}>
-              Start {target} moves from solved
+              {t('graph.pocket.startAt', { n: target })}
               <input
                 type="range" min={1} max={stats?.godsNumber ?? 11} value={target}
                 onChange={(e) => setTarget(Number(e.target.value))}
               />
             </label>
-            <button className="btn primary" onClick={() => scrambleTo(target)} disabled={!stats}>Scramble</button>
+            <button className="btn primary" onClick={() => scrambleTo(target)} disabled={!stats}>
+              {t('common.scramble')}
+            </button>
           </div>
 
           <div className="row" style={{ justifyContent: 'center', marginBottom: 12 }}>
-            <PocketNet stickers={current} size={26} label={`${Math.max(0, distance - step)} moves from solved`} />
+            <PocketNet
+              stickers={current}
+              size={26}
+              label={t('graph.pocket.fromSolved', { n: Math.max(0, distance - step) })}
+            />
           </div>
 
           {solution.length ? (
@@ -292,19 +315,23 @@ function PocketView(): JSX.Element {
                 ))}
               </div>
               <p className="card-note" style={{ marginTop: 10, marginBottom: 0 }}>
-                This route is <strong>provably shortest</strong> — it was read straight out of the
-                complete distance table, by stepping to any neighbour one move closer to home. No
-                search, no heuristics.
+                {t('graph.pocket.optimalNote')}
               </p>
             </>
           ) : null}
         </Card>
 
         {stats ? (
-          <Card title="Exact distance profile">
+          <Card title={t('graph.pocket.profile')}>
             <div className="scroll-x">
               <table className="data">
-                <thead><tr><th className="num">moves</th><th className="num">positions</th><th>share</th></tr></thead>
+                <thead>
+                  <tr>
+                    <th className="num">{t('solution.moves')}</th>
+                    <th className="num">{t('common.positions')}</th>
+                    <th>{t('graph.pocket.share')}</th>
+                  </tr>
+                </thead>
                 <tbody>
                   {stats.histogram.map((count, d) => (
                     <tr key={d} style={d === distance ? { background: 'var(--accent-soft)' } : undefined}>
@@ -328,13 +355,14 @@ function PocketView(): JSX.Element {
 /* ------------------------------------------------------------- growth --- */
 
 function GrowthView(): JSX.Element {
+  const { t } = useI18n();
   const rows = HTM_DISTANCE_DISTRIBUTION;
   const [focus, setFocus] = useState<number | null>(null);
   const maxLog = Math.log10(Math.max(...rows.map((r) => r.count)));
 
   return (
     <div className="stack">
-      <Card title="How fast the graph grows" note="each bar is a distance shell, on a logarithmic scale">
+      <Card title={t('graph.growth.title')} note={t('graph.growth.sub')}>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 200, marginBottom: 10 }}>
           {rows.map((r) => (
             <div
@@ -344,7 +372,7 @@ function GrowthView(): JSX.Element {
               style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center', gap: 4 }}
             >
               <div
-                title={`${r.count.toLocaleString('en-US')} positions`}
+                title={`${r.count.toLocaleString('en-US')} ${t('common.positions')}`}
                 style={{
                   width: '100%',
                   height: `${Math.max(2, (Math.log10(Math.max(1, r.count)) / maxLog) * 170)}px`,
@@ -358,43 +386,40 @@ function GrowthView(): JSX.Element {
           ))}
         </div>
         <div className="row">
-          <span className="tag ok">exact counts</span>
-          <span className="tag warn">published estimates</span>
+          <span className="tag ok">{t('graph.growth.exact')}</span>
+          <span className="tag warn">{t('graph.growth.estimates')}</span>
           {focus !== null ? (
             <span className="card-note">
-              distance {focus}: {rows[focus].count.toLocaleString('en-US')} positions
-              ({((rows[focus].count / TOTAL_STATES) * 100).toPrecision(3)}% of the cube)
+              {t('graph.growth.focus', {
+                d: focus,
+                n: rows[focus].count.toLocaleString('en-US'),
+                pct: ((rows[focus].count / TOTAL_STATES) * 100).toPrecision(3),
+              })}
             </span>
           ) : null}
         </div>
       </Card>
 
       <div className="grid two">
-        <Card title="Branching factor">
+        <Card title={t('graph.branching')}>
           <div className="row" style={{ gap: 20 }}>
-            <Stat value={N_MOVES} label="moves available" sub="6 faces × 3 turns" />
-            <Stat value="13.35" label="effective branching" sub="after discarding repeats and commuting pairs" />
+            <Stat
+              value={N_MOVES}
+              label={t('graph.branching.available')}
+              sub={t('graph.branching.availableSub')}
+            />
+            <Stat
+              value="13.35"
+              label={t('graph.branching.effective')}
+              sub={t('graph.branching.effectiveSub')}
+            />
           </div>
-          <p style={{ marginTop: 12, marginBottom: 0 }}>
-            At 13.35 branches per move, a depth-20 search would visit about 10²² positions — five
-            hundred times more than there are positions in the first place. Any honest optimal
-            solver has to beat that number down with lower bounds, and even then it only wins for
-            positions fairly close to home.
-          </p>
+          <p style={{ marginTop: 12, marginBottom: 0 }}>{t('graph.branching.body')}</p>
         </Card>
 
-        <Card title="Why 20 and not 21">
-          <p>
-            The upper bound came down over decades: 52 moves in 1981, 29 by 1995, 22 by 2008, and
-            20 in 2010. The lower bound was much easier — the superflip was known to need 20 moves
-            long before anyone could show that nothing needs 21.
-          </p>
-          <p style={{ marginBottom: 0 }}>
-            Rokicki, Kociemba, Davidson and Dethridge closed the gap by partitioning the cube into
-            2,217,093,120 cosets of a large subgroup, exploiting symmetry to cut that to
-            55,882,296 that actually needed work, and solving each one to a bound of 20 on donated
-            Google hardware — around 35 CPU-years in total.
-          </p>
+        <Card title={t('graph.why20')}>
+          <p>{t('graph.why20.p1')}</p>
+          <p style={{ marginBottom: 0 }}>{t('graph.why20.p2')}</p>
         </Card>
       </div>
     </div>

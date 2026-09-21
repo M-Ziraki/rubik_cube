@@ -6,18 +6,21 @@ import { CubieCube } from '../cube/cubie';
 import { faceletString, toFacelets } from '../cube/facelet';
 import { formatSequence, parseSequence } from '../cube/notation';
 import { actions, useAppState } from '../state/store';
+import { player } from '../state/player';
+import { useI18n } from '../i18n/I18nProvider';
 
 /* ---------------------------------------------------------------- quiz --- */
 
 export function Quiz({ id, question, options, correct, explain }: {
-  id: string; question: ReactNode; options: string[]; correct: number; explain: ReactNode;
+  id: string; question: ReactNode; options: ReactNode[]; correct: number; explain: ReactNode;
 }): JSX.Element {
+  const { t } = useI18n();
   const done = useAppState((s) => s.progress.exercisesDone.includes(id));
   const [picked, setPicked] = useState<number | null>(null);
   const revealed = picked !== null;
 
   return (
-    <Card title="Check yourself" className="stack">
+    <Card title={t('course.checkYourself')} className="stack">
       <div style={{ marginBottom: 10 }}>{question}</div>
       <div className="stack" style={{ gap: 6 }}>
         {options.map((o, i) => {
@@ -42,11 +45,14 @@ export function Quiz({ id, question, options, correct, explain }: {
         })}
       </div>
       {revealed ? (
-        <Callout kind={picked === correct ? 'info' : 'warn'} title={picked === correct ? 'Correct' : 'Not quite'}>
+        <Callout
+          kind={picked === correct ? 'info' : 'warn'}
+          title={picked === correct ? t('course.correct') : t('course.notQuite')}
+        >
           {explain}
         </Callout>
       ) : null}
-      {done && !revealed ? <span className="tag ok">already answered</span> : null}
+      {done && !revealed ? <span className="tag ok">{t('course.alreadyAnswered')}</span> : null}
     </Card>
   );
 }
@@ -54,6 +60,7 @@ export function Quiz({ id, question, options, correct, explain }: {
 export function NumberQuiz({ id, question, answer, unit, explain }: {
   id: string; question: ReactNode; answer: number | bigint; unit?: string; explain: ReactNode;
 }): JSX.Element {
+  const { t } = useI18n();
   const [value, setValue] = useState('');
   const [checked, setChecked] = useState(false);
   // Compare as digit strings: several of these answers are far past the
@@ -61,22 +68,33 @@ export function NumberQuiz({ id, question, answer, unit, explain }: {
   const ok = value.replace(/[\s,_]/g, '') === answer.toString();
 
   return (
-    <Card title="Check yourself" className="stack">
+    <Card title={t('course.checkYourself')} className="stack">
       <div style={{ marginBottom: 10 }}>{question}</div>
       <div className="row">
         <input
           type="text"
+          className="mono-ltr"
           value={value}
           onChange={(e) => { setValue(e.target.value); setChecked(false); }}
           onKeyDown={(e) => { if (e.key === 'Enter') { setChecked(true); if (ok) actions.markExercise(id); } }}
-          placeholder="your answer"
+          placeholder={t('course.yourAnswer')}
           style={{ maxWidth: 220 }}
         />
         {unit ? <span className="card-note">{unit}</span> : null}
-        <button className="btn" onClick={() => { setChecked(true); if (ok) actions.markExercise(id); }}>Check</button>
+        <button
+          className="btn"
+          onClick={() => { setChecked(true); if (ok) actions.markExercise(id); }}
+        >
+          {t('course.check')}
+        </button>
       </div>
       {checked ? (
-        <Callout kind={ok ? 'info' : 'warn'} title={ok ? 'Correct' : `Not quite — the answer is ${answer.toLocaleString('en-US')}`}>
+        <Callout
+          kind={ok ? 'info' : 'warn'}
+          title={ok
+            ? t('course.correct')
+            : t('course.notQuiteAnswer', { answer: answer.toLocaleString('en-US') })}
+        >
           {explain}
         </Callout>
       ) : null}
@@ -93,7 +111,7 @@ export interface CubeTaskProps {
   /** The position to start from, as a scramble applied to a solved cube. */
   setup: string;
   /** Returns null when the goal is met, or a short reason why it is not. */
-  check: (cube: CubieCube, movesUsed: number[]) => string | null;
+  check: (cube: CubieCube, movesUsed: number[]) => ReactNode;
   /** Optional cap; exceeding it is allowed but reported. */
   parMoves?: number;
   hint?: ReactNode;
@@ -106,6 +124,7 @@ export interface CubeTaskProps {
  * on somewhere else.
  */
 export function CubeTask({ id, title, brief, setup, check, parMoves, hint, solution }: CubeTaskProps): JSX.Element {
+  const { t } = useI18n();
   const setupMoves = useMemo(() => parseSequence(setup).moves, [setup]);
   const [moves, setMoves] = useState<number[]>([]);
   const [showHint, setShowHint] = useState(false);
@@ -123,7 +142,11 @@ export function CubeTask({ id, title, brief, setup, check, parMoves, hint, solut
   useEffect(() => { if (solvedTask && moves.length > 0) actions.markExercise(id); }, [solvedTask, id, moves.length]);
 
   return (
-    <Card title={title} note={parMoves ? `par: ${parMoves} moves` : undefined} className="stack">
+    <Card
+      title={title}
+      note={parMoves ? t('course.par', { n: parMoves }) : undefined}
+      className="stack"
+    >
       <div>{brief}</div>
       <div className="split" style={{ gap: 14 }}>
         <div>
@@ -132,28 +155,56 @@ export function CubeTask({ id, title, brief, setup, check, parMoves, hint, solut
         <div className="stack">
           <MovePad onMove={(m) => setMoves((x) => [...x, m])} keyboard={false} />
           <div className="row tight">
-            <button className="btn small" onClick={() => setMoves((x) => x.slice(0, -1))} disabled={!moves.length}>Undo</button>
-            <button className="btn small ghost" onClick={() => { setMoves([]); setShowSolution(false); }}>Reset</button>
-            {hint ? <button className="btn small ghost" onClick={() => setShowHint(true)} disabled={showHint}>Hint</button> : null}
-            {solution ? <button className="btn small ghost" onClick={() => setShowSolution(true)} disabled={showSolution}>Show answer</button> : null}
+            <button
+              className="btn small"
+              onClick={() => setMoves((x) => x.slice(0, -1))}
+              disabled={!moves.length}
+            >
+              {t('common.undo')}
+            </button>
+            <button
+              className="btn small ghost"
+              onClick={() => { setMoves([]); setShowSolution(false); }}
+            >
+              {t('common.reset')}
+            </button>
+            {hint ? (
+              <button className="btn small ghost" onClick={() => setShowHint(true)} disabled={showHint}>
+                {t('common.hint')}
+              </button>
+            ) : null}
+            {solution ? (
+              <button
+                className="btn small ghost"
+                onClick={() => setShowSolution(true)}
+                disabled={showSolution}
+              >
+                {t('common.showAnswer')}
+              </button>
+            ) : null}
           </div>
           <div className="card-note">
-            {moves.length} move{moves.length === 1 ? '' : 's'}: <code>{formatSequence(moves) || '—'}</code>
+            {t('course.movesMade', { n: moves.length, seq: formatSequence(moves) || '—' })}
           </div>
           {solvedTask ? (
-            <Callout title={parMoves && moves.length <= parMoves ? 'Done, and within par' : 'Done'}>
+            <Callout title={parMoves && moves.length <= parMoves
+              ? t('course.doneWithinPar')
+              : t('course.done')}
+            >
               <p style={{ margin: 0 }}>
                 {parMoves && moves.length > parMoves
-                  ? `That works, in ${moves.length} moves. Par is ${parMoves} — try again and see if you can find the shorter route.`
-                  : 'Exactly right.'}
+                  ? t('course.doneOverPar', { n: moves.length, par: parMoves })
+                  : t('course.doneExact')}
               </p>
             </Callout>
           ) : moves.length > 0 ? (
             <div className="card-note">{failure}</div>
           ) : null}
-          {showHint && hint ? <Callout kind="warn" title="Hint">{hint}</Callout> : null}
+          {showHint && hint ? <Callout kind="warn" title={t('common.hint')}>{hint}</Callout> : null}
           {showSolution && solution ? (
-            <Callout title="One answer"><p style={{ margin: 0 }}><code>{solution}</code></p></Callout>
+            <Callout title={t('course.oneAnswer')}>
+              <p style={{ margin: 0 }}><bdi className="mono-ltr">{solution}</bdi></p>
+            </Callout>
           ) : null}
         </div>
       </div>
@@ -168,16 +219,17 @@ export function LessonBody({ children }: { children: ReactNode }): JSX.Element {
 }
 
 export function TryOnTheCube({ sequence, label }: { sequence: string; label?: string }): JSX.Element {
+  const { t } = useI18n();
   const moves = useMemo(() => parseSequence(sequence).moves, [sequence]);
   return (
     <span className="row tight" style={{ display: 'inline-flex', verticalAlign: 'middle' }}>
-      <code>{sequence}</code>
+      <bdi className="mono-ltr">{sequence}</bdi>
       <button
         className="btn small ghost"
-        onClick={() => actions.applyMoves(moves)}
-        title="apply this to the cube in the Cube lab"
+        onClick={() => { player.yieldToUser(); actions.applyMoves(moves); }}
+        title={t('lab.turnTheCube')}
       >
-        {label ?? 'try it'}
+        {label ?? t('course.tryIt')}
       </button>
     </span>
   );

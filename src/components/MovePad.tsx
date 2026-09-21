@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { FACE_COLORS, FACE_NAMES, MOVE_NAMES } from '../cube/defs';
 import { describeMove } from '../cube/notation';
+import { useI18n } from '../i18n/I18nProvider';
 
 const KEY_MAP: Record<string, number> = {
   u: 0, i: 2, j: 1,      // U  U'  U2
@@ -14,6 +15,7 @@ const KEY_MAP: Record<string, number> = {
 export function MovePad({ onMove, disabled = false, keyboard = true }: {
   onMove: (move: number) => void; disabled?: boolean; keyboard?: boolean;
 }): JSX.Element {
+  const { t } = useI18n();
   useEffect(() => {
     if (!keyboard || disabled) return undefined;
     const handler = (e: KeyboardEvent): void => {
@@ -31,7 +33,7 @@ export function MovePad({ onMove, disabled = false, keyboard = true }: {
 
   return (
     <div style={{ display: 'grid', gap: 8 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 6 }}>
+      <div className="move-pad">
         {[0, 1, 2, 3, 4, 5].map((face) => (
           <div key={face} style={{ display: 'grid', gap: 4 }}>
             <div style={{
@@ -43,10 +45,10 @@ export function MovePad({ onMove, disabled = false, keyboard = true }: {
                 <button
                   key={move}
                   type="button"
-                  className="move-chip"
+                  className="move-chip mono-ltr"
                   disabled={disabled}
                   onClick={() => onMove(move)}
-                  title={describeMove(move)}
+                  title={describeMove(move, t)}
                   style={{ width: '100%' }}
                 >
                   {MOVE_NAMES[move]}
@@ -58,9 +60,8 @@ export function MovePad({ onMove, disabled = false, keyboard = true }: {
       </div>
       {keyboard ? (
         <div className="card-note">
-          Keyboard: <kbd>U</kbd>/<kbd>I</kbd>/<kbd>J</kbd> for U U&rsquo; U2, and likewise
-          {' '}<kbd>R E F</kbd>, <kbd>T Y G</kbd>, <kbd>D S C</kbd>, <kbd>L K M</kbd>, <kbd>B N V</kbd>.
-          You can also drag a layer directly on the cube.
+          {t('movepad.keyboard')}{' '}
+          <bdi className="mono-ltr">U I J · R E F · T Y G · D S C · L K M · B N V</bdi>
         </div>
       ) : null}
     </div>

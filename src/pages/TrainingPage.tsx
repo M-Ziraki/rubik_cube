@@ -8,43 +8,40 @@ import { simplifySequence } from '../cube/notation';
 import { LEARNING_PATH } from '../data/methods';
 import { report } from '../cube/analysis';
 import { LESSONS } from '../lessons/registry';
+import { player } from '../state/player';
+import { useI18n } from '../i18n/I18nProvider';
 
+/** Titles, briefs and hints live in the dictionaries under `challenge.<id>.*`. */
 interface Challenge {
   id: string;
   distance: number;
-  title: string;
-  brief: string;
-  hint: string;
 }
 
 const CHALLENGES: Challenge[] = [
-  { id: 'c3', distance: 3, title: 'Three moves out', brief: 'Only three turns separate you from home. Find them without guessing.', hint: 'Work backwards: which single move would leave a two-move position?' },
-  { id: 'c5', distance: 5, title: 'Five moves out', brief: 'Still small enough to search in your head, if you look at pieces rather than stickers.', hint: 'Find a piece that is already home; whichever move keeps it there is usually right.' },
-  { id: 'c7', distance: 7, title: 'Seven moves out', brief: 'Beyond comfortable brute force. Start reasoning about what each move is for.', hint: 'Count misoriented edges. A move that reduces that count is rarely wasted.' },
-  { id: 'c9', distance: 9, title: 'Nine moves out', brief: 'Now you need a plan, not a search. Think in sub-goals.', hint: 'Aim for the middle-slice edges first — that is half of what phase one wants.' },
-  { id: 'c11', distance: 11, title: 'Eleven moves out', brief: 'About the deepest a person can reliably reason about move by move.', hint: 'Try to reach G1: every edge and corner oriented, slice edges in the slice.' },
+  { id: 'c3', distance: 3 },
+  { id: 'c5', distance: 5 },
+  { id: 'c7', distance: 7 },
+  { id: 'c9', distance: 9 },
+  { id: 'c11', distance: 11 },
 ];
 
 export function TrainingPage(): JSX.Element {
+  const { t } = useI18n();
   const [tab, setTab] = useState<'challenge' | 'progress' | 'path'>('challenge');
   return (
     <>
       <header className="page-head">
-        <div className="eyebrow">Practice</div>
-        <h1>Training</h1>
-        <p className="lede">
-          Efficiency is a skill you can measure. Every attempt here is graded against a solution
-          the machine had to work for — and against a proven lower bound, so you know exactly how
-          much room was left.
-        </p>
+        <div className="eyebrow">{t('training.eyebrow')}</div>
+        <h1>{t('training.title')}</h1>
+        <p className="lede">{t('training.lede')}</p>
         <div style={{ marginTop: 12 }}>
           <Segmented
             value={tab}
             onChange={setTab}
             options={[
-              { value: 'challenge', label: 'Challenges' },
-              { value: 'progress', label: 'Progress' },
-              { value: 'path', label: 'Learning path' },
+              { value: 'challenge', label: t('training.tab.challenge') },
+              { value: 'progress', label: t('training.tab.progress') },
+              { value: 'path', label: t('training.tab.path') },
             ]}
           />
         </div>
@@ -55,9 +52,14 @@ export function TrainingPage(): JSX.Element {
 }
 
 function ChallengeRunner(): JSX.Element {
+  const { t } = useI18n();
   const state = useAppState((s) => s);
-  const facelets = useMemo(() => currentFacelets(state), [state.origin, state.cursor, state.moves]);
-  const solved = useMemo(() => isSolved(state), [facelets]);
+  const facelets = useMemo(
+    () => currentFacelets(state),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [state.origin, state.cursor, state.moves],
+  );
+  const solved = useMemo(() => isSolved(state), [facelets]); // eslint-disable-line react-hooks/exhaustive-deps
   const [challenge, setChallenge] = useState<Challenge>(CHALLENGES[1]);
   const [target, setTarget] = useState<{ optimal: number; moves: number[]; proven: boolean } | null>(null);
   const [showHint, setShowHint] = useState(false);
@@ -72,7 +74,8 @@ function ChallengeRunner(): JSX.Element {
   );
 
   const start = async (c: Challenge): Promise<void> => {
-    const t = ++token.current;
+    const id = ++token.current;
+    player.stop();
     setChallenge(c);
     setPreparing(true);
     setTarget(null); setShowHint(false); setShowAnswer(false); setRecorded(null);
@@ -99,11 +102,11 @@ function ChallengeRunner(): JSX.Element {
         const s = await solve(r.facelets, { timeBudgetMs: 4000 });
         facelets = r.facelets; optimal = s.length; moves = s.moves; proven = false;
       }
-      if (t !== token.current) return;
+      if (id !== token.current) return;
       actions.setPosition(facelets, []);
       setTarget({ optimal, moves, proven });
     } finally {
-      if (t === token.current) setPreparing(false);
+      if (id === token.current) setPreparing(false);
     }
   };
 
@@ -114,32 +117,51 @@ function ChallengeRunner(): JSX.Element {
     }
   }, [solved, target, used, recorded]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const stateReport = useMemo(() => report(currentCube(state)), [facelets]);
 
   return (
     <div className="split">
       <div className="stack">
         <Card
-          title={challenge.title}
-          note={target ? `${target.optimal} moves is the true optimum` : preparing ? 'preparing a position at exactly this distance…' : 'press start'}
+          title={t(`challenge.${challenge.id}.title`)}
+          note={target
+            ? t('training.trueOptimum', { n: target.optimal })
+            : preparing ? t('training.preparingNote') : t('training.pressStart')}
         >
-          <Cube3D />
+          <Cube3D onUserMove={(m) => { if (target) { player.stop(); actions.applyMove(m); } }} />
           <div className="row" style={{ marginTop: 12 }}>
-            <button className="btn primary" onClick={() => start(challenge)} disabled={preparing || !state.tablesReady}>
-              {preparing ? 'Preparing…' : 'New position'}
+            <button
+              className="btn primary"
+              onClick={() => start(challenge)}
+              disabled={preparing || !state.tablesReady}
+            >
+              {preparing ? t('training.preparing') : t('training.newPosition')}
             </button>
-            <button className="btn" onClick={() => actions.rewind()} disabled={!target}>Start over</button>
-            <button className="btn ghost" onClick={() => actions.undo()} disabled={state.cursor === 0}>Undo</button>
+            <button
+              className="btn"
+              onClick={() => { player.stop(); actions.rewind(); }}
+              disabled={!target}
+            >
+              {t('training.startOver')}
+            </button>
+            <button
+              className="btn ghost"
+              onClick={() => { player.stop(); actions.undo(); }}
+              disabled={state.cursor === 0}
+            >
+              {t('common.undo')}
+            </button>
           </div>
         </Card>
 
-        <Card title="Turn the cube">
-          <MovePad onMove={(m) => actions.applyMove(m)} disabled={!target} />
+        <Card title={t('lab.turnTheCube')}>
+          <MovePad onMove={(m) => { player.stop(); actions.applyMove(m); }} disabled={!target} />
         </Card>
       </div>
 
       <div className="stack">
-        <Card title="Pick a difficulty">
+        <Card title={t('training.pickDifficulty')}>
           <div className="stack" style={{ gap: 8 }}>
             {CHALLENGES.map((c) => (
               <button
@@ -150,8 +172,8 @@ function ChallengeRunner(): JSX.Element {
                 disabled={preparing}
               >
                 <div>
-                  <strong>{c.title}</strong>
-                  <div className="card-note">{c.brief}</div>
+                  <strong>{t(`challenge.${c.id}.title`)}</strong>
+                  <div className="card-note">{t(`challenge.${c.id}.brief`)}</div>
                 </div>
               </button>
             ))}
@@ -159,40 +181,71 @@ function ChallengeRunner(): JSX.Element {
         </Card>
 
         {target ? (
-          <Card title="Your attempt" note={recorded ? 'recorded' : 'in progress'}>
+          <Card
+            title={t('training.yourAttempt')}
+            note={recorded ? t('training.recorded') : t('training.inProgress')}
+          >
             <div className="row" style={{ gap: 18, marginBottom: 12 }}>
-              <Stat value={used} label="your moves" />
-              <Stat value={target.optimal} label="optimal" sub={target.proven ? 'proven shortest' : 'best found'} />
+              <Stat value={used} label={t('training.yourMoves')} />
+              <Stat
+                value={target.optimal}
+                label={t('training.optimalLabel')}
+                sub={target.proven ? t('training.provenShortest') : t('training.bestFound')}
+              />
               <Stat
                 value={used > 0 ? `+${Math.max(0, used - target.optimal)}` : '—'}
-                label="moves wasted"
+                label={t('training.wasted')}
               />
             </div>
+            {!target.proven ? (
+              <p className="card-note" style={{ marginTop: -6, marginBottom: 12 }}>
+                {t('training.unproven')}
+              </p>
+            ) : null}
             {solved && recorded ? (
-              <Callout kind={recorded.used === recorded.optimal ? 'info' : 'warn'}
-                title={recorded.used === recorded.optimal ? 'Optimal. Nothing was wasted.' : `Solved in ${recorded.used}, ${recorded.used - recorded.optimal} more than necessary.`}>
+              <Callout
+                kind={recorded.used === recorded.optimal ? 'info' : 'warn'}
+                title={recorded.used === recorded.optimal
+                  ? t('training.optimalTitle')
+                  : t('training.overTitle', {
+                    used: recorded.used,
+                    extra: recorded.used - recorded.optimal,
+                  })}
+              >
                 <p style={{ marginBottom: 0 }}>
                   {recorded.used === recorded.optimal
-                    ? 'You found a shortest path through the graph — exactly what the optimal search proves is the minimum.'
-                    : 'Try the same position again from the start. Knowing the target length is itself a strong hint: it tells you how much you can afford to set up.'}
+                    ? t('training.optimalBody')
+                    : t('training.overBody')}
                 </p>
               </Callout>
             ) : (
               <div className="stack" style={{ gap: 8 }}>
                 <div className="row" style={{ gap: 18 }}>
-                  <Stat value={`${stateReport.orientedEdges}/12`} label="edges oriented" />
-                  <Stat value={`${stateReport.orientedCorners}/8`} label="corners oriented" />
-                  <Stat value={`${stateReport.solvedPieces}/20`} label="pieces home" />
+                  <Stat value={`${stateReport.orientedEdges}/12`} label={t('scan.edgesOriented')} />
+                  <Stat value={`${stateReport.orientedCorners}/8`} label={t('scan.cornersOriented')} />
+                  <Stat value={`${stateReport.solvedPieces}/20`} label={t('training.piecesHome')} />
                 </div>
                 <div className="row">
-                  <button className="btn small" onClick={() => setShowHint(true)} disabled={showHint}>Hint</button>
-                  <button className="btn small ghost" onClick={() => setShowAnswer(true)} disabled={showAnswer}>Show the optimal solution</button>
+                  <button className="btn small" onClick={() => setShowHint(true)} disabled={showHint}>
+                    {t('common.hint')}
+                  </button>
+                  <button
+                    className="btn small ghost"
+                    onClick={() => setShowAnswer(true)}
+                    disabled={showAnswer}
+                  >
+                    {t('training.showOptimal')}
+                  </button>
                 </div>
-                {showHint ? <Callout title="Hint"><p style={{ margin: 0 }}>{challenge.hint}</p></Callout> : null}
+                {showHint ? (
+                  <Callout title={t('common.hint')}>
+                    <p style={{ margin: 0 }}>{t(`challenge.${challenge.id}.hint`)}</p>
+                  </Callout>
+                ) : null}
                 {showAnswer ? (
                   <div>
                     <div className="card-note" style={{ marginBottom: 4 }}>
-                      One shortest route (there are usually several):
+                      {t('training.oneShortest')}
                     </div>
                     <Sequence moves={target.moves} />
                   </div>
@@ -200,17 +253,18 @@ function ChallengeRunner(): JSX.Element {
               </div>
             )}
             <div style={{ marginTop: 12 }}>
-              <div className="card-note" style={{ marginBottom: 4 }}>Your moves so far</div>
-              <Sequence moves={state.moves} cursor={state.cursor} onSeek={(i) => actions.seek(i)} empty="none yet" />
+              <div className="card-note" style={{ marginBottom: 4 }}>{t('training.movesSoFar')}</div>
+              <Sequence
+                moves={state.moves}
+                cursor={state.cursor}
+                onSeek={(i) => player.seek(i)}
+                empty={t('training.noneYet')}
+              />
             </div>
           </Card>
         ) : (
-          <Callout title="How this works">
-            <p style={{ marginBottom: 0 }}>
-              Each position is generated and then <em>checked</em> with the optimal solver, so
-              "seven moves out" really means seven — not "scrambled with seven turns, which might
-              only be five moves from home". That check is why starting a challenge takes a moment.
-            </p>
+          <Callout title={t('training.howItWorks')}>
+            <p style={{ marginBottom: 0 }}>{t('training.howItWorksBody')}</p>
           </Callout>
         )}
       </div>
@@ -219,6 +273,7 @@ function ChallengeRunner(): JSX.Element {
 }
 
 function ProgressView(): JSX.Element {
+  const { t } = useI18n();
   const progress = useAppState((s) => s.progress);
   const runs = progress.challengeRuns;
   const recent = runs.slice(-24).reverse();
@@ -227,19 +282,25 @@ function ProgressView(): JSX.Element {
 
   return (
     <div className="grid two">
-      <Card title="Where you are">
+      <Card title={t('training.whereYouAre')}>
         <div className="row" style={{ gap: 20, marginBottom: 14 }}>
-          <Stat value={`${progress.lessonsDone.length}/${LESSONS.length}`} label="lessons done" />
-          <Stat value={runs.length} label="attempts" />
-          <Stat value={perfect} label="optimal solves" />
-          <Stat value={runs.length ? avgWaste.toFixed(1) : '—'} label="avg. moves wasted" />
+          <Stat value={`${progress.lessonsDone.length}/${LESSONS.length}`} label={t('training.lessonsDone')} />
+          <Stat value={runs.length} label={t('training.attempts')} />
+          <Stat value={perfect} label={t('training.optimalSolves')} />
+          <Stat value={runs.length ? avgWaste.toFixed(1) : '—'} label={t('training.avgWasted')} />
         </div>
         {runs.length === 0 ? (
-          <p className="card-note" style={{ margin: 0 }}>Nothing recorded yet. Finish a challenge and it will appear here.</p>
+          <p className="card-note" style={{ margin: 0 }}>{t('training.nothingRecorded')}</p>
         ) : (
           <div className="scroll-x">
             <table className="data">
-              <thead><tr><th className="num">distance</th><th className="num">your best</th><th>gap</th></tr></thead>
+              <thead>
+                <tr>
+                  <th className="num">{t('common.distance')}</th>
+                  <th className="num">{t('training.yourBest')}</th>
+                  <th>{t('training.gap')}</th>
+                </tr>
+              </thead>
               <tbody>
                 {Object.entries(progress.bestByDistance)
                   .sort((a, b) => Number(a[0]) - Number(b[0]))
@@ -249,7 +310,7 @@ function ProgressView(): JSX.Element {
                       <td className="num">{best}</td>
                       <td>
                         {best === Number(d)
-                          ? <span className="tag ok">optimal</span>
+                          ? <span className="tag ok">{t('common.optimal')}</span>
                           : <span className="tag warn">+{best - Number(d)}</span>}
                       </td>
                     </tr>
@@ -260,22 +321,24 @@ function ProgressView(): JSX.Element {
         )}
         <div className="row" style={{ marginTop: 14 }}>
           <button className="btn small ghost" onClick={() => {
-            if (confirm('Erase all recorded lessons and attempts? This cannot be undone.')) actions.resetProgress();
-          }}>Reset everything</button>
+            if (confirm(t('training.resetConfirm'))) actions.resetProgress();
+          }}>{t('training.resetAll')}</button>
         </div>
       </Card>
 
-      <Card title="Recent attempts">
+      <Card title={t('training.recent')}>
         {recent.length === 0 ? (
-          <p className="card-note" style={{ margin: 0 }}>No attempts yet.</p>
+          <p className="card-note" style={{ margin: 0 }}>{t('training.noAttempts')}</p>
         ) : (
           <div className="stack" style={{ gap: 6 }}>
             {recent.map((r, i) => (
               <div key={i} className="row" style={{ justifyContent: 'space-between' }}>
                 <span className="card-note">{new Date(r.at).toLocaleString()}</span>
                 <span>
-                  <strong>{r.used}</strong> moves for a {r.distance}-move position{' '}
-                  {r.used === r.optimal ? <span className="tag ok">optimal</span> : <span className="tag warn">+{r.used - r.optimal}</span>}
+                  {t('training.attemptLine', { used: r.used, distance: r.distance })}{' '}
+                  {r.used === r.optimal
+                    ? <span className="tag ok">{t('common.optimal')}</span>
+                    : <span className="tag warn">+{r.used - r.optimal}</span>}
                 </span>
               </div>
             ))}
@@ -287,22 +350,22 @@ function ProgressView(): JSX.Element {
 }
 
 function PathView(): JSX.Element {
+  const { t } = useI18n();
   return (
     <div className="stack">
-      <Callout title="A realistic route to twenty moves">
-        <p style={{ marginBottom: 0 }}>
-          Nobody finds twenty-move solutions at the table, and anyone who tells you a few
-          algorithms will get you there is selling something. What is genuinely achievable is a
-          deep understanding of why those solutions exist, the ability to verify one, the ability
-          to execute one on a physical cube, and — with real practice — human solves in the
-          forties rather than the hundreds. This is the path.
-        </p>
+      <Callout title={t('training.pathTitle')}>
+        <p style={{ marginBottom: 0 }}>{t('training.pathBody')} {t('training.pathTail')}</p>
       </Callout>
       <div className="grid two">
         {LEARNING_PATH.map((s, i) => (
-          <Card key={s.stage} title={`${i + 1}. ${s.stage}`}>
-            <p style={{ marginBottom: 8 }}><strong>Goal:</strong> {s.goal}</p>
-            <p style={{ marginBottom: 0 }} className="card-note">{s.why}</p>
+          <Card
+            key={s.id}
+            title={t('training.stageN', { n: i + 1, stage: t(`path.${s.id}.stage`) })}
+          >
+            <p style={{ marginBottom: 8 }}>
+              <strong>{t('training.goal')}:</strong> {t(`path.${s.id}.goal`)}
+            </p>
+            <p style={{ marginBottom: 0 }} className="card-note">{t(`path.${s.id}.why`)}</p>
           </Card>
         ))}
       </div>

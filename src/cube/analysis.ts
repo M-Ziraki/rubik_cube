@@ -55,12 +55,26 @@ export function report(c: CubieCube): StateReport {
   };
 }
 
+/**
+ * One observed effect of a move, as a dictionary key plus its numbers.
+ *
+ * Deliberately not a finished sentence: this module runs inside a worker and
+ * has no idea which language the page is in. It reports *what changed*, which
+ * is a fact about the permutation; the UI renders that fact in the reader's
+ * language. Note that none of this claims to know *why* the search chose the
+ * move - it cannot, and does not pretend to.
+ */
+export interface EffectNote {
+  key: string;
+  params?: Record<string, string | number>;
+}
+
 export interface MoveExplanation {
   move: number;
   before: StateReport;
   after: StateReport;
-  /** Short, plain-language account of what changed. */
-  effects: string[];
+  /** What this move measurably did, as translatable notes. */
+  effects: EffectNote[];
   phase: 'phase 1' | 'phase 2' | 'unstructured';
 }
 
@@ -96,35 +110,34 @@ export function explainSolution(start: CubieCube, moves: number[]): SolutionNarr
     const move = moves[step];
     cube.applyMove(move);
     const after = report(cube);
-    const effects: string[] = [];
+    const effects: EffectNote[] = [];
 
     const de = after.orientedEdges - before.orientedEdges;
     const dc = after.orientedCorners - before.orientedCorners;
     const ds = after.sliceEdgesHome - before.sliceEdgesHome;
     const dp = after.solvedPieces - before.solvedPieces;
 
-    if (de > 0) effects.push(`turns ${de} edge${de === 1 ? '' : 's'} the right way round`);
-    else if (de < 0) effects.push(`flips ${-de} edge${de === -1 ? '' : 's'} the wrong way — a detour that pays off later`);
-    if (dc > 0) effects.push(`untwists ${dc} corner${dc === 1 ? '' : 's'}`);
-    else if (dc < 0) effects.push(`twists ${-dc} corner${dc === -1 ? '' : 's'}`);
-    if (ds > 0) effects.push(`brings ${ds} middle-slice edge${ds === 1 ? '' : 's'} back into the middle slice`);
-    else if (ds < 0) effects.push(`lifts ${-ds} edge${ds === -1 ? '' : 's'} out of the middle slice`);
-    if (dp > 0) effects.push(`puts ${dp} piece${dp === 1 ? '' : 's'} home for good`);
-    else if (dp < 0) effects.push(`temporarily displaces ${-dp} finished piece${dp === -1 ? '' : 's'}`);
+    if (de > 0) effects.push({ key: 'effect.orientEdges', params: { n: de } });
+    else if (de < 0) effects.push({ key: 'effect.misorientEdges', params: { n: -de } });
+    if (dc > 0) effects.push({ key: 'effect.untwistCorners', params: { n: dc } });
+    else if (dc < 0) effects.push({ key: 'effect.twistCorners', params: { n: -dc } });
+    if (ds > 0) effects.push({ key: 'effect.sliceIn', params: { n: ds } });
+    else if (ds < 0) effects.push({ key: 'effect.sliceOut', params: { n: -ds } });
+    if (dp > 0) effects.push({ key: 'effect.piecesHome', params: { n: dp } });
+    else if (dp < 0) effects.push({ key: 'effect.piecesDisplaced', params: { n: -dp } });
 
     if (!announced && boundary > 0 && step + 1 === boundary) {
-      effects.push('and with that the cube is inside G1 — from here, only U, D and half turns are needed');
+      effects.push({ key: 'effect.entersG1' });
       announced = true;
     }
     if (effects.length === 0) {
       let movedCorners = 0, movedEdges = 0;
       for (let i = 0; i < 8; i++) if (before.homePieces.includes(CORNER_NAMES[i]) !== after.homePieces.includes(CORNER_NAMES[i])) movedCorners++;
       for (let i = 0; i < 12; i++) if (before.homePieces.includes(EDGE_NAMES[i]) !== after.homePieces.includes(EDGE_NAMES[i])) movedEdges++;
-      effects.push(
-        movedCorners + movedEdges > 0
-          ? `shuffles ${movedCorners + movedEdges} piece${movedCorners + movedEdges === 1 ? '' : 's'} around without changing anything about how they are facing`
-          : 'cycles four corners and four edges, leaving every orientation and every count exactly as it was — a pure rearrangement, which is the whole business of the second phase',
-      );
+      const moved = movedCorners + movedEdges;
+      effects.push(moved > 0
+        ? { key: 'effect.shuffles', params: { n: moved } }
+        : { key: 'effect.pureRearrangement' });
     }
 
     const phase: MoveExplanation['phase'] = boundary < 0

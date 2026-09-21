@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FACE_COLORS, FACE_NAMES, MOVE_NAMES } from '../cube/defs';
 import type { GraphPayload } from '../solver/protocol';
 import { radialLayout, type LaidOutNode, type Layout } from './layout';
+import { useI18n } from '../i18n/I18nProvider';
 
 export interface GraphCanvasProps {
   graph: GraphPayload | null;
@@ -32,6 +33,7 @@ export function GraphCanvas({
   graph, path = [], selected = null, onSelect, onHover,
   height = 460, showLabels = true, ringGap = 96, caption,
 }: GraphCanvasProps): JSX.Element {
+  const { t } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [hover, setHover] = useState<LaidOutNode | null>(null);
@@ -46,7 +48,7 @@ export function GraphCanvas({
 
   useEffect(() => {
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const onChange = (): void => setThemeTick((t) => t + 1);
+    const onChange = (): void => setThemeTick((n) => n + 1);
     mq.addEventListener('change', onChange);
     const obs = new MutationObserver(onChange);
     obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
@@ -178,9 +180,11 @@ export function GraphCanvas({
 
     if (hover) {
       const [x, y] = px(hover);
+      // Canvas has no bidi isolation, so the label is assembled with the
+      // notation first and the words after it, which reads correctly either way.
       const label = hover.depth === 0
-        ? 'start'
-        : `${MOVE_NAMES[hover.viaMove]} · ${hover.depth} move${hover.depth === 1 ? '' : 's'} away`;
+        ? t('graph.start')
+        : `${MOVE_NAMES[hover.viaMove]} · ${t('graph.movesAway', { n: hover.depth })}`;
       ctx.font = `500 12px ${cssVar('--sans', 'sans-serif')}`;
       const tw = ctx.measureText(label).width;
       const bx = Math.min(Math.max(x - tw / 2 - 8, 4), w - tw - 20);
@@ -195,7 +199,7 @@ export function GraphCanvas({
       ctx.textAlign = 'left';
       ctx.fillText(label, bx + 8, by + 15);
     }
-  }, [layout, view, hover, pathSet, pathEdges, selected, height, showLabels, themeTick]);
+  }, [layout, view, hover, pathSet, pathEdges, selected, height, showLabels, themeTick, t]);
 
   useEffect(() => {
     draw();
@@ -258,9 +262,11 @@ export function GraphCanvas({
         }}
       />
       <div className="row tight" style={{ marginTop: 6, alignItems: 'center' }}>
-        <button className="btn small ghost" onClick={() => setView({ scale: 1, ox: 0, oy: 0 })}>Reset view</button>
+        <button className="btn small ghost" onClick={() => setView({ scale: 1, ox: 0, oy: 0 })}>
+          {t('graph.resetView')}
+        </button>
         {caption ? <span className="card-note">{caption}</span> : null}
-        {layout?.truncated ? <span className="tag warn">truncated</span> : null}
+        {layout?.truncated ? <span className="tag warn">{t('graph.truncated')}</span> : null}
       </div>
     </div>
   );

@@ -8,6 +8,12 @@
 
 import { MOVE_FACE, MOVE_INVERSE, MOVE_NAMES, MOVE_POWER, type MoveName } from './defs';
 
+/**
+ * Structural copy of the i18n translator. Declared here rather than imported
+ * so the cube model stays free of UI dependencies.
+ */
+export type Translate = (key: string, params?: Record<string, string | number>) => string;
+
 export function parseMove(token: string): number {
   const t = token.trim();
   const m = /^([URFDLB])(['’]?)(2?)(['’]?)$/.exec(t.toUpperCase().replace('W', ''));
@@ -87,12 +93,16 @@ export function moveLabel(move: number): MoveName {
   return MOVE_NAMES[move];
 }
 
-/** Human description of what a move physically does. */
-export function describeMove(move: number): string {
+/**
+ * Human description of what a move physically does.
+ *
+ * The wording is translated, but the move symbol itself never is: `R2` is
+ * `R2` in every language, so callers that want the symbol use `moveLabel`.
+ */
+export function describeMove(move: number, t: Translate): string {
   const face = 'URFDLB'[MOVE_FACE[move]];
   const power = MOVE_POWER[move];
-  const faceWord = { U: 'top', R: 'right', F: 'front', D: 'bottom', L: 'left', B: 'back' }[face]!;
-  if (power === 2) return `Turn the ${faceWord} face a half turn (180°).`;
-  const dir = power === 1 ? 'clockwise' : 'anticlockwise';
-  return `Turn the ${faceWord} face a quarter turn ${dir}, looking straight at that face.`;
+  const faceWord = t(`face.${face}`);
+  if (power === 2) return t('move.half', { face: faceWord });
+  return t(power === 1 ? 'move.cw' : 'move.ccw', { face: faceWord });
 }

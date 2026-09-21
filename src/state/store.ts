@@ -36,6 +36,36 @@ export interface AppState {
   progress: Progress;
 }
 
+/**
+ * Milliseconds per quarter turn. The old default of 240 ms meant a twenty-move
+ * solution was over in five seconds, which is no use to anyone trying to follow
+ * it. This is the "normal" preset; the Atlas exposes slower ones.
+ */
+export const DEFAULT_TURN_SPEED = 900;
+
+/** Named speeds, slowest first. Zero means no animation at all. */
+export const SPEED_PRESETS = [
+  { id: 'very-slow', ms: 2000 },
+  { id: 'slow', ms: 1300 },
+  { id: 'normal', ms: 900 },
+  { id: 'brisk', ms: 450 },
+  { id: 'fast', ms: 200 },
+  { id: 'instant', ms: 0 },
+] as const;
+
+export type SpeedPresetId = (typeof SPEED_PRESETS)[number]['id'];
+
+/** The preset a raw speed corresponds to, for highlighting the control. */
+export function presetFor(ms: number): SpeedPresetId {
+  let best: SpeedPresetId = 'normal';
+  let bd = Infinity;
+  for (const p of SPEED_PRESETS) {
+    const d = Math.abs(p.ms - ms);
+    if (d < bd) { bd = d; best = p.id; }
+  }
+  return best;
+}
+
 const PROGRESS_KEY = 'cube-atlas.progress.v1';
 const PREFS_KEY = 'cube-atlas.prefs.v1';
 
@@ -61,10 +91,10 @@ function loadPrefs(): { turnSpeed: number; theme: AppState['theme'] } {
     const raw = localStorage.getItem(PREFS_KEY);
     if (raw) {
       const p = JSON.parse(raw) as { turnSpeed?: number; theme?: AppState['theme'] };
-      return { turnSpeed: p.turnSpeed ?? 240, theme: p.theme ?? 'auto' };
+      return { turnSpeed: p.turnSpeed ?? DEFAULT_TURN_SPEED, theme: p.theme ?? 'auto' };
     }
   } catch { /* ignore a broken or blocked store */ }
-  return { turnSpeed: 240, theme: 'auto' };
+  return { turnSpeed: DEFAULT_TURN_SPEED, theme: 'auto' };
 }
 
 const prefs = loadPrefs();
@@ -168,7 +198,7 @@ export const actions = {
   },
 
   setTurnSpeed(ms: number): void {
-    set({ turnSpeed: ms });
+    set({ turnSpeed: Math.max(0, ms) });
     savePrefs();
   },
 

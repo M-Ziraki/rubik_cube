@@ -1,4 +1,5 @@
 import { FACE_COLORS, FACE_NAMES } from '../cube/defs';
+import { useI18n } from '../i18n/I18nProvider';
 
 /**
  * A flat unfolding of the 2x2x2. Small puzzles deserve small pictures: the net
@@ -8,6 +9,7 @@ import { FACE_COLORS, FACE_NAMES } from '../cube/defs';
 export function PocketNet({ stickers, size = 22, gap = 3, label }: {
   stickers: Uint8Array; size?: number; gap?: number; label?: string;
 }): JSX.Element {
+  const { t } = useI18n();
   // Net layout in face-grid coordinates: U above F, then L F R B in a row, D below.
   const placement: { face: number; col: number; row: number }[] = [
     { face: 0, col: 1, row: 0 }, // U
@@ -24,7 +26,7 @@ export function PocketNet({ stickers, size = 22, gap = 3, label }: {
 
   return (
     <div>
-      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={label ?? '2x2x2 cube'}>
+      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={label ?? t('graph.pocketNet')}>
         <rect width={width} height={height} fill="none" />
         {placement.map(({ face, col, row }) => (
           <g key={face} transform={`translate(${gap + col * faceSize}, ${gap + row * faceSize})`}>

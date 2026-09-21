@@ -8,6 +8,7 @@ import { faceletString, toFacelets } from '../cube/facelet';
 import { parseSequence } from '../cube/notation';
 import { FACE_NAMES, MOVE_NAMES } from '../cube/defs';
 import { MAP_CIRCLES, faceletsAffectedBy, nodeForFacelet } from '../graph/stickerGeometry';
+import { T, useI18n } from '../i18n/I18nProvider';
 
 /**
  * The lesson that introduces the reference figure and, just as importantly,
@@ -15,6 +16,7 @@ import { MAP_CIRCLES, faceletsAffectedBy, nodeForFacelet } from '../graph/sticke
  * "the Rubik's cube graph".
  */
 export function LessonStickerMap(): JSX.Element {
+  const { t } = useI18n();
   const [moves, setMoves] = useState<number[]>([]);
   const [preview, setPreview] = useState<number | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
@@ -30,36 +32,19 @@ export function LessonStickerMap(): JSX.Element {
 
   return (
     <LessonBody>
-      <p>
-        There are two completely different pictures that both get called "the graph of the Rubik's
-        cube", and confusing them makes everything else muddled. This lesson is about the first
-        one, which is the picture in the animation that started this project.
-      </p>
+      <p>{t('l.map.intro')}</p>
 
-      <Callout title="Two pictures, two sizes">
+      <Callout title={t('l.map.twoPictures')}>
         <ul style={{ marginBottom: 0 }}>
-          <li>
-            <strong>The sticker map</strong> has <strong>54 dots</strong>, one per sticker. It is a
-            picture of <em>one</em> cube. Turning a face repaints the dots; it never moves them.
-          </li>
-          <li>
-            <strong>The configuration graph</strong> has{' '}
-            <strong>43,252,003,274,489,856,000 vertices</strong>, one per arrangement of the whole
-            cube. A single dot on that graph corresponds to an entire sticker map.
-          </li>
+          <li>{t('l.map.stickerMap')}</li>
+          <li>{t('l.map.configGraph')}</li>
         </ul>
       </Callout>
 
-      <h3>How the map is built</h3>
-      <p>
-        Three families of circles, their centres 120° apart, three circles in each family. The dots
-        are the points where circles from <em>different</em> families cross — and there are exactly
-        54 of those, with none left over. It is not a coincidence: each family stands for one axis
-        of the cube and each circle for one layer along it, so a crossing point pins down a cubie
-        and a direction, which is exactly what a sticker is.
-      </p>
+      <h3>{t('l.map.howBuilt')}</h3>
+      <p>{t('l.map.howBuiltBody')}</p>
 
-      <Card title="Turn a face and watch" className="stack">
+      <Card title={t('l.map.turnAndWatch')} className="stack">
         <div className="split" style={{ gap: 14 }}>
           <div style={{ background: 'var(--map-paper)', borderRadius: 'var(--radius-s)', padding: 2 }}>
             <StickerMap
@@ -75,10 +60,13 @@ export function LessonStickerMap(): JSX.Element {
             <Cube3D facelets={facelets} interactive={false} height={230} />
             <div>
               <div className="card-note" style={{ marginBottom: 6 }}>
-                Hover a turn to see the twenty stickers it touches; click to apply it.
+                {t('l.map.hoverATurn')}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 4 }}
-                onMouseLeave={() => setPreview(null)}>
+              <div
+                className="move-pad"
+                onMouseLeave={() => setPreview(null)}
+                onPointerLeave={() => setPreview(null)}
+              >
                 {[0, 1, 2, 3, 4, 5].map((face) => (
                   <div key={face} style={{ display: 'grid', gap: 3 }}>
                     {[0, 1, 2].map((p) => {
@@ -86,10 +74,13 @@ export function LessonStickerMap(): JSX.Element {
                       return (
                         <button
                           key={m}
-                          className="move-chip"
+                          className="move-chip mono-ltr"
                           style={{ width: '100%' }}
                           onMouseEnter={() => setPreview(m)}
-                          onClick={() => setMoves((x) => [...x, m])}
+                          onMouseLeave={() => setPreview(null)}
+                          onFocus={() => setPreview(m)}
+                          onBlur={() => setPreview(null)}
+                          onClick={() => { setPreview(null); setMoves((x) => [...x, m]); }}
                         >
                           {MOVE_NAMES[m]}
                         </button>
@@ -100,86 +91,72 @@ export function LessonStickerMap(): JSX.Element {
               </div>
             </div>
             <div className="row tight">
-              <button className="btn small" onClick={() => setMoves((x) => x.slice(0, -1))} disabled={!moves.length}>Undo</button>
-              <button className="btn small ghost" onClick={() => { setMoves([]); setSelected(null); }}>Reset</button>
+              <button
+                className="btn small"
+                onClick={() => setMoves((x) => x.slice(0, -1))}
+                disabled={!moves.length}
+              >
+                {t('common.undo')}
+              </button>
+              <button
+                className="btn small ghost"
+                onClick={() => { setMoves([]); setSelected(null); setPreview(null); }}
+              >
+                {t('common.reset')}
+              </button>
             </div>
             <div className="row" style={{ gap: 16 }}>
-              <Stat value={moves.length} label="turns made" />
-              <Stat value={preview === null ? '—' : faceletsAffectedBy(preview).length} label="stickers that move" sub="8 on the face, 12 around it" />
+              <Stat value={moves.length} label={t('l.map.turnsMade')} />
+              <Stat
+                value={preview === null ? '—' : faceletsAffectedBy(preview).length}
+                label={t('l.map.stickersThatMove')}
+                sub={t('l.map.eightPlusTwelve')}
+              />
             </div>
             {selected !== null ? (
               <div className="card-note">
-                Picked {FACE_NAMES[Math.floor(selected / 9)]}{(selected % 9) + 1}. It sits where
-                layer {circles[0]?.layer} of the {circles[0]?.family.id} family crosses layer{' '}
-                {circles[1]?.layer} of the {circles[1]?.family.id} family — those two circles are
-                drawn up so you can see the address.
+                {t('l.map.picked', {
+                  slot: faceletName(selected),
+                  a: circles[0]?.layer ?? '',
+                  famA: circles[0]?.family.id ?? '',
+                  b: circles[1]?.layer ?? '',
+                  famB: circles[1]?.family.id ?? '',
+                })}
               </div>
             ) : (
-              <div className="card-note">Click a dot to see which two circles give it its address.</div>
+              <div className="card-note">{t('l.map.clickADot')}</div>
             )}
           </div>
         </div>
       </Card>
 
-      <h3>The circles are the cube's layers</h3>
-      <p>
-        Each circle threads exactly twelve dots, and those twelve are always one complete band
-        around the cube. For the outer six circles that band is precisely the set of twelve
-        stickers a face turn carries round — which is why a turn slides dots a quarter of the way
-        along one circle rather than scattering them.
-      </p>
+      <h3>{t('l.map.circlesAreLayers')}</h3>
+      <p>{t('l.map.circlesAreLayersBody')}</p>
 
       <Quiz
         id="sticker-q1"
-        question={<>Turning a face changes the colour of twenty dots on the map. Why twenty and not twenty-seven?</>}
-        options={[
-          'Because seven stickers are hidden underneath',
-          'Because the face has nine stickers but its centre never moves, so eight move, plus twelve around the band',
-          'Because only two layers are involved',
-          'Because the corners do not count',
-        ]}
+        question={t('l.map.q1')}
+        options={[t('l.map.q1a'), t('l.map.q1b'), t('l.map.q1c'), t('l.map.q1d')]}
         correct={1}
-        explain={
-          <p style={{ marginBottom: 0 }}>
-            8 + 12 = 20. The centre of the turned face spins where it stands, and the other five
-            centres are nowhere near the action. Finding the six dots that never change is a good
-            way to learn to read the map.
-          </p>
-        }
+        explain={<p style={{ marginBottom: 0 }}>{t('l.map.q1why')}</p>}
       />
 
       <CubeTask
         id="sticker-t1"
-        title="Send a sticker home"
-        brief={
-          <p>
-            One quarter turn put the front-up-right corner sticker out of place. Put it back, and
-            notice on the map that undoing a turn walks the dots back around the same circle.
-          </p>
-        }
+        title={t('l.map.task')}
+        brief={<p>{t('l.map.taskBrief')}</p>}
         setup="R"
         parMoves={1}
-        check={(c) => (c.isSolved() ? null : 'not back yet')}
-        hint={<p style={{ margin: 0 }}>The inverse of <code>R</code> is <code>R&rsquo;</code>.</p>}
+        check={(c) => (c.isSolved() ? null : t('l.map.notBackYet'))}
+        hint={<p style={{ margin: 0 }}><T k="l.map.taskHint" /></p>}
         solution="R'"
       />
 
-      <h3>What the map cannot tell you</h3>
-      <p>
-        The map shows one position beautifully and says nothing at all about <em>distance</em>. You
-        cannot look at it and see whether you are three moves from solved or eighteen. For that you
-        need the other picture — the one whose vertices are whole configurations — and that is the
-        subject of the next few lessons.
-      </p>
+      <h3>{t('l.map.cannotTell')}</h3>
+      <p>{t('l.map.cannotTellBody')}</p>
 
-      <Callout kind="warn" title="A note on the source animation">
-        <p style={{ marginBottom: 0 }}>
-          This figure is reconstructed from the animation that inspired the app, measured off the
-          video frame by frame: the circle geometry here reproduces it to within a third of a
-          pixel. The video's <em>motion</em>, though, is decorative rather than a real cube — in a
-          genuine cube six dots can never change colour, and in the clip only four hold still. So
-          the geometry is the reference's; the movement is the cube's.
-        </p>
+      <Callout kind="warn" title={t('l.map.sourceNote')}>
+        <p style={{ marginBottom: 0 }}>{t('l.map.sourceNoteBody')}</p>
       </Callout>
     </LessonBody>
   );

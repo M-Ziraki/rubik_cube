@@ -3,6 +3,7 @@ import { Cube3D } from '../components/Cube3D';
 import { Callout, Card, Sequence, Segmented, Stat, formatNodes } from '../components/ui';
 import { SolutionReport } from './LabPage';
 import { actions, currentFacelets, isSolved, useAppState } from '../state/store';
+import { player } from '../state/player';
 import { requestScramble, requestStats, solve, solveOptimally } from '../solver/client';
 import type { TableStats } from '../solver/protocol';
 import type { Solution } from '../solver/twophase';
@@ -10,13 +11,20 @@ import { METRIC_NOTES, NOTABLE_POSITIONS } from '../data/facts';
 import { parseSequence } from '../cube/notation';
 import { CubieCube } from '../cube/cubie';
 import { faceletString, toFacelets } from '../cube/facelet';
+import { GODS_NUMBER } from '../cube/defs';
+import { useI18n } from '../i18n/I18nProvider';
 
 type Engine = 'two-phase' | 'optimal';
 
 export function SolverPage(): JSX.Element {
+  const { t } = useI18n();
   const state = useAppState((s) => s);
-  const facelets = useMemo(() => currentFacelets(state), [state.origin, state.cursor, state.moves]);
-  const solved = useMemo(() => isSolved(state), [facelets]);
+  const facelets = useMemo(
+    () => currentFacelets(state),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [state.origin, state.cursor, state.moves],
+  );
+  const solved = useMemo(() => isSolved(state), [facelets]); // eslint-disable-line react-hooks/exhaustive-deps
   const [engine, setEngine] = useState<Engine>('two-phase');
   const [budget, setBudget] = useState(6);
   const [running, setRunning] = useState(false);
@@ -24,40 +32,58 @@ export function SolverPage(): JSX.Element {
   const [progress, setProgress] = useState<{ stage: string; fraction: number } | null>(null);
   const [proven, setProven] = useState<{ bound: number; nodes: number } | null>(null);
   const [stats, setStats] = useState<TableStats | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const token = useRef(0);
 
+  // Results are tied to a position; moving the cube discards them.
   useEffect(() => { setResult(null); setProven(null); }, [facelets, engine]);
 
   useEffect(() => {
     if (!state.tablesReady) return;
-    requestStats().then(setStats).catch(() => undefined);
+    let live = true;
+    requestStats().then((s) => { if (live) setStats(s); }).catch(() => undefined);
+    // eslint-disable-next-line consistent-return
+    return () => { live = false; };
   }, [state.tablesReady]);
 
   const run = async (): Promise<void> => {
-    const t = ++token.current;
-    setRunning(true); setResult(null); setProven(null); setProgress(null);
+    const id = ++token.current;
+    const target = facelets;
+    setRunning(true); setResult(null); setProven(null); setProgress(null); setError(null);
+    const fresh = (): boolean => id === token.current && currentFacelets() === target;
     try {
       if (engine === 'two-phase') {
-        const s = await solve(facelets, {
+        const s = await solve(target, {
           timeBudgetMs: budget * 1000,
-          maxLength: 20,
-          onImprove: (partial) => { if (t === token.current) setResult(partial); },
+          maxLength: GODS_NUMBER,
+          onImprove: (partial) => { if (fresh()) setResult(partial); },
         });
-        if (t === token.current) setResult(s);
+        if (fresh()) setResult(s);
       } else {
-        const s = await solveOptimally(facelets, {
+        const s = await solveOptimally(target, {
           timeBudgetMs: budget * 1000,
-          onProgress: (stage, fraction) => { if (t === token.current) setProgress({ stage, fraction }); },
-          onDepth: (bound, nodes) => { if (t === token.current) setProven({ bound, nodes }); },
+          onProgress: (stage, fraction) => { if (id === token.current) setProgress({ stage, fraction }); },
+          onDepth: (bound, nodes) => { if (fresh()) setProven({ bound, nodes }); },
         });
-        if (t === token.current) setResult(s);
+        if (fresh()) setResult(s);
       }
+    } catch (err) {
+      if (id === token.current) setError((err as Error).message);
     } finally {
-      if (t === token.current) { setRunning(false); setProgress(null); }
+      if (id === token.current) { setRunning(false); setProgress(null); }
     }
   };
 
+  const setUp = async (turns: number, random: boolean): Promise<void> => {
+    player.yieldToUser();
+    token.current++;
+    const r = await requestScramble(turns, random);
+    actions.setPosition(r.facelets, r.moves);
+  };
+
   const loadPosition = (scramble: string): void => {
+    player.yieldToUser();
+    token.current++;
     const moves = parseSequence(scramble).moves;
     actions.setPosition(faceletString(toFacelets(CubieCube.fromMoves(moves))), moves);
   };
@@ -65,66 +91,66 @@ export function SolverPage(): JSX.Element {
   return (
     <>
       <header className="page-head">
-        <div className="eyebrow">Laboratory</div>
-        <h1>Solvers, and what they can honestly promise</h1>
-        <p className="lede">
-          Three different claims get muddled together constantly: <em>a</em> solution, a solution
-          within twenty moves, and the <em>shortest</em> solution. They need completely different
-          amounts of work, and only one of them can be proved by a web page. This laboratory keeps
-          them apart.
-        </p>
+        <div className="eyebrow">{t('solver.eyebrow')}</div>
+        <h1>{t('solver.title')}</h1>
+        <p className="lede">{t('solver.lede')}</p>
       </header>
 
       <div className="grid three" style={{ marginBottom: 20 }}>
-        <Card title="Find any solution">
-          <p style={{ marginBottom: 6 }}>Easy. Layer-by-layer methods do it with a handful of memorised algorithms, typically in 50–60 moves.</p>
-          <span className="tag ok">milliseconds</span>
+        <Card title={t('solver.anyTitle')}>
+          <p style={{ marginBottom: 6 }}>{t('solver.anyBody')}</p>
+          <span className="tag ok">{t('solver.anyTag')}</span>
         </Card>
-        <Card title="Find one within 20">
-          <p style={{ marginBottom: 6 }}>Hard but tractable. Two-phase search finds them reliably — it just cannot certify that no shorter one exists.</p>
-          <span className="tag warn">seconds</span>
+        <Card title={t('solver.boundTitle')}>
+          <p style={{ marginBottom: 6 }}>{t('solver.boundBody')}</p>
+          <span className="tag warn">{t('solver.boundTag')}</span>
         </Card>
-        <Card title="Prove it is shortest">
-          <p style={{ marginBottom: 6 }}>Brutal. Every shorter length must be exhaustively ruled out. Feasible here only for positions near home.</p>
-          <span className="tag danger">seconds to never</span>
+        <Card title={t('solver.proveTitle')}>
+          <p style={{ marginBottom: 6 }}>{t('solver.proveBody')}</p>
+          <span className="tag danger">{t('solver.proveTag')}</span>
         </Card>
       </div>
 
       <div className="split">
         <div className="stack">
           <Card
-            title="Position"
-            note={solved ? 'solved' : 'scrambled'}
-            actions={
+            title={t('solver.position')}
+            note={solved ? t('common.solved') : t('common.scrambled')}
+            actions={(
               <div className="row tight">
-                <button className="btn small" onClick={async () => {
-                  const r = await requestScramble(25, true);
-                  actions.setPosition(r.facelets, r.moves);
-                }}>Random</button>
-                <button className="btn small ghost" onClick={() => actions.resetToSolved()}>Reset</button>
+                <button className="btn small" onClick={() => void setUp(25, true)}>
+                  {t('solver.random')}
+                </button>
+                <button
+                  className="btn small ghost"
+                  onClick={() => { player.yieldToUser(); token.current++; actions.resetToSolved(); }}
+                >
+                  {t('common.reset')}
+                </button>
               </div>
-            }
+            )}
           >
-            <Cube3D />
+            <Cube3D onUserMove={(m) => { player.yieldToUser(); actions.applyMove(m); }} />
           </Card>
 
-          <Card title="Set up a known position">
+          <Card title={t('solver.knownPosition')}>
             <div className="stack" style={{ gap: 8 }}>
               {NOTABLE_POSITIONS.slice(0, 4).map((p) => (
-                <div key={p.name} className="row" style={{ justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '0.88rem' }}>{p.name}</span>
-                  <button className="btn small" onClick={() => loadPosition(p.scramble)}>Load</button>
+                <div key={p.id} className="row" style={{ justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '0.88rem' }}>{t(`notable.${p.id}.name`)}</span>
+                  <button className="btn small" onClick={() => loadPosition(p.scramble)}>
+                    {t('lab.load')}
+                  </button>
                 </div>
               ))}
               <div className="row">
-                <span className="card-note">Or nudge the solved cube a few moves to see the optimal search finish instantly.</span>
+                <span className="card-note">{t('solver.nudge')}</span>
               </div>
               <div className="row tight">
                 {[3, 5, 7, 9, 11].map((n) => (
-                  <button key={n} className="btn small" onClick={async () => {
-                    const r = await requestScramble(n, false);
-                    actions.setPosition(r.facelets, r.moves);
-                  }}>{n} turns</button>
+                  <button key={n} className="btn small" onClick={() => void setUp(n, false)}>
+                    {t('solver.turnsN', { n })}
+                  </button>
                 ))}
               </div>
             </div>
@@ -133,72 +159,101 @@ export function SolverPage(): JSX.Element {
 
         <div className="stack">
           <Card
-            title="Search"
-            actions={
+            title={t('solver.search')}
+            actions={(
               <Segmented
                 value={engine}
                 onChange={(v) => setEngine(v)}
                 options={[
-                  { value: 'two-phase', label: 'Two-phase', title: 'Fast. Finds short solutions but cannot prove they are shortest.' },
-                  { value: 'optimal', label: 'Provably optimal', title: 'Exhaustive. Proves the answer is shortest, when it can finish.' },
+                  { value: 'two-phase', label: t('solver.engine.twoPhase'), title: t('solver.engine.twoPhaseHint') },
+                  { value: 'optimal', label: t('solver.engine.optimal'), title: t('solver.engine.optimalHint') },
                 ]}
               />
-            }
+            )}
           >
             <div className="stack">
               <label className="field">
-                Time budget: {budget} second{budget === 1 ? '' : 's'}
-                <input type="range" min={1} max={60} value={budget} onChange={(e) => setBudget(Number(e.target.value))} />
+                {t('solver.budget', { n: budget })}
+                <input
+                  type="range" min={1} max={60} value={budget}
+                  onChange={(e) => setBudget(Number(e.target.value))}
+                />
               </label>
               <div className="row">
-                <button className="btn primary" onClick={run} disabled={running || solved || !state.tablesReady}>
-                  {running ? 'Searching…' : engine === 'two-phase' ? 'Find a short solution' : 'Prove the shortest solution'}
+                <button
+                  className="btn primary"
+                  onClick={run}
+                  disabled={running || solved || !state.tablesReady}
+                >
+                  {running
+                    ? t('common.searching')
+                    : engine === 'two-phase' ? t('solver.findShort') : t('solver.proveShortest')}
                 </button>
                 {result?.moves.length ? (
-                  <button className="btn" onClick={() => actions.queueMoves(result.moves)}>Queue on the cube</button>
+                  <button
+                    className="btn"
+                    onClick={() => { player.stop(); actions.queueMoves(result.moves); }}
+                  >
+                    {t('solver.queue')}
+                  </button>
                 ) : null}
               </div>
 
               {progress ? (
                 <div>
-                  <div className="card-note" style={{ marginBottom: 4 }}>Building pattern databases · {progress.stage}</div>
+                  <div className="card-note" style={{ marginBottom: 4 }}>
+                    {t('solver.buildingPdb', { stage: progress.stage })}
+                  </div>
                   <div className="meter"><i style={{ width: `${Math.round(progress.fraction * 100)}%` }} /></div>
                 </div>
               ) : null}
 
               {engine === 'optimal' && running && proven ? (
-                <Callout title={`Ruled out every solution of ${proven.bound - 1} moves or fewer`}>
+                <Callout title={t('solver.ruledOut', { n: proven.bound - 1 })}>
                   <p style={{ margin: 0 }}>
-                    {proven.nodes.toLocaleString('en-US')} positions examined so far. Each completed
-                    depth is a genuine proof, even if the search never finds the answer.
+                    {t('solver.ruledOutBody', { nodes: proven.nodes.toLocaleString('en-US') })}
                   </p>
                 </Callout>
               ) : null}
 
-              {result ? (
+              {error ? (
+                <Callout kind="danger" title={t('solver.failed')}>
+                  <p style={{ margin: 0 }}>{error}</p>
+                </Callout>
+              ) : result ? (
                 <OptimalReport result={result} engine={engine} />
               ) : running ? (
                 <div className="shimmer" style={{ height: 70 }} />
               ) : (
                 <p className="card-note" style={{ margin: 0 }}>
-                  {engine === 'two-phase'
-                    ? 'Two-phase search will keep improving its answer until the budget runs out.'
-                    : 'The optimal search deepens one move at a time. Expect it to finish quickly up to about a dozen moves and to stall beyond that — that stall is the honest shape of the problem.'}
+                  {engine === 'two-phase' ? t('solver.twoPhaseIdle') : t('solver.optimalIdle')}
                 </p>
               )}
             </div>
           </Card>
 
-          <Card title="Metrics matter">
+          <Card title={t('solver.metrics')}>
             <div className="scroll-x">
               <table className="data">
-                <thead><tr><th>metric</th><th>what counts as one move</th><th className="num">God's number</th></tr></thead>
+                <thead>
+                  <tr>
+                    <th>{t('solver.metric')}</th>
+                    <th>{t('solver.metricRule')}</th>
+                    <th className="num">{t('solver.godsNumber')}</th>
+                  </tr>
+                </thead>
                 <tbody>
                   {METRIC_NOTES.map((m) => (
-                    <tr key={m.name}>
-                      <td><strong>{m.name}</strong><div className="card-note">{m.note}</div></td>
-                      <td>{m.rule}</td>
-                      <td className="num">{m.godsNumber}</td>
+                    <tr key={m.id}>
+                      <td>
+                        <strong>{t(`metric.${m.id}.name`)}</strong>
+                        <div className="card-note">{t(`metric.${m.id}.note`)}</div>
+                      </td>
+                      <td>{t(`metric.${m.id}.rule`)}</td>
+                      <td className="num">
+                        {m.godsNumber}
+                        {m.proved ? null : <div className="card-note">{t('lab.bestKnownBound')}</div>}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -213,65 +268,82 @@ export function SolverPage(): JSX.Element {
   );
 }
 
+/**
+ * The optimal engine is the only one allowed to say "shortest", and it only
+ * says it when the search actually exhausted every shorter depth. When it runs
+ * out of budget, what it reports is the theorem it did establish - a lower
+ * bound - never a guess dressed up as an answer.
+ */
 function OptimalReport({ result, engine }: { result: Solution; engine: Engine }): JSX.Element {
+  const { t } = useI18n();
   if (engine === 'two-phase') return <SolutionReport solution={result} />;
   if (result.length < 0) {
     return (
-      <Callout kind="warn" title={`Proved: no solution of ${result.lowerBound - 1} moves or fewer`}>
-        <p>
-          The search exhausted its budget after examining {result.nodes.toLocaleString('en-US')} positions.
-          That is not a failure — every depth it completed is a theorem. It simply could not reach
-          the depth where the answer lives.
-        </p>
-        <p style={{ marginBottom: 0 }}>
-          This is exactly the wall that made God's number hard. Proving the bound for <em>all</em> 43
-          quintillion positions took a large distributed computation over about 35 CPU-years.
-        </p>
+      <Callout kind="warn" title={t('solution.exhausted', { n: result.lowerBound - 1 })}>
+        <p>{t('solution.exhaustedBody', { nodes: result.nodes.toLocaleString('en-US') })}</p>
+        <p style={{ marginBottom: 0 }}>{t('solution.exhaustedBody2')}</p>
       </Callout>
     );
   }
+  // A completed optimal search proves optimality; anything short of that falls
+  // back to the same cautious reporting the two-phase engine gets.
+  if (result.guarantee !== 'proven-optimal') return <SolutionReport solution={result} />;
   return (
     <div className="stack" style={{ gap: 10 }}>
       <div className="row" style={{ gap: 14 }}>
-        <Stat value={result.length} label="moves" sub="and no fewer" />
-        <Stat value={formatNodes(result.nodes)} label="positions examined" sub={`${result.millis} ms`} />
+        <Stat value={result.length} label={t('solution.moves')} sub={t('solution.andNoFewer')} />
+        <Stat
+          value={formatNodes(result.nodes)}
+          label={t('solution.examined')}
+          sub={t('solution.msTaken', { ms: result.millis })}
+        />
       </div>
-      <div className="row"><span className="tag ok">provably shortest</span></div>
+      <div className="row"><span className="tag ok">{t('solution.provenOptimal')}</span></div>
       <Sequence moves={result.moves} />
       <p className="card-note" style={{ margin: 0 }}>
-        Every length below {result.length} was searched to exhaustion and found empty. That is a
-        proof, not an estimate.
+        {t('solution.provenNote', { n: result.length })}
       </p>
     </div>
   );
 }
 
 function TableReport({ stats }: { stats: TableStats }): JSX.Element {
+  const { t } = useI18n();
+  const core = (stats.coreBytes / 1048576).toFixed(1);
+  const pdb = (stats.optimalBytes / 1048576).toFixed(1);
   return (
-    <Card title="What is in memory" note={`${(stats.coreBytes / 1048576).toFixed(1)} MB of lookup tables${stats.optimalBytes ? ` + ${(stats.optimalBytes / 1048576).toFixed(1)} MB of pattern databases` : ''}`}>
-      <p className="card-note">
-        Each row is a simplified version of the cube that has been solved <em>completely</em> by
-        breadth-first search. The distances found there can never exceed the true distance, which
-        is what lets the search discard branches safely.
-      </p>
+    <Card
+      title={t('solver.memory')}
+      note={stats.optimalBytes
+        ? t('solver.memorySubPdb', { core, pdb })
+        : t('solver.memorySub', { core })}
+    >
+      <p className="card-note">{t('solver.memoryBody')}</p>
       <div className="scroll-x">
         <table className="data">
-          <thead><tr><th>abstraction</th><th className="num">states</th><th className="num">diameter</th><th>distance spread</th></tr></thead>
+          <thead>
+            <tr>
+              <th>{t('solver.abstraction')}</th>
+              <th className="num">{t('solver.states')}</th>
+              <th className="num">{t('solver.diameter')}</th>
+              <th>{t('solver.spread')}</th>
+            </tr>
+          </thead>
           <tbody>
             {Object.entries(stats.histograms).map(([name, hist]) => {
               const total = hist.reduce((a, b) => a + b, 0);
               const max = Math.max(...hist);
               return (
                 <tr key={name}>
-                  <td>{name}</td>
+                  <td className="mono-ltr">{name}</td>
                   <td className="num">{total.toLocaleString('en-US')}</td>
                   <td className="num">{stats.diameters[name]}</td>
                   <td>
-                    <div style={{ display: 'flex', gap: 1, alignItems: 'flex-end', height: 26 }}>
+                    <div style={{ display: 'flex', gap: 1, alignItems: 'flex-end', height: 26, direction: 'ltr' }}>
                       {hist.map((v, i) => (
                         <div
                           key={i}
-                          title={`${v.toLocaleString('en-US')} states at distance ${i}`}
+                          title={`${v.toLocaleString('en-US')} · ${t('common.distance')} ${i}`}
                           style={{
                             width: 7,
                             height: `${Math.max(2, (v / max) * 26)}px`,

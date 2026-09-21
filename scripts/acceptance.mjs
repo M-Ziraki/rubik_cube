@@ -21,7 +21,7 @@ await page.waitForTimeout(1200);
 // 1/2: 54 dots, 9 circles
 const solvedCols = await dotColours();
 check('2. all 54 facelets represented', solvedCols.length === 54, `${solvedCols.length} dots`);
-const arcs = await page.$$eval('svg[aria-label] circle[fill="none"]', (e) => e.length);
+const arcs = await page.$$eval('svg[aria-label] circle.map-arc', (e) => e.length);
 check('1. nine circles drawn', arcs === 9, `${arcs} arcs`);
 
 // 6: solved gives six clusters of nine
@@ -45,25 +45,29 @@ check('8b. highlight ring drawn on the map', marked > 54);
 
 
 // 3/4: a move updates both, and a move + inverse restores
-await page.evaluate(() => {
-  const el = [...document.querySelectorAll('input[type=range]')][0];
-  const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
-  set.call(el, '80'); el.dispatchEvent(new Event('input', { bubbles: true }));
-});
+// Turn the animation right down so the checks below are not racing it.
+await page.click('[data-speed="fast"]');
 // the move pad is the grid under "Turn a face by hand"; scope to it so the
 // move-list chips above cannot be hit by mistake
-const pad = page.locator('.card:has-text("Controls") >> div:below(:text("Turn a face by hand"))').first();
-const padBtn = (label) => page.locator(`.move-chip`, { hasText: new RegExp(`^${label.replace("'", "\\'")}$`) }).last();
+const pad = page.locator('.move-pad').first();
+const padBtn = (label) =>
+  page.locator('.move-pad .move-chip', { hasText: new RegExp(`^${label.replace("'", "\\'")}$`) }).first();
 
 await padBtn('R').click();
-await page.waitForTimeout(600);
+await page.waitForFunction(() => !window.__cubeAtlasState().turning, null, { timeout: 10000 });
+await page.waitForTimeout(200);
 const afterR = await dotColours();
 const changedR = afterR.filter((c, i) => c !== solvedCols[i]).length;
 // From a solved cube the turned face is one colour, so its own eight stickers
 // move without changing what you see; only the twelve band stickers differ.
 check('3. a turn repaints the band', changedR === 12, `${changedR} dots changed`);
 
-// the preview highlight is the honest test of "twenty stickers move"
+// The preview highlight is the honest test of "twenty stickers move". The
+// pointer is parked away from the pad first: clicking a move clears the
+// preview deliberately (the move has happened, there is nothing left to
+// preview), so hovering a button the pointer is already on sends no event.
+await page.mouse.move(5, 5);
+await page.waitForTimeout(200);
 await padBtn('R').hover();
 await page.waitForTimeout(400);
 const litCount = await page.evaluate(() => {
@@ -78,28 +82,34 @@ await page.mouse.move(5, 5);
 await page.waitForTimeout(300);
 
 await padBtn("R'").click();
-await page.waitForTimeout(600);
+await page.waitForFunction(() => !window.__cubeAtlasState().turning, null, { timeout: 10000 });
+await page.waitForTimeout(200);
 const afterInv = await dotColours();
 check('4. move then inverse restores', afterInv.join() === solvedCols.join());
 
 // 5: four quarter turns restore
 for (let i = 0; i < 4; i++) {
   await padBtn('U').click();
-  await page.waitForTimeout(340);
+  await page.waitForFunction(() => !window.__cubeAtlasState().turning, null, { timeout: 10000 });
+  await page.waitForTimeout(120);
 }
 const after4 = await dotColours();
 check('5. four quarter turns restore', after4.join() === solvedCols.join());
 void pad;
 
 // 7: scramble then solve, both animate
-await page.click('button:has-text("Scramble")');
+await page.click('[data-action="scramble"]');
 await page.waitForTimeout(1800);
 const scrambled = await dotColours();
 const scCounts = scrambled.reduce((a, c) => (a[c] = (a[c] ?? 0) + 1, a), {});
 check('7a. scramble mixes but keeps nine of each',
   scrambled.join() !== solvedCols.join() && Object.values(scCounts).every((v) => v === 9));
-await page.click('button:has-text("Solve and play")');
-await page.waitForTimeout(25000);
+await page.click('[data-action="solve"]');
+await page.waitForSelector('.callout:has-text("A solution in")', { timeout: 90000 });
+await page.click('[data-speed="instant"]');
+await page.click('[data-transport="toggle"]');
+await page.waitForFunction(() => window.__cubeAtlasState().status === 'idle', null, { timeout: 60000 });
+await page.waitForTimeout(500);
 const afterSolve = await dotColours();
 const solvedCounts = afterSolve.reduce((a, c) => (a[c] = (a[c] ?? 0) + 1, a), {});
 check('7b. solving returns to six clean groups',

@@ -51,59 +51,32 @@ export function distanceShare(row: DistanceRow): number {
   return row.count / TOTAL_STATES;
 }
 
-export const METRIC_NOTES = [
-  {
-    name: 'Face-turn metric (HTM)',
-    rule: 'Any turn of one face counts as one move, whether it is 90° or 180°.',
-    godsNumber: 20,
-    note: 'The metric this app counts in, and the one "God’s number is 20" refers to.',
-  },
-  {
-    name: 'Quarter-turn metric (QTM)',
-    rule: 'Only 90° turns count as one move; a 180° turn counts as two.',
-    godsNumber: 26,
-    note: 'Proved in 2014. The hardest position in this metric is not the superflip.',
-  },
-  {
-    name: 'Slice-turn metric (STM)',
-    rule: 'Middle-slice turns also count as one move.',
-    godsNumber: 18,
-    note: 'Not yet proved exactly at the time of writing; 18 is the best known bound.',
-  },
+export interface MetricNote {
+  id: string;
+  godsNumber: number;
+  /** Whether that number is proved, or the best bound known. */
+  proved: boolean;
+}
+
+/** Names, rules and notes live in the dictionaries under `metric.<id>.*`. */
+export const METRIC_NOTES: MetricNote[] = [
+  { id: 'htm', godsNumber: 20, proved: true },
+  { id: 'qtm', godsNumber: 26, proved: true },
+  { id: 'stm', godsNumber: 18, proved: false },
 ];
 
-export const NOTABLE_POSITIONS: { name: string; scramble: string; note: string; distance?: number }[] = [
-  {
-    name: 'Superflip',
-    scramble: "R L U2 F U' D F2 R2 B2 L U2 F' B' U R2 D F2 U R2 U",
-    note: 'Every edge flipped in place, everything else home. The first position ever proved to need 20 moves, and it is its own inverse.',
-    distance: 20,
-  },
-  {
-    name: 'Superflip composed with four spots',
-    scramble: "U R2 F B R B2 R U2 L B2 R U' D' R2 F R' L B2 U2 F2",
-    note: 'One of the positions used in the 2010 proof as a 20-move worst case.',
-    distance: 20,
-  },
-  {
-    name: 'Checkerboard',
-    scramble: 'U2 D2 F2 B2 L2 R2',
-    note: 'Six half turns, all commuting. A pretty pattern that is only six moves from solved.',
-    distance: 6,
-  },
-  {
-    name: 'Four spots',
-    scramble: "F2 B2 U D' R2 L2 U D'",
-    note: 'Looks scrambled, is not. A good reminder that visual disorder is a poor guide to distance.',
-  },
-  {
-    name: 'Sune',
-    scramble: "R U R' U R U2 R'",
-    note: 'A classic seven-move algorithm that twists three corners and leaves everything else alone.',
-  },
-  {
-    name: 'T-permutation',
-    scramble: "R U R' U' R' F R2 U' R' U' R U R' F'",
-    note: 'Swaps two corners and two edges. The workhorse of human last-layer methods - and wildly inefficient as a route through the graph.',
-  },
+export interface NotablePosition {
+  id: string;
+  scramble: string;
+  distance?: number;
+}
+
+/** Names and notes live in the dictionaries under `notable.<id>.*`. */
+export const NOTABLE_POSITIONS: NotablePosition[] = [
+  { id: 'superflip', scramble: "R L U2 F U' D F2 R2 B2 L U2 F' B' U R2 D F2 U R2 U", distance: 20 },
+  { id: 'superflip-spots', scramble: "U R2 F B R B2 R U2 L B2 R U' D' R2 F R' L B2 U2 F2", distance: 20 },
+  { id: 'checkerboard', scramble: 'U2 D2 F2 B2 L2 R2', distance: 6 },
+  { id: 'four-spots', scramble: "F2 B2 U D' R2 L2 U D'" },
+  { id: 'sune', scramble: "R U R' U R U2 R'" },
+  { id: 't-perm', scramble: "R U R' U' R' F R2 U' R' U' R U R' F'" },
 ];

@@ -1,50 +1,56 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Cube3D } from '../components/Cube3D';
 import { MovePad } from '../components/MovePad';
+import { Transport } from '../components/Transport';
 import { Callout, Card, Sequence, Stat, formatNodes } from '../components/ui';
-import { actions, currentFacelets, isSolved, getState, useAppState } from '../state/store';
+import { actions, currentFacelets, isSolved, useAppState } from '../state/store';
+import { player } from '../state/player';
 import { requestScramble, solve } from '../solver/client';
 import { formatSequence, invertSequence, parseSequence, simplifySequence } from '../cube/notation';
 import { NOTABLE_POSITIONS } from '../data/facts';
 import { CubieCube } from '../cube/cubie';
 import { faceletString, toFacelets } from '../cube/facelet';
+import { useI18n, type Translate } from '../i18n/I18nProvider';
 import type { Solution } from '../solver/twophase';
 import { GODS_NUMBER } from '../cube/defs';
 
 export function LabPage(): JSX.Element {
+  const { t } = useI18n();
   const state = useAppState((s) => s);
-  const facelets = useMemo(() => currentFacelets(state), [state.origin, state.cursor, state.moves]);
-  const solved = useMemo(() => isSolved(state), [facelets]);
+  const facelets = useMemo(
+    () => currentFacelets(state),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [state.origin, state.cursor, state.moves],
+  );
+  const solved = useMemo(() => isSolved(state), [facelets]); // eslint-disable-line react-hooks/exhaustive-deps
   const [solution, setSolution] = useState<Solution | null>(null);
   const [solving, setSolving] = useState(false);
+  const [solveError, setSolveError] = useState<string | null>(null);
   const [input, setInput] = useState('');
   const [inputError, setInputError] = useState<string | null>(null);
-  const [playing, setPlaying] = useState(false);
   const solveToken = useRef(0);
 
+  // A result belongs to the position it was computed for. The moment the cube
+  // moves, the old answer is stale and is dropped rather than left on screen.
   useEffect(() => { setSolution(null); }, [facelets]);
-
-  useEffect(() => {
-    if (!playing) return undefined;
-    const id = window.setInterval(() => {
-      const s = getState();
-      if (s.cursor >= s.moves.length) { setPlaying(false); return; }
-      actions.redo();
-    }, Math.max(150, getState().turnSpeed + 70));
-    return () => window.clearInterval(id);
-  }, [playing]);
 
   const runSolve = async (): Promise<void> => {
     const token = ++solveToken.current;
     setSolving(true);
     setSolution(null);
+    setSolveError(null);
+    const target = facelets;
     try {
-      const s = await solve(facelets, {
+      const s = await solve(target, {
         timeBudgetMs: 10000,
         maxLength: GODS_NUMBER,
-        onImprove: (partial) => { if (token === solveToken.current) setSolution(partial); },
+        onImprove: (partial) => {
+          if (token === solveToken.current && currentFacelets() === target) setSolution(partial);
+        },
       });
-      if (token === solveToken.current) setSolution(s);
+      if (token === solveToken.current && currentFacelets() === target) setSolution(s);
+    } catch (err) {
+      if (token === solveToken.current) setSolveError((err as Error).message);
     } finally {
       if (token === solveToken.current) setSolving(false);
     }
@@ -53,18 +59,29 @@ export function LabPage(): JSX.Element {
   const applySequence = (text: string): void => {
     const parsed = parseSequence(text);
     if (parsed.errors.length) {
-      setInputError(`Not valid notation: ${parsed.errors.map((e) => e.token).join(', ')}`);
+      setInputError(t('lab.badNotation', { tokens: parsed.errors.map((e) => e.token).join(', ') }));
       return;
     }
+    if (!parsed.moves.length) { setInputError(null); return; }
     setInputError(null);
+    player.yieldToUser();
     actions.applyMoves(parsed.moves);
     setInput('');
   };
 
   const loadPosition = (scramble: string): void => {
+    player.yieldToUser();
+    solveToken.current++;
     const moves = parseSequence(scramble).moves;
     const cube = CubieCube.fromMoves(moves);
     actions.setPosition(faceletString(toFacelets(cube)), moves);
+  };
+
+  const newPosition = async (random: boolean): Promise<void> => {
+    player.yieldToUser();
+    solveToken.current++;
+    const r = await requestScramble(25, random);
+    actions.setPosition(r.facelets, r.moves);
   };
 
   const simplified = useMemo(
@@ -75,118 +92,145 @@ export function LabPage(): JSX.Element {
   return (
     <>
       <header className="page-head">
-        <div className="eyebrow">Laboratory</div>
-        <h1>Cube lab</h1>
-        <p className="lede">
-          A real 3×3×3 you can turn, scramble, analyse and solve. Every move is recorded, so you
-          can step backwards and forwards through your own reasoning — and compare what you did
-          with what a solver would have done.
-        </p>
+        <div className="eyebrow">{t('lab.eyebrow')}</div>
+        <h1>{t('lab.title')}</h1>
+        <p className="lede">{t('lab.lede')}</p>
       </header>
 
       <div className="split">
         <div className="stack">
           <Card
-            title={solved ? 'Solved' : 'Scrambled'}
-            note={solved ? 'This is the centre of the graph.' : `${simplified.length} effective move${simplified.length === 1 ? '' : 's'} from the start position`}
-            actions={
+            title={solved ? t('common.solved') : t('common.scrambled')}
+            note={solved ? t('lab.centreOfGraph') : t('lab.effectiveMoves', { n: simplified.length })}
+            actions={(
               <div className="row tight">
-                <button className="btn small" onClick={async () => {
-                  const r = await requestScramble(25, true);
-                  actions.setPosition(r.facelets, r.moves);
-                }}>Random position</button>
-                <button className="btn small ghost" onClick={async () => {
-                  const r = await requestScramble(25, false);
-                  actions.setPosition(r.facelets, r.moves);
-                }}>25 random turns</button>
+                <button className="btn small" onClick={() => void newPosition(true)}>
+                  {t('lab.randomPosition')}
+                </button>
+                <button className="btn small ghost" onClick={() => void newPosition(false)}>
+                  {t('lab.randomTurns')}
+                </button>
               </div>
-            }
+            )}
           >
-            <Cube3D />
+            <Cube3D onUserMove={(m) => { player.yieldToUser(); actions.applyMove(m); }} />
           </Card>
 
-          <Card title="Turn the cube">
-            <MovePad onMove={(m) => actions.applyMove(m)} />
+          <Card title={t('lab.turnTheCube')}>
+            <MovePad onMove={(m) => { player.yieldToUser(); actions.applyMove(m); }} />
           </Card>
         </div>
 
         <div className="stack">
           <Card
-            title="Move history"
-            note={`${state.cursor} / ${state.moves.length}`}
-            actions={
+            title={t('lab.history')}
+            note={<bdi className="mono-ltr">{state.cursor} / {state.moves.length}</bdi>}
+            actions={(
               <div className="row tight">
-                <button className="btn small" onClick={() => actions.rewind()} title="back to the start">⏮</button>
-                <button className="btn small" onClick={() => actions.undo()} disabled={state.cursor === 0}>Undo</button>
-                <button className="btn small" onClick={() => actions.redo()} disabled={state.cursor >= state.moves.length}>Redo</button>
-                <button className="btn small" onClick={() => setPlaying((p) => !p)} disabled={state.cursor >= state.moves.length}>
-                  {playing ? 'Pause' : 'Play'}
+                <button className="btn small ghost" onClick={() => { player.stop(); actions.clearMoves(); }}>
+                  {t('common.clear')}
                 </button>
-                <button className="btn small ghost" onClick={() => actions.clearMoves()}>Clear</button>
               </div>
-            }
+            )}
+            className="stack"
           >
-            <Sequence moves={state.moves} cursor={state.cursor} onSeek={(i) => actions.seek(i)} empty="turn a face to begin" />
+            <Sequence
+              moves={state.moves}
+              cursor={state.cursor}
+              onSeek={(i) => player.seek(i)}
+              empty={t('lab.historyEmpty')}
+            />
+            <Transport compact />
             {simplified.length !== state.cursor ? (
-              <p className="card-note" style={{ marginTop: 10, marginBottom: 0 }}>
-                Those {state.cursor} moves reduce to {simplified.length}: <code>{formatSequence(simplified) || 'nothing at all'}</code>.
-                Cancellations like <code>R R&rsquo;</code> cost you nothing on the cube but everything in move count.
+              <p className="card-note" style={{ margin: 0 }}>
+                {t('lab.simplifies', {
+                  n: state.cursor,
+                  m: simplified.length,
+                  seq: formatSequence(simplified) || t('lab.simplifiesNothing'),
+                })}
               </p>
             ) : null}
           </Card>
 
-          <Card title="Enter a sequence">
+          <Card title={t('lab.enterSequence')}>
             <div className="row">
               <input
                 type="text"
+                className="mono-ltr"
                 value={input}
-                placeholder="e.g. R U R' U' or F2 L D' B2"
+                placeholder={t('lab.sequencePlaceholder')}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') applySequence(input); }}
                 style={{ flex: 1, minWidth: 180 }}
               />
-              <button className="btn" onClick={() => applySequence(input)}>Apply</button>
-              <button className="btn ghost" onClick={() => applySequence(formatSequence(invertSequence(parseSequence(input).moves)))}>
-                Apply inverse
+              <button className="btn" onClick={() => applySequence(input)}>{t('common.apply')}</button>
+              <button
+                className="btn ghost"
+                onClick={() => applySequence(formatSequence(invertSequence(parseSequence(input).moves)))}
+              >
+                {t('lab.applyInverse')}
               </button>
             </div>
-            {inputError ? <p className="card-note" style={{ color: 'var(--danger)', marginTop: 8, marginBottom: 0 }}>{inputError}</p> : null}
+            {inputError ? (
+              <p className="card-note" style={{ color: 'var(--danger)', marginTop: 8, marginBottom: 0 }}>
+                {inputError}
+              </p>
+            ) : null}
           </Card>
 
           <Card
-            title="Solve it"
-            note="Kociemba two-phase search, running in a background thread"
-            actions={<button className="btn primary small" onClick={runSolve} disabled={solving || solved || !state.tablesReady}>
-              {solving ? 'Searching…' : 'Find a solution'}
-            </button>}
+            title={t('lab.solveIt')}
+            note={t('lab.solveItSub')}
+            actions={(
+              <button
+                className="btn primary small"
+                onClick={runSolve}
+                disabled={solving || solved || !state.tablesReady}
+              >
+                {solving ? t('common.searching') : t('lab.findSolution')}
+              </button>
+            )}
           >
-            {solved ? (
-              <p className="card-note" style={{ margin: 0 }}>Already solved — nothing to do.</p>
+            {solveError ? (
+              <p className="card-note" style={{ margin: 0, color: 'var(--danger)' }}>
+                {t('solver.failed')} {solveError}
+              </p>
+            ) : solved ? (
+              <p className="card-note" style={{ margin: 0 }}>{t('lab.alreadySolved')}</p>
             ) : solution ? (
-              <SolutionReport solution={solution} onApply={() => actions.queueMoves(solution.moves)} searching={solving} />
+              <SolutionReport
+                solution={solution}
+                onApply={() => { player.stop(); actions.queueMoves(solution.moves); }}
+                searching={solving}
+              />
             ) : solving ? (
               <div className="shimmer" style={{ height: 64 }} />
             ) : (
               <p className="card-note" style={{ margin: 0 }}>
-                The search looks for a route of at most {GODS_NUMBER} moves and keeps improving it
-                until its time runs out.
+                {t('lab.solveIdle', { n: GODS_NUMBER })}
               </p>
             )}
           </Card>
 
-          <Card title="Famous positions">
+          <Card title={t('lab.famous')}>
             <div className="stack" style={{ gap: 10 }}>
               {NOTABLE_POSITIONS.map((p) => (
-                <div key={p.name}>
+                <div key={p.id}>
                   <div className="row" style={{ justifyContent: 'space-between' }}>
-                    <strong style={{ fontSize: '0.92rem' }}>{p.name}</strong>
+                    <strong style={{ fontSize: '0.92rem' }}>{t(`notable.${p.id}.name`)}</strong>
                     <div className="row tight">
-                      {p.distance ? <span className="tag">{p.distance} moves away</span> : null}
-                      <button className="btn small" onClick={() => loadPosition(p.scramble)}>Load</button>
+                      {p.distance ? (
+                        <span className="tag">{t('lab.movesAway', { n: p.distance })}</span>
+                      ) : null}
+                      <button className="btn small" onClick={() => loadPosition(p.scramble)}>
+                        {t('lab.load')}
+                      </button>
                     </div>
                   </div>
-                  <div className="card-note">{p.note}</div>
-                  <code style={{ fontSize: '0.75rem', color: 'var(--ink-faint)' }}>{p.scramble}</code>
+                  <div className="card-note">{t(`notable.${p.id}.note`)}</div>
+                  <bdi className="mono-ltr" style={{ fontSize: '0.75rem', color: 'var(--ink-faint)' }}>
+                    {p.scramble}
+                  </bdi>
                 </div>
               ))}
             </div>
@@ -197,52 +241,74 @@ export function LabPage(): JSX.Element {
   );
 }
 
+/**
+ * How a solution is reported, everywhere in the app.
+ *
+ * The three claims are kept strictly apart. `proven-optimal` is the only one
+ * that says "shortest", and it is only ever set by a search that exhausted
+ * every shorter length. Anything else is reported as a solution of a stated
+ * length, with the proven lower bound shown beside it so the remaining
+ * uncertainty is visible rather than glossed over.
+ */
 export function SolutionReport({ solution, onApply, searching }: {
   solution: Solution; onApply?: () => void; searching?: boolean;
 }): JSX.Element {
+  const { t } = useI18n();
   if (solution.length < 0) {
     return (
-      <Callout kind="warn" title="No solution found in the time available">
-        <p style={{ margin: 0 }}>
-          The search proved that nothing shorter than {solution.lowerBound} moves can work, but ran
-          out of budget before finding a complete route. Try again with a longer budget.
-        </p>
+      <Callout kind="warn" title={t('solution.noneFound')}>
+        <p style={{ margin: 0 }}>{t('solution.noneFoundBody', { n: solution.lowerBound })}</p>
       </Callout>
     );
   }
-  const claim = solution.guarantee === 'proven-optimal'
-    ? { tag: 'ok', text: 'provably shortest' }
-    : solution.length <= 20
-      ? { tag: 'warn', text: 'within God’s number, not proven shortest' }
-      : { tag: 'danger', text: 'a solution, but longer than God’s number' };
+  const claim = claimFor(solution, t);
 
   return (
     <div className="stack" style={{ gap: 10 }}>
       <div className="row" style={{ gap: 14 }}>
-        <Stat value={solution.length} label="moves" />
-        <Stat value={solution.lowerBound} label="proven lower bound" sub="no shorter route can exist" />
-        <Stat value={formatNodes(solution.nodes)} label="positions examined" sub={`${solution.millis} ms`} />
+        <Stat value={solution.length} label={t('solution.moves')} />
+        <Stat
+          value={solution.lowerBound}
+          label={t('solution.lowerBound')}
+          sub={t('solution.lowerBoundSub')}
+        />
+        <Stat
+          value={formatNodes(solution.nodes)}
+          label={t('solution.examined')}
+          sub={t('solution.msTaken', { ms: solution.millis })}
+        />
       </div>
       <div className="row">
         <span className={`tag ${claim.tag}`}>{claim.text}</span>
-        {searching ? <span className="tag">still improving…</span> : null}
-        {solution.timedOut && !searching ? <span className="tag warn">stopped on time</span> : null}
+        {searching ? <span className="tag">{t('solution.stillImproving')}</span> : null}
+        {solution.timedOut && !searching ? (
+          <span className="tag warn">{t('solution.stoppedOnTime')}</span>
+        ) : null}
       </div>
       <Sequence moves={solution.moves} />
       {onApply ? (
         <div className="row">
-          <button className="btn" onClick={onApply}>Queue these moves</button>
-          <span className="card-note">then step through them with the history controls</span>
+          <button className="btn" onClick={onApply}>{t('solution.queueMoves')}</button>
+          <span className="card-note">{t('solution.queueHint')}</span>
         </div>
       ) : null}
       {solution.guarantee !== 'proven-optimal' ? (
         <p className="card-note" style={{ margin: 0 }}>
-          Two-phase search splits the problem in two and solves each half well. That is why it is
-          fast, and exactly why it cannot promise the total is the smallest possible. The
-          <a href="#/solver"> Solvers page</a> can try to prove optimality for positions close
-          enough to solved.
+          {t('solution.notOptimalNote')}{' '}
+          <a href="#/solver">{t('solution.solversPageNote')}</a>
         </p>
       ) : null}
     </div>
   );
+}
+
+/** The single place that decides what a solution is allowed to claim. */
+export function claimFor(solution: Solution, t: Translate): { tag: string; text: string } {
+  if (solution.guarantee === 'proven-optimal') {
+    return { tag: 'ok', text: t('solution.provenOptimal') };
+  }
+  if (solution.length <= GODS_NUMBER) {
+    return { tag: 'warn', text: t('solution.withinBound') };
+  }
+  return { tag: 'danger', text: t('solution.overBound') };
 }

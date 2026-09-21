@@ -6,7 +6,7 @@
   "description": "An interactive laboratory for the Rubik's Cube as a graph-theory problem.",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/check-filenames.mjs && tsc --noEmit && vite build",
+    "build": "node scripts/check-filenames.mjs && node scripts/i18n-report.mjs && tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -15,7 +15,9 @@
     "smoke": "node scripts/smoke.mjs",
     "bench:20": "vite-node bench/target20.ts",
     "acceptance": "node scripts/acceptance.mjs",
-    "check:names": "node scripts/check-filenames.mjs"
+    "check:names": "node scripts/check-filenames.mjs",
+    "i18n:report": "node scripts/i18n-report.mjs",
+    "verify": "node scripts/verify.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",

@@ -1,15 +1,15 @@
 /**
- * Drives the sticker map from the same store the 3D cube uses, so the two
- * always show the same turn at the same moment.
+ * The sticker map's view of the shared turn clock.
  *
- * The store holds a start position, a list of moves and a cursor. Whenever the
- * cursor steps by one, this hook plays that single move; any larger jump snaps,
- * because scrubbing through a solution should not queue up twenty animations.
+ * This used to run its own requestAnimationFrame loop alongside the 3D scene's
+ * separate one, which is how the two managed to disagree about how long a half
+ * turn lasts. Now both read the same clock, so they start and finish together
+ * by construction rather than by coincidence.
  */
 
-import { useEffect, useRef, useState } from 'react';
-import { MOVE_INVERSE } from '../cube/defs';
+import { useSyncExternalStore } from 'react';
 import { currentFacelets, getState, subscribe } from '../state/store';
+import { currentTurn, subscribeTurn } from '../state/turnClock';
 
 export interface StickerAnimation {
   facelets: string;
@@ -18,56 +18,34 @@ export interface StickerAnimation {
   progress: number;
 }
 
-export function useStickerAnimation(speedMs?: number): StickerAnimation {
-  const [anim, setAnim] = useState<StickerAnimation>(() => {
-    const f = currentFacelets(getState());
-    return { facelets: f, previousFacelets: f, move: null, progress: 1 };
-  });
-  const last = useRef({ origin: getState().origin, cursor: getState().cursor });
-  const raf = useRef<number | null>(null);
+let cached: StickerAnimation = {
+  facelets: '', previousFacelets: '', move: null, progress: 1,
+};
 
-  useEffect(() => {
-    const stop = (): void => {
-      if (raf.current !== null) cancelAnimationFrame(raf.current);
-      raf.current = null;
-    };
+function read(): StickerAnimation {
+  const turn = currentTurn();
+  const next: StickerAnimation = turn
+    ? { facelets: turn.to, previousFacelets: turn.from, move: turn.move, progress: turn.progress }
+    : (() => {
+      const f = currentFacelets(getState());
+      return { facelets: f, previousFacelets: f, move: null, progress: 1 };
+    })();
+  // useSyncExternalStore compares by identity, so only allocate on a real change.
+  if (
+    next.facelets !== cached.facelets
+    || next.previousFacelets !== cached.previousFacelets
+    || next.move !== cached.move
+    || next.progress !== cached.progress
+  ) cached = next;
+  return cached;
+}
 
-    const play = (from: string, to: string, move: number, duration: number): void => {
-      stop();
-      const started = performance.now();
-      const tick = (now: number): void => {
-        const t = duration <= 0 ? 1 : Math.min(1, (now - started) / duration);
-        // Same easing as the 3D turn, so the two finish together.
-        const eased = t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
-        setAnim({ facelets: to, previousFacelets: from, move, progress: eased });
-        if (t < 1) raf.current = requestAnimationFrame(tick);
-        else { raf.current = null; setAnim({ facelets: to, previousFacelets: to, move: null, progress: 1 }); }
-      };
-      raf.current = requestAnimationFrame(tick);
-    };
+function subscribeBoth(onChange: () => void): () => void {
+  const a = subscribeTurn(onChange);
+  const b = subscribe(onChange);
+  return () => { a(); b(); };
+}
 
-    const sync = (): void => {
-      const s = getState();
-      const to = currentFacelets(s);
-      const prev = last.current;
-      const duration = speedMs ?? s.turnSpeed;
-      if (s.origin !== prev.origin || Math.abs(s.cursor - prev.cursor) > 1) {
-        stop();
-        setAnim({ facelets: to, previousFacelets: to, move: null, progress: 1 });
-      } else if (s.cursor === prev.cursor + 1) {
-        const from = currentFacelets({ ...s, cursor: s.cursor - 1 });
-        play(from, to, s.moves[s.cursor - 1], duration);
-      } else if (s.cursor === prev.cursor - 1) {
-        const from = currentFacelets({ ...s, cursor: s.cursor + 1 });
-        play(from, to, MOVE_INVERSE[s.moves[s.cursor]], duration);
-      }
-      last.current = { origin: s.origin, cursor: s.cursor };
-    };
-
-    sync();
-    const unsub = subscribe(sync);
-    return () => { unsub(); stop(); };
-  }, [speedMs]);
-
-  return anim;
+export function useStickerAnimation(): StickerAnimation {
+  return useSyncExternalStore(subscribeBoth, read, read);
 }

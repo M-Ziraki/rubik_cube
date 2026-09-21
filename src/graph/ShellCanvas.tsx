@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { shellLayout, type ShellSpec } from './layout';
 import { formatApprox } from '../components/ui';
+import { useI18n } from '../i18n/I18nProvider';
 
 function cssVar(name: string, fallback: string): string {
   if (typeof window === 'undefined') return fallback;
@@ -26,16 +27,17 @@ export function ShellCanvas({ spec, height = 420, highlight, onHighlight, subtit
   onHighlight?: (distance: number | null) => void;
   subtitle?: string;
 }): JSX.Element {
+  const { t } = useI18n();
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [hover, setHover] = useState<number | null>(null);
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
-    const obs = new MutationObserver(() => setTick((t) => t + 1));
+    const obs = new MutationObserver(() => setTick((n) => n + 1));
     obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const onChange = (): void => setTick((t) => t + 1);
+    const onChange = (): void => setTick((n) => n + 1);
     mq.addEventListener('change', onChange);
     return () => { obs.disconnect(); mq.removeEventListener('change', onChange); };
   }, []);
@@ -101,7 +103,11 @@ export function ShellCanvas({ spec, height = 420, highlight, onHighlight, subtit
     if (active !== null && active !== undefined) {
       const shell = layout.shells.find((s) => s.distance === active);
       if (shell) {
-        const label = `${shell.distance} move${shell.distance === 1 ? '' : 's'} · ${formatApprox(shell.count)} positions${shell.exact ? '' : ' (estimate)'}`;
+        const label = t('graph.shellLabel', {
+          n: shell.distance,
+          count: formatApprox(shell.count),
+          kind: shell.exact ? t('common.exact') : t('common.estimate'),
+        });
         ctx.font = `500 12px ${cssVar('--sans', 'sans-serif')}`;
         const tw = ctx.measureText(label).width;
         ctx.fillStyle = paper;
@@ -116,7 +122,7 @@ export function ShellCanvas({ spec, height = 420, highlight, onHighlight, subtit
         ctx.fillText(label, bx + 9, 24);
       }
     }
-  }, [layout, height, active, tick]);
+  }, [layout, height, active, tick, t]);
 
   useEffect(() => {
     draw();

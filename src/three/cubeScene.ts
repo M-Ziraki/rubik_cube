@@ -36,8 +36,14 @@ interface Cubie {
   stickers: { mesh: THREE.Mesh; facelet: number }[];
 }
 
-/** A sticker's base colour, so emphasis can be applied and undone cleanly. */
-const DIM_MIX = 0.82;
+/**
+ * How far a de-emphasised sticker is mixed towards the plastic body colour.
+ *
+ * This used to be 0.82, which washed every unaffected sticker out to a single
+ * near-white beige - they read as blank, not as quiet. A sticker must always
+ * remain recognisably its own colour, so the mix is deliberately partial.
+ */
+const DIM_MIX = 0.45;
 
 function roundedSquare(size: number, radius: number): THREE.ShapeGeometry {
   const s = new THREE.Shape();
@@ -55,6 +61,20 @@ function roundedSquare(size: number, radius: number): THREE.ShapeGeometry {
   return new THREE.ShapeGeometry(s, 8);
 }
 
+/** One sticker as the renderer currently has it painted. */
+export interface InspectedSticker {
+  facelet: number;
+  /** The face letter the logical state says belongs in this slot. */
+  face: string;
+  /** True when emphasis is active and this sticker is not in the set. */
+  dimmed: boolean;
+  painted: string;
+  /** What `painted` must equal, dimming included. */
+  expected: string;
+  /** The undimmed colour, for checking that the hue survived. */
+  base: string;
+}
+
 export class CubeScene {
   private renderer: THREE.WebGLRenderer;
   private scene: THREE.Scene;
@@ -66,9 +86,9 @@ export class CubeScene {
   private stickerMeshes: THREE.Mesh[] = [];
 
   private facelets = 'UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB';
-  private queue: { move: number; onDone?: () => void }[] = [];
-  private animating: { move: number; elapsed: number; duration: number; onDone?: () => void } | null = null;
-  private turnMillis = 260;
+  private turning: number | null = null;
+  private lastTurn: number | null = null;
+  private readonly axis = new THREE.Vector3();
 
   private yaw = 0.62;
   private pitch = 0.48;
@@ -165,8 +185,10 @@ export class CubeScene {
     }
   }
 
+  private static readonly BODY = new THREE.Color(0xd6d1c2);
+
   private applyColors(): void {
-    const body = new THREE.Color(0xd6d1c2);
+    const body = CubeScene.BODY;
     for (const cubie of this.cubies) {
       for (const sticker of cubie.stickers) {
         const face = this.facelets[sticker.facelet] as keyof typeof FACE_COLORS;
@@ -194,65 +216,62 @@ export class CubeScene {
     this.applyColors();
   }
 
+  /**
+   * A ring around the picked sticker. One mesh, reused: building a fresh
+   * geometry and material on every repaint leaked both, once per move. It sits
+   * a hair *below* the sticker with depth writing off, so it shows as a border
+   * and can never occlude the colour it is marking.
+   */
   private placeMarker(): void {
-    if (this.marker) { this.marker.parent?.remove(this.marker); this.marker = null; }
-    if (this.selected === null) return;
+    if (this.selected === null) {
+      if (this.marker) this.marker.visible = false;
+      return;
+    }
+    if (!this.marker) {
+      const geom = roundedSquare(CUBIE_SIZE - STICKER_INSET * 2 + 0.12, 0.17);
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0x1c6b3f, side: THREE.DoubleSide, depthWrite: false, transparent: true,
+      });
+      this.marker = new THREE.Mesh(geom, mat);
+    }
     for (const cubie of this.cubies) {
       for (const sticker of cubie.stickers) {
         if (sticker.facelet !== this.selected) continue;
-        const geom = roundedSquare(CUBIE_SIZE - STICKER_INSET * 2 + 0.1, 0.16);
-        const mat = new THREE.MeshBasicMaterial({ color: 0x1c6b3f, side: THREE.DoubleSide });
-        const m = new THREE.Mesh(geom, mat);
-        m.position.copy(sticker.mesh.position).multiplyScalar(1.004);
+        const m = this.marker;
+        m.position.copy(sticker.mesh.position).multiplyScalar(0.985);
         m.rotation.copy(sticker.mesh.rotation);
-        m.renderOrder = -1;
-        sticker.mesh.parent?.add(m);
-        this.marker = m;
+        m.visible = true;
+        if (m.parent !== sticker.mesh.parent) sticker.mesh.parent?.add(m);
         return;
       }
     }
+    this.marker.visible = false;
   }
 
   /* -------------------------------------------------------------- state --- */
 
-  setFacelets(facelets: string, options: { instant?: boolean } = {}): void {
+  /** Show this position immediately, abandoning any turn being drawn. */
+  setFacelets(facelets: string): void {
+    this.abortTurn();
     this.facelets = facelets;
-    if (options.instant !== false) {
-      this.queue.length = 0;
-      this.finishAnimation(true);
-    }
     this.applyColors();
   }
 
   getFacelets(): string { return this.facelets; }
 
-  setTurnSpeed(millis: number): void { this.turnMillis = Math.max(30, millis); }
-
-  /** Queue an animated turn. The caller is responsible for the new state. */
-  playMove(move: number, nextFacelets: string, onDone?: () => void): void {
-    this.pendingStates.set(move + this.queue.length * 100, nextFacelets);
-    this.queue.push({ move, onDone });
-    this.stateQueue.push(nextFacelets);
-  }
-
-  private pendingStates = new Map<number, string>();
-  private stateQueue: string[] = [];
-
-  clearQueue(): void {
-    this.queue.length = 0;
-    this.stateQueue.length = 0;
-    this.finishAnimation(true);
-  }
-
-  get queueLength(): number { return this.queue.length + (this.animating ? 1 : 0); }
-
   /* ---------------------------------------------------------- animation --- */
+  /*
+   * The scene no longer owns any timing. `turnClock` decides when a turn runs
+   * and how far through it is; this class only knows how to draw one. That is
+   * what keeps the cube and the sticker map in step, and it means a turn can
+   * never be left half-applied: the store has already committed the new state
+   * before `beginTurn` is called.
+   */
 
-  private startNext(): void {
-    if (this.animating || this.queue.length === 0) return;
-    const next = this.queue.shift()!;
-    const face = MOVE_FACE[next.move];
-    const n = FACE_NORMAL[face];
+  /** Lift the turning layer onto the pivot, ready to be rotated. */
+  beginTurn(move: number): void {
+    this.abortTurn();
+    const n = FACE_NORMAL[MOVE_FACE[move]];
     this.pivot.rotation.set(0, 0, 0);
     this.pivot.updateMatrix();
     for (const cubie of this.cubies) {
@@ -260,53 +279,54 @@ export class CubeScene {
       const inLayer = (n[0] !== 0 && n[0] === x) || (n[1] !== 0 && n[1] === y) || (n[2] !== 0 && n[2] === z);
       if (inLayer) this.pivot.attach(cubie.group);
     }
-    this.animating = {
-      move: next.move,
-      elapsed: 0,
-      duration: this.turnMillis * (MOVE_POWER[next.move] === 2 ? 1.45 : 1) / 1000,
-      onDone: next.onDone,
-    };
+    this.turning = move;
   }
 
-  private finishAnimation(silent = false): void {
-    if (!this.animating) return;
-    const { move, onDone } = this.animating;
-    this.animating = null;
+  /** Rotate the lifted layer. `eased` runs 0..1 across the turn. */
+  setTurnProgress(eased: number): void {
+    if (this.turning === null) return;
+    const face = MOVE_FACE[this.turning];
+    const n = FACE_NORMAL[face];
+    const angle = -(Math.PI / 2) * MOVE_POWER[this.turning] * eased;
+    this.axis.set(n[0], n[1], n[2]).normalize();
+    this.pivot.setRotationFromAxisAngle(this.axis, angle);
+  }
+
+  /**
+   * Drop the layer back into the lattice and repaint from the finished state.
+   * A face turn maps its layer onto itself, so the repainted cube is identical
+   * to the rotated one and the swap is invisible.
+   */
+  endTurn(facelets: string): void {
+    this.abortTurn();
+    this.facelets = facelets;
+    this.applyColors();
+    const move = this.lastTurn;
+    this.lastTurn = null;
+    if (move !== null) this.opts.onMoveComplete?.(move);
+  }
+
+  /** Put every cubie back under the root with no leftover rotation. */
+  private abortTurn(): void {
+    if (this.turning === null) return;
+    this.lastTurn = this.turning;
+    this.turning = null;
     this.pivot.rotation.set(0, 0, 0);
     this.pivot.updateMatrixWorld(true);
-    for (const cubie of [...this.cubies]) {
-      if (cubie.group.parent === this.pivot) {
-        this.root.attach(cubie.group);
-        cubie.group.position.set(cubie.position[0], cubie.position[1], cubie.position[2]);
-        cubie.group.rotation.set(0, 0, 0);
-        cubie.group.updateMatrix();
-      }
-    }
-    const nextState = this.stateQueue.shift();
-    if (nextState) { this.facelets = nextState; this.applyColors(); }
-    if (!silent) {
-      onDone?.();
-      this.opts.onMoveComplete?.(move);
+    for (const cubie of this.cubies) {
+      if (cubie.group.parent !== this.pivot) continue;
+      this.root.attach(cubie.group);
+      cubie.group.position.set(cubie.position[0], cubie.position[1], cubie.position[2]);
+      cubie.group.rotation.set(0, 0, 0);
+      cubie.group.updateMatrix();
     }
   }
+
+  get isTurning(): boolean { return this.turning !== null; }
 
   private tick(): void {
     if (this.disposed) return;
     const dt = Math.min(this.clock.getDelta(), 0.05);
-
-    this.startNext();
-    if (this.animating) {
-      this.animating.elapsed += dt;
-      const t = Math.min(1, this.animating.elapsed / this.animating.duration);
-      const eased = t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
-      const face = MOVE_FACE[this.animating.move];
-      const power = MOVE_POWER[this.animating.move];
-      const n = FACE_NORMAL[face];
-      const angle = -(Math.PI / 2) * power * eased;
-      this.pivot.setRotationFromAxisAngle(new THREE.Vector3(n[0], n[1], n[2]).normalize(), angle);
-      if (t >= 1) this.finishAnimation();
-    }
-
     this.yaw += (this.targetYaw - this.yaw) * Math.min(1, dt * 14);
     this.pitch += (this.targetPitch - this.pitch) * Math.min(1, dt * 14);
     const cp = Math.cos(this.pitch);
@@ -470,11 +490,56 @@ export class CubeScene {
     this.camera.updateProjectionMatrix();
   }
 
+  /**
+   * What each sticker is actually painted, next to what the logical state says
+   * it should be. The rendering-consistency tests compare the two; a mismatch
+   * means the picture and the model have drifted apart, which is precisely the
+   * class of bug this exists to catch.
+   */
+  inspect(): InspectedSticker[] {
+    const out: InspectedSticker[] = [];
+    const probe = new THREE.Color();
+    for (const cubie of this.cubies) {
+      for (const sticker of cubie.stickers) {
+        const mat = sticker.mesh.material as THREE.MeshStandardMaterial;
+        const face = this.facelets[sticker.facelet] as keyof typeof FACE_COLORS;
+        const dimmed = Boolean(this.emphasis && !this.emphasis.has(sticker.facelet));
+        probe.set(FACE_COLORS[face] ?? '#2b2b2b');
+        const base = `#${probe.getHexString()}`;
+        if (dimmed) probe.lerp(CubeScene.BODY, DIM_MIX);
+        out.push({
+          facelet: sticker.facelet,
+          face,
+          dimmed,
+          painted: `#${mat.color.getHexString()}`,
+          expected: `#${probe.getHexString()}`,
+          base,
+        });
+      }
+    }
+    return out.sort((a, b) => a.facelet - b.facelet);
+  }
+
+  /** The facelet string the scene believes it is showing. */
+  get renderedFacelets(): string { return this.facelets; }
+
   dispose(): void {
     this.disposed = true;
     this.renderer.setAnimationLoop(null);
     this.resizeObserver.disconnect();
+    this.scene.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      mesh.geometry?.dispose();
+      const mat = mesh.material as THREE.Material | THREE.Material[];
+      if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
+      else mat?.dispose();
+    });
+    this.marker?.geometry.dispose();
+    (this.marker?.material as THREE.Material | undefined)?.dispose();
     this.renderer.dispose();
-    this.container.removeChild(this.renderer.domElement);
+    if (this.renderer.domElement.parentNode === this.container) {
+      this.container.removeChild(this.renderer.domElement);
+    }
   }
 }

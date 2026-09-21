@@ -133,6 +133,7 @@ export interface StageResult {
   distance: number;
   /** True when this sequence is the shortest possible way to reach the goal. */
   optimal: boolean;
+  /** Dictionary key for the goal description: `l.ladder.goal.<goal>`. */
   goal: string;
 }
 
@@ -153,7 +154,7 @@ export function solveCross(cube: CubieCube): StageResult {
       if (table[j] === want) { moves.push(m); idx = j; break; }
     }
   }
-  return { moves, distance, optimal: true, goal: 'the four bottom-layer edges in place' };
+  return { moves, distance, optimal: true, goal: 'cross' };
 }
 
 export function crossTableStats(): { size: number; histogram: number[]; diameter: number } {
@@ -215,7 +216,7 @@ export function solveEdgeOrientation(cube: CubieCube): StageResult {
       if (table[j] === want) { moves.push(m); flip = j; break; }
     }
   }
-  return { moves, distance, optimal: true, goal: 'every edge the right way round' };
+  return { moves, distance, optimal: true, goal: 'edge-orientation' };
 }
 
 export function flipTableStats(): { size: number; histogram: number[]; diameter: number } {
@@ -269,11 +270,11 @@ export function solveToG1(cube: CubieCube, maxDepth = 12): StageResult {
   for (let d = 0; d <= maxDepth; d++) {
     if (search(0, d, twist, flip, slice, -1)) { found = d; break; }
   }
-  if (found < 0) return { moves: [], distance: -1, optimal: false, goal: 'inside the subgroup G1' };
+  if (found < 0) return { moves: [], distance: -1, optimal: false, goal: 'g1' };
   return {
     moves: Array.from(path.subarray(0, found)),
     distance: found,
     optimal: true,
-    goal: 'inside the subgroup G1 — nothing misoriented, slice edges home',
+    goal: 'g1',
   };
 }

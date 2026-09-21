@@ -4,112 +4,33 @@ import { LessonGraph, LessonDistance, LessonSearch, LessonHeuristics } from './p
 import { LessonGroups, LessonLadder, LessonGodsNumber, LessonHumanVsMachine } from './part3';
 import { LessonStickerMap } from './stickerLesson';
 
+/**
+ * The course, as structure only.
+ *
+ * Titles and summaries live in the dictionaries under `lesson.<id>.title` and
+ * `lesson.<id>.summary`, and part names under `part.<part>`, so the whole
+ * syllabus translates without touching this file.
+ */
 export interface Lesson {
   id: string;
   part: string;
-  title: string;
-  summary: string;
   minutes: number;
   component: ComponentType;
 }
 
 export const LESSONS: Lesson[] = [
-  {
-    id: 'notation',
-    part: 'Reading the cube',
-    title: 'Notation and moves',
-    summary: 'Six letters, three endings, and the metric that God’s number is stated in.',
-    minutes: 8,
-    component: LessonNotation,
-  },
-  {
-    id: 'pieces',
-    part: 'Reading the cube',
-    title: 'Pieces, not stickers',
-    summary: 'Twenty moving pieces, two independent properties each: where it is and which way it faces.',
-    minutes: 8,
-    component: LessonPieces,
-  },
-  {
-    id: 'laws',
-    part: 'Reading the cube',
-    title: 'The three laws',
-    summary: 'Why only one arrangement in twelve can actually be reached, and where the 43 quintillion comes from.',
-    minutes: 10,
-    component: LessonLaws,
-  },
-  {
-    id: 'sticker-map',
-    part: 'The graph',
-    title: 'The sticker map',
-    summary: 'The figure from the reference animation, taken apart: 54 dots, nine circles, and why it is not the graph people usually mean.',
-    minutes: 10,
-    component: LessonStickerMap,
-  },
-  {
-    id: 'graph',
-    part: 'The graph',
-    title: 'Positions as vertices',
-    summary: 'The central idea, stated precisely — and why the rings grow thirteenfold, not eighteenfold.',
-    minutes: 10,
-    component: LessonGraph,
-  },
-  {
-    id: 'distance',
-    part: 'The graph',
-    title: 'Distance and diameter',
-    summary: 'Where the cube actually lives: almost everything is 17 or 18 moves from home.',
-    minutes: 8,
-    component: LessonDistance,
-  },
-  {
-    id: 'search',
-    part: 'Searching',
-    title: 'How to look for a path',
-    summary: 'Breadth-first, depth-first, iterative deepening — and what each one costs on a graph this size.',
-    minutes: 12,
-    component: LessonSearch,
-  },
-  {
-    id: 'heuristics',
-    part: 'Searching',
-    title: 'Lower bounds and pattern databases',
-    summary: 'The one trick that makes deep search possible: forget enough of the puzzle to solve it completely.',
-    minutes: 12,
-    component: LessonHeuristics,
-  },
-  {
-    id: 'groups',
-    part: 'Structure',
-    title: 'The cube group',
-    summary: 'Composition, order, subgroups and cosets — the vocabulary every solver is written in.',
-    minutes: 12,
-    component: LessonGroups,
-  },
-  {
-    id: 'ladder',
-    part: 'Structure',
-    title: 'The subgroup ladder',
-    summary: 'Thistlethwaite’s idea and Kociemba’s refinement, with the first rung to climb yourself.',
-    minutes: 15,
-    component: LessonLadder,
-  },
-  {
-    id: 'gods-number',
-    part: 'Optimality',
-    title: 'God’s number, and how it was proved',
-    summary: 'Cosets, 35 CPU-years, and the same proof carried out here on a puzzle small enough to finish.',
-    minutes: 12,
-    component: LessonGodsNumber,
-  },
-  {
-    id: 'human-vs-machine',
-    part: 'Optimality',
-    title: 'Humans and machines',
-    summary: 'Why 55 moves and 18 moves are different activities, and what is realistically achievable.',
-    minutes: 12,
-    component: LessonHumanVsMachine,
-  },
+  { id: 'notation', part: 'reading', minutes: 8, component: LessonNotation },
+  { id: 'pieces', part: 'reading', minutes: 8, component: LessonPieces },
+  { id: 'laws', part: 'reading', minutes: 10, component: LessonLaws },
+  { id: 'sticker-map', part: 'graph', minutes: 10, component: LessonStickerMap },
+  { id: 'graph', part: 'graph', minutes: 10, component: LessonGraph },
+  { id: 'distance', part: 'graph', minutes: 8, component: LessonDistance },
+  { id: 'search', part: 'searching', minutes: 12, component: LessonSearch },
+  { id: 'heuristics', part: 'searching', minutes: 12, component: LessonHeuristics },
+  { id: 'groups', part: 'structure', minutes: 12, component: LessonGroups },
+  { id: 'ladder', part: 'structure', minutes: 15, component: LessonLadder },
+  { id: 'gods-number', part: 'optimality', minutes: 12, component: LessonGodsNumber },
+  { id: 'human-vs-machine', part: 'optimality', minutes: 12, component: LessonHumanVsMachine },
 ];
 
 export const LESSON_PARTS = Array.from(new Set(LESSONS.map((l) => l.part)));

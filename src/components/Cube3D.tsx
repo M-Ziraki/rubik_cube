@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { CubeScene } from '../three/cubeScene';
-import { MOVE_INVERSE } from '../cube/defs';
-import { actions, currentFacelets, getState, subscribe, useAppState } from '../state/store';
+import { currentFacelets, getState, subscribe } from '../state/store';
+import { currentTurn, subscribeTurn } from '../state/turnClock';
 
 export interface Cube3DProps {
   /** Drive the cube from an explicit facelet string instead of the app state. */
@@ -20,9 +20,14 @@ export interface Cube3DProps {
 }
 
 /**
- * Bridges the Three.js scene to the store. The store is the single source of
- * truth; this component only decides whether a change should be animated as a
- * single turn or snapped to instantly.
+ * Bridges the Three.js scene to the app.
+ *
+ * Two sources drive it and they never overlap. `facelets` puts the component in
+ * controlled mode, where it simply shows whatever string it is handed - used by
+ * lessons and previews, which do not animate. Otherwise it follows the store,
+ * and draws turns under the direction of the shared turn clock, which is also
+ * what the sticker map listens to. Neither view owns the timing, so neither can
+ * run ahead of the other.
  */
 export function Cube3D({
   facelets, interactive = true, className, height, onUserMove,
@@ -30,8 +35,6 @@ export function Cube3D({
 }: Cube3DProps): JSX.Element {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const sceneRef = useRef<CubeScene | null>(null);
-  const lastRef = useRef({ origin: '', cursor: -1 });
-  const turnSpeed = useAppState((s) => s.turnSpeed);
   // Callbacks live in a ref so changing them never tears down the WebGL scene.
   const cbRef = useRef({ onUserMove, onStickerPick, onStickerHover });
   cbRef.current = { onUserMove, onStickerPick, onStickerHover };
@@ -40,54 +43,67 @@ export function Cube3D({
     if (!hostRef.current) return undefined;
     const scene = new CubeScene(hostRef.current, {
       interactive,
-      onUserMove: (move) => {
-        if (cbRef.current.onUserMove) cbRef.current.onUserMove(move);
-        else actions.applyMove(move);
-      },
+      onUserMove: (move) => cbRef.current.onUserMove?.(move),
       onStickerPick: (f) => cbRef.current.onStickerPick?.(f),
       onStickerHover: (f) => cbRef.current.onStickerHover?.(f),
     });
     sceneRef.current = scene;
-    scene.setTurnSpeed(getState().turnSpeed);
-    if (facelets) scene.setFacelets(facelets);
-    else {
-      scene.setFacelets(currentFacelets(getState()));
-      lastRef.current = { origin: getState().origin, cursor: getState().cursor };
-    }
-    return () => { scene.dispose(); sceneRef.current = null; };
+    // A registry of live scenes, so the rendering-consistency tests can compare
+    // what is painted against the logical state. Read-only; costs nothing.
+    const reg = (window as unknown as { __cubeAtlas?: Set<CubeScene> });
+    reg.__cubeAtlas = reg.__cubeAtlas ?? new Set();
+    reg.__cubeAtlas.add(scene);
+    return () => {
+      reg.__cubeAtlas?.delete(scene);
+      scene.dispose();
+      sceneRef.current = null;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [interactive]);
-
-  useEffect(() => { sceneRef.current?.setTurnSpeed(turnSpeed); }, [turnSpeed]);
 
   useEffect(() => { sceneRef.current?.setEmphasis(emphasis ?? null); }, [emphasis]);
   useEffect(() => { sceneRef.current?.setSelected(selected); }, [selected]);
 
-  // Controlled mode: follow the given string exactly.
+  // Controlled mode: follow the given string exactly, never animate.
   useEffect(() => {
-    if (facelets && sceneRef.current) sceneRef.current.setFacelets(facelets);
+    if (facelets !== undefined) sceneRef.current?.setFacelets(facelets);
   }, [facelets]);
 
-  // Store mode: animate single steps, snap for anything else.
+  // Store mode: snap to the store, and let the turn clock draw the turns.
   useEffect(() => {
-    if (facelets) return undefined;
-    const sync = (): void => {
-      const scene = sceneRef.current;
-      if (!scene) return;
-      const s = getState();
-      const target = currentFacelets(s);
-      const last = lastRef.current;
-      if (s.origin !== last.origin || Math.abs(s.cursor - last.cursor) > 1) {
-        scene.setFacelets(target);
-      } else if (s.cursor === last.cursor + 1) {
-        scene.playMove(s.moves[s.cursor - 1], target);
-      } else if (s.cursor === last.cursor - 1) {
-        scene.playMove(MOVE_INVERSE[s.moves[s.cursor]], target);
+    if (facelets !== undefined) return undefined;
+    const scene = sceneRef.current;
+    if (!scene) return undefined;
+
+    scene.setFacelets(currentFacelets(getState()));
+
+    const onTurn = (turn: ReturnType<typeof currentTurn>): void => {
+      const s = sceneRef.current;
+      if (!s) return;
+      if (!turn) {
+        // The turn was committed (or cancelled): show the settled position.
+        s.endTurn(currentFacelets(getState()));
+        return;
       }
-      lastRef.current = { origin: s.origin, cursor: s.cursor };
+      if (!s.isTurning) {
+        s.setFacelets(turn.from);
+        s.beginTurn(turn.move);
+      }
+      s.setTurnProgress(turn.progress);
     };
-    sync();
-    return subscribe(sync);
+
+    // A store change with no turn behind it - a jump, a reset, a new scramble -
+    // still has to be shown.
+    const onStore = (): void => {
+      const s = sceneRef.current;
+      if (!s || currentTurn()) return;
+      const want = currentFacelets(getState());
+      if (s.getFacelets() !== want) s.setFacelets(want);
+    };
+
+    const unTurn = subscribeTurn(onTurn);
+    const unStore = subscribe(onStore);
+    return () => { unTurn(); unStore(); };
   }, [facelets]);
 
   return (

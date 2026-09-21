@@ -18,10 +18,24 @@ import {
 
 export type Facelets = Uint8Array; // 54 entries, each 0..5 = U R F D L B
 
+/**
+ * One line of detail about a rejected cube, as a dictionary key plus numbers.
+ *
+ * The validator runs in a worker and in tests, neither of which has a language,
+ * so it reports structure rather than sentences. `CubeError.message` keeps a
+ * readable English string for thrown errors and logs; the UI shows
+ * `error.<code>` and these notes instead.
+ */
+export interface CubeErrorNote {
+  key: string;
+  params?: Record<string, string | number>;
+}
+
 export class CubeError extends Error {
+  /** Also the dictionary key: `error.<code>`. */
   readonly code: string;
-  readonly detail: string[];
-  constructor(code: string, message: string, detail: string[] = []) {
+  readonly detail: CubeErrorNote[];
+  constructor(code: string, message: string, detail: CubeErrorNote[] = []) {
     super(message);
     this.code = code;
     this.detail = detail;
@@ -92,15 +106,20 @@ export function diagnose(f: Facelets): Diagnosis {
   const wrongCounts = counts
     .map((c, i) => ({ c, i }))
     .filter(({ c }) => c !== 9)
-    .map(({ c, i }) => `${FACE_NAMES[i]}: ${c} (needs 9)`);
+    .map(({ c, i }) => ({ key: 'detail.count', params: { face: FACE_NAMES[i], n: c } }));
   if (wrongCounts.length) {
     problems.push(new CubeError('counts', 'Each colour must appear exactly nine times.', wrongCounts));
   }
 
   // Law 0b: the centres define the colour scheme and cannot be repainted.
-  const badCentres: string[] = [];
+  const badCentres: CubeErrorNote[] = [];
   for (let i = 0; i < 6; i++) {
-    if (f[i * 9 + 4] !== i) badCentres.push(`centre of ${FACE_NAMES[i]} reads ${FACE_NAMES[f[i * 9 + 4]]}`);
+    if (f[i * 9 + 4] !== i) {
+      badCentres.push({
+        key: 'detail.centre',
+        params: { face: FACE_NAMES[i], reads: FACE_NAMES[f[i * 9 + 4]] },
+      });
+    }
   }
   if (badCentres.length) {
     problems.push(new CubeError('centres', 'The six centre stickers fix the colour scheme and must stay put.', badCentres));
@@ -110,7 +129,7 @@ export function diagnose(f: Facelets): Diagnosis {
   cube.cp.fill(255); cube.ep.fill(255);
 
   // Corners: find which piece sits in each slot and how it is twisted.
-  const cornerProblems: string[] = [];
+  const cornerProblems: CubeErrorNote[] = [];
   for (let i = 0; i < 8; i++) {
     let ori = 0;
     for (; ori < 3; ori++) {
@@ -118,7 +137,7 @@ export function diagnose(f: Facelets): Diagnosis {
       if (col === 0 || col === 3) break; // a U or D sticker defines the twist
     }
     if (ori === 3) {
-      cornerProblems.push(`${CORNER_NAMES[i]} has no white or yellow sticker`);
+      cornerProblems.push({ key: 'detail.cornerNoUD', params: { piece: CORNER_NAMES[i] } });
       continue;
     }
     const a = f[CORNER_FACELET[i][(ori + 1) % 3]];
@@ -128,7 +147,7 @@ export function diagnose(f: Facelets): Diagnosis {
       if (a === CORNER_COLOR[j][1] && b === CORNER_COLOR[j][2]) { found = j; break; }
     }
     if (found < 0) {
-      cornerProblems.push(`${CORNER_NAMES[i]} shows a colour combination that no real corner has`);
+      cornerProblems.push({ key: 'detail.cornerImpossible', params: { piece: CORNER_NAMES[i] } });
       continue;
     }
     cube.cp[i] = found;
@@ -136,7 +155,7 @@ export function diagnose(f: Facelets): Diagnosis {
   }
 
   // Edges.
-  const edgeProblems: string[] = [];
+  const edgeProblems: CubeErrorNote[] = [];
   for (let i = 0; i < 12; i++) {
     let found = -1;
     let ori = 0;
@@ -147,7 +166,7 @@ export function diagnose(f: Facelets): Diagnosis {
       if (a === EDGE_COLOR[j][1] && b === EDGE_COLOR[j][0]) { found = j; ori = 1; break; }
     }
     if (found < 0) {
-      edgeProblems.push(`${EDGE_NAMES[i]} shows a colour combination that no real edge has`);
+      edgeProblems.push({ key: 'detail.edgeImpossible', params: { piece: EDGE_NAMES[i] } });
       continue;
     }
     cube.ep[i] = found;
@@ -159,19 +178,19 @@ export function diagnose(f: Facelets): Diagnosis {
   if (problems.length) return { ok: false, problems };
 
   // Every piece must appear exactly once.
-  const dupC: string[] = [];
+  const dupC: CubeErrorNote[] = [];
   const seenC = new Array(8).fill(0);
   for (let i = 0; i < 8; i++) seenC[cube.cp[i]]++;
   for (let j = 0; j < 8; j++) {
-    if (seenC[j] === 0) dupC.push(`${CORNER_NAMES[j]} is missing`);
-    else if (seenC[j] > 1) dupC.push(`${CORNER_NAMES[j]} appears ${seenC[j]} times`);
+    if (seenC[j] === 0) dupC.push({ key: 'detail.missing', params: { piece: CORNER_NAMES[j] } });
+    else if (seenC[j] > 1) dupC.push({ key: 'detail.repeated', params: { piece: CORNER_NAMES[j], n: seenC[j] } });
   }
-  const dupE: string[] = [];
+  const dupE: CubeErrorNote[] = [];
   const seenE = new Array(12).fill(0);
   for (let i = 0; i < 12; i++) seenE[cube.ep[i]]++;
   for (let j = 0; j < 12; j++) {
-    if (seenE[j] === 0) dupE.push(`${EDGE_NAMES[j]} is missing`);
-    else if (seenE[j] > 1) dupE.push(`${EDGE_NAMES[j]} appears ${seenE[j]} times`);
+    if (seenE[j] === 0) dupE.push({ key: 'detail.missing', params: { piece: EDGE_NAMES[j] } });
+    else if (seenE[j] > 1) dupE.push({ key: 'detail.repeated', params: { piece: EDGE_NAMES[j], n: seenE[j] } });
   }
   if (dupC.length) problems.push(new CubeError('corner-duplicates', 'Each corner piece must appear exactly once.', dupC));
   if (dupE.length) problems.push(new CubeError('edge-duplicates', 'Each edge piece must appear exactly once.', dupE));
@@ -184,7 +203,7 @@ export function diagnose(f: Facelets): Diagnosis {
     problems.push(new CubeError(
       'twist',
       'One corner is twisted in place. No sequence of face turns can do that.',
-      [`Total twist is ${twist}, which is ${twist % 3} more than a multiple of 3. Rotate one corner ${3 - (twist % 3)} step(s).`],
+      [{ key: 'detail.twist', params: { twist, rem: twist % 3, fix: 3 - (twist % 3) } }],
     ));
   }
 
@@ -195,7 +214,7 @@ export function diagnose(f: Facelets): Diagnosis {
     problems.push(new CubeError(
       'flip',
       'One edge is flipped in place. Face turns always flip edges in pairs.',
-      [`${flip} edges read as flipped, which is odd. Flip one edge over.`],
+      [{ key: 'detail.flip', params: { n: flip } }],
     ));
   }
 
@@ -206,7 +225,7 @@ export function diagnose(f: Facelets): Diagnosis {
     problems.push(new CubeError(
       'parity',
       'Two pieces are swapped. Every face turn is a 4-cycle, so corner parity and edge parity always agree.',
-      ['Swap any two corner pieces (or any two edge pieces) to fix it.'],
+      [{ key: 'detail.parity' }],
     ));
   }
 

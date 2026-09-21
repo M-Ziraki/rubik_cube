@@ -1,4 +1,5 @@
 import { FACE_COLORS, FACE_COLOR_NAMES, FACE_NAMES, type FaceName } from '../cube/defs';
+import { useI18n } from '../i18n/I18nProvider';
 
 /**
  * A flat net for typing in the colours of a real cube.
@@ -13,6 +14,7 @@ export function ColorGrid({ facelets, brush, onPaint, size = 30 }: {
   onPaint: (index: number, face: number) => void;
   size?: number;
 }): JSX.Element {
+  const { t } = useI18n();
   const gap = 3;
   const cell = size + gap;
   const faceSize = cell * 3 + gap;
@@ -58,8 +60,11 @@ export function ColorGrid({ facelets, brush, onPaint, size = 30 }: {
               >
                 <title>
                   {isCentre
-                    ? `${FACE_NAMES[face]} centre — fixed`
-                    : `${FACE_NAMES[face]}${i + 1}: ${FACE_COLOR_NAMES[FACE_NAMES[value] as FaceName]}`}
+                    ? t('scan.centreFixed', { face: FACE_NAMES[face] })
+                    : t('scan.stickerTitle', {
+                      slot: `${FACE_NAMES[face]}${i + 1}`,
+                      colour: t(`colour.${FACE_COLOR_NAMES[FACE_NAMES[value] as FaceName]}`),
+                    })}
                 </title>
               </rect>
             );
@@ -71,14 +76,17 @@ export function ColorGrid({ facelets, brush, onPaint, size = 30 }: {
 }
 
 export function ColorPalette({ value, onChange }: { value: number; onChange: (f: number) => void }): JSX.Element {
+  const { t } = useI18n();
   return (
-    <div className="row tight">
+    <div className="row tight" role="group" aria-label={t('scan.palette')}>
       {FACE_NAMES.map((f, i) => (
         <button
           key={f}
           type="button"
           onClick={() => onChange(i)}
-          title={`${FACE_COLOR_NAMES[f]} (the ${f} face)`}
+          aria-pressed={value === i}
+          aria-label={t('scan.paletteTitle', { colour: t(`colour.${FACE_COLOR_NAMES[f]}`), face: f })}
+          title={t('scan.paletteTitle', { colour: t(`colour.${FACE_COLOR_NAMES[f]}`), face: f })}
           style={{
             width: 34, height: 34, borderRadius: 8, cursor: 'pointer',
             background: FACE_COLORS[f],

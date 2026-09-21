@@ -2,16 +2,20 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Cube3D } from '../components/Cube3D';
 import { ColorGrid, ColorPalette } from '../scan/ColorGrid';
 import { Callout, Card, Sequence, Stat } from '../components/ui';
+import { Transport } from '../components/Transport';
 import { actions, useAppState } from '../state/store';
+import { player } from '../state/player';
 import { diagnose, faceletString, parseFaceletString, toFacelets } from '../cube/facelet';
-import { FACE_COLOR_NAMES, FACE_NAMES, MOVE_NAMES, SOLVED_FACELETS } from '../cube/defs';
+import { FACE_COLOR_NAMES, FACE_NAMES, GODS_NUMBER, MOVE_NAMES, SOLVED_FACELETS } from '../cube/defs';
 import { describeMove } from '../cube/notation';
+import { useI18n } from '../i18n/I18nProvider';
 import { explainMoves, requestScramble, solve } from '../solver/client';
 import type { SolutionNarrative } from '../cube/analysis';
 import type { Solution } from '../solver/twophase';
 import { METHODS } from '../data/methods';
 
 export function ScanPage(): JSX.Element {
+  const { t } = useI18n();
   const tablesReady = useAppState((s) => s.tablesReady);
   const [grid, setGrid] = useState<Uint8Array>(() => parseFaceletString(SOLVED_FACELETS));
   const [brush, setBrush] = useState(0);
@@ -19,6 +23,7 @@ export function ScanPage(): JSX.Element {
   const [narrative, setNarrative] = useState<SolutionNarrative | null>(null);
   const [busy, setBusy] = useState(false);
   const [accepted, setAccepted] = useState<string | null>(null);
+  const [solveError, setSolveError] = useState<string | null>(null);
   const token = useRef(0);
 
   const check = useMemo(() => diagnose(grid), [grid]);
@@ -29,12 +34,14 @@ export function ScanPage(): JSX.Element {
   };
 
   const loadRandom = async (): Promise<void> => {
+    token.current++;
     const r = await requestScramble(25, true);
     setGrid(parseFaceletString(r.facelets));
     setSolution(null); setNarrative(null); setAccepted(null);
   };
 
   const clearToSolved = (): void => {
+    token.current++;
     setGrid(parseFaceletString(SOLVED_FACELETS));
     setSolution(null); setNarrative(null); setAccepted(null);
   };
@@ -43,20 +50,26 @@ export function ScanPage(): JSX.Element {
     if (!check.ok || !check.cube) return;
     const facelets = faceletString(toFacelets(check.cube));
     setAccepted(facelets);
+    player.stop();
     actions.setPosition(facelets, []);
-    const t = ++token.current;
-    setBusy(true); setSolution(null); setNarrative(null);
+    const id = ++token.current;
+    setBusy(true); setSolution(null); setNarrative(null); setSolveError(null);
     try {
       const s = await solve(facelets, {
         timeBudgetMs: 10000,
-        maxLength: 20,
-        onImprove: (partial) => { if (t === token.current) setSolution(partial); },
+        maxLength: GODS_NUMBER,
+        onImprove: (partial) => { if (id === token.current) setSolution(partial); },
       });
-      if (t !== token.current) return;
+      if (id !== token.current) return;
       setSolution(s);
-      if (s.moves.length) setNarrative(await explainMoves(facelets, s.moves));
+      if (s.moves.length) {
+        const narr = await explainMoves(facelets, s.moves);
+        if (id === token.current) setNarrative(narr);
+      }
+    } catch (err) {
+      if (id === token.current) setSolveError((err as Error).message);
     } finally {
-      if (t === token.current) setBusy(false);
+      if (id === token.current) setBusy(false);
     }
   };
 
@@ -69,32 +82,30 @@ export function ScanPage(): JSX.Element {
   return (
     <>
       <header className="page-head">
-        <div className="eyebrow">Practice</div>
-        <h1>Your cube, in this cube</h1>
-        <p className="lede">
-          Type in the colours of the cube on your desk. The app will check that what you have
-          entered is physically possible, rebuild it in 3D, and walk you through a solution of
-          twenty moves or fewer — explaining at every step what the move is for.
-        </p>
+        <div className="eyebrow">{t('scan.eyebrow')}</div>
+        <h1>{t('scan.title')}</h1>
+        <p className="lede">{t('scan.lede')}</p>
       </header>
 
       <div className="split">
         <div className="stack">
           <Card
-            title="Enter the colours"
-            note="Pick a colour, then click stickers. Centres are fixed — they define the scheme."
-            actions={
+            title={t('scan.enter')}
+            note={t('scan.enterSub')}
+            actions={(
               <div className="row tight">
-                <button className="btn small ghost" onClick={clearToSolved}>Clear</button>
-                <button className="btn small ghost" onClick={loadRandom}>Fill with a random cube</button>
+                <button className="btn small ghost" onClick={clearToSolved}>{t('common.clear')}</button>
+                <button className="btn small ghost" onClick={loadRandom}>{t('scan.fillRandom')}</button>
               </div>
-            }
+            )}
           >
             <div className="stack">
               <ColorPalette value={brush} onChange={setBrush} />
               <div className="card-note">
-                Painting with <strong>{FACE_COLOR_NAMES[FACE_NAMES[brush]]}</strong> — the colour of
-                the <code>{FACE_NAMES[brush]}</code> centre.
+                {t('scan.painting', {
+                  colour: t(`colour.${FACE_COLOR_NAMES[FACE_NAMES[brush]]}`),
+                  face: FACE_NAMES[brush],
+                })}
               </div>
               <div className="scroll-x">
                 <ColorGrid facelets={grid} brush={brush} onPaint={paint} />
@@ -102,67 +113,54 @@ export function ScanPage(): JSX.Element {
               <div className="row tight">
                 {FACE_NAMES.map((f, i) => (
                   <span key={f} className={`tag ${counts[i] === 9 ? 'ok' : 'danger'}`}>
-                    {FACE_COLOR_NAMES[f]} {counts[i]}/9
+                    {t('scan.counts', { colour: t(`colour.${FACE_COLOR_NAMES[f]}`), n: counts[i] })}
                   </span>
                 ))}
               </div>
             </div>
           </Card>
 
-          <Card title="How to read your physical cube">
+          <Card title={t('scan.howToRead')}>
             <div className="prose">
-              <p>
-                Hold the cube with <strong>white on top</strong> and <strong>green facing you</strong>.
-                That fixes the scheme this app uses: white U, orange R, green F, yellow D, red L,
-                blue B. If your cube uses a different scheme, just keep the centres consistent —
-                what matters is that each centre keeps its own colour.
-              </p>
-              <p style={{ marginBottom: 0 }}>
-                Fill in the top face first, then turn the cube so each side face comes towards you
-                in turn — left, front, right, back — and finally the bottom. The net on the left is
-                laid out the same way an unfolded cardboard cube would be.
-              </p>
+              <p>{t('scan.howToRead.p1')}</p>
+              <p style={{ marginBottom: 0 }}>{t('scan.howToRead.p2')}</p>
             </div>
           </Card>
         </div>
 
         <div className="stack">
-          <Card title="Validation" note="the three laws every real cube obeys">
+          <Card title={t('scan.validation')} note={t('scan.validationSub')}>
             {check.ok ? (
               <>
                 <div className="row" style={{ marginBottom: 10 }}>
-                  <span className="tag ok">this is a real, reachable cube</span>
+                  <span className="tag ok">{t('scan.valid')}</span>
                 </div>
-                <p className="card-note">
-                  Corner twists sum to a multiple of three, an even number of edges are flipped, and
-                  the corner and edge permutations have the same parity. Every legal turn preserves
-                  all three, which is why only one arrangement in twelve is actually reachable.
-                </p>
+                <p className="card-note">{t('scan.validBody')}</p>
                 <button className="btn primary" onClick={buildAndSolve} disabled={busy || !tablesReady}>
-                  {busy ? 'Solving…' : 'Rebuild and solve'}
+                  {busy ? t('scan.solving') : t('scan.rebuildAndSolve')}
                 </button>
               </>
             ) : (
               <div className="stack">
                 {check.problems.map((p) => (
-                  <Callout key={p.code} kind={p.code === 'parity' || p.code === 'twist' || p.code === 'flip' ? 'warn' : 'danger'} title={p.message}>
+                  <Callout
+                    key={p.code}
+                    kind={p.code === 'parity' || p.code === 'twist' || p.code === 'flip' ? 'warn' : 'danger'}
+                    title={t(`error.${p.code}`)}
+                  >
                     {p.detail.length ? (
                       <ul style={{ margin: 0 }}>
-                        {p.detail.slice(0, 6).map((d, i) => <li key={i}>{d}</li>)}
+                        {p.detail.slice(0, 6).map((d, i) => <li key={i}>{t(d.key, d.params)}</li>)}
                       </ul>
                     ) : null}
                   </Callout>
                 ))}
-                <p className="card-note" style={{ margin: 0 }}>
-                  A mis-typed sticker and a genuinely impossible cube look the same from here. Check
-                  your reading first — but if the cube really is in this state, someone has taken it
-                  apart and reassembled it wrongly, and no amount of turning will fix it.
-                </p>
+                <p className="card-note" style={{ margin: 0 }}>{t('scan.invalidNote')}</p>
               </div>
             )}
           </Card>
 
-          <Card title="Reconstruction">
+          <Card title={t('scan.reconstruction')}>
             {accepted ? (
               <Cube3D />
             ) : (
@@ -170,11 +168,16 @@ export function ScanPage(): JSX.Element {
             )}
             {accepted ? (
               <p className="card-note" style={{ marginTop: 8, marginBottom: 0 }}>
-                This is now the live cube throughout the app. Step through the solution below and
-                watch it move.
+                {t('scan.reconstructionNote')}
               </p>
             ) : null}
           </Card>
+
+          {solveError ? (
+            <Callout kind="danger" title={t('solver.failed')}>
+              <p style={{ margin: 0 }}>{solveError}</p>
+            </Callout>
+          ) : null}
 
           {solution ? (
             <GuidedSolve solution={solution} narrative={narrative} busy={busy} />
@@ -190,6 +193,7 @@ export function ScanPage(): JSX.Element {
 function GuidedSolve({ solution, narrative, busy }: {
   solution: Solution; narrative: SolutionNarrative | null; busy: boolean;
 }): JSX.Element {
+  const { t } = useI18n();
   const steps = narrative?.steps ?? [];
   const boundary = narrative?.phaseBoundary ?? -1;
   const cursor = useAppState((s) => s.cursor);
@@ -205,87 +209,91 @@ function GuidedSolve({ solution, narrative, busy }: {
 
   const step = steps[cursor];
 
+  const tail = steps.length - boundary;
+
   return (
     <Card
-      title="Guided solve"
-      note={`${solution.length} moves${busy ? ' — still looking for something shorter' : ''}`}
-      actions={
-        <div className="row tight">
-          <button className="btn small" onClick={() => actions.rewind()}>⏮</button>
-          <button className="btn small" onClick={() => actions.undo()} disabled={cursor === 0}>Back</button>
-          <button className="btn primary small" onClick={() => actions.redo()} disabled={cursor >= moves.length}>Next move</button>
-        </div>
-      }
+      title={t('scan.guided')}
+      note={busy
+        ? t('scan.guidedSubBusy', { n: solution.length })
+        : t('scan.guidedSub', { n: solution.length })}
+      className="stack"
     >
-      <div className="stack">
-        <Sequence moves={moves} cursor={cursor} onSeek={(i) => actions.seek(i)} />
+      <Sequence moves={moves} cursor={cursor} onSeek={(i) => player.seek(i)} />
+      <Transport />
 
-        {step ? (
-          <div className="callout">
-            <h4>Move {cursor + 1} of {moves.length}: {MOVE_NAMES[step.move]}</h4>
-            <p style={{ marginBottom: 6 }}>{describeMove(step.move)}</p>
-            <p style={{ marginBottom: 0 }}>
-              <strong>Why:</strong> it {step.effects.join(', ')}.
-            </p>
-          </div>
-        ) : cursor >= moves.length && moves.length > 0 ? (
-          <Callout title="Solved">
-            <p style={{ margin: 0 }}>That is the cube back at the centre of the graph. Check your physical cube against the model above.</p>
-          </Callout>
-        ) : null}
-
-        {step ? (
-          <div className="row" style={{ gap: 18 }}>
-            <Stat value={`${step.after.orientedEdges}/12`} label="edges oriented" />
-            <Stat value={`${step.after.orientedCorners}/8`} label="corners oriented" />
-            <Stat value={`${step.after.sliceEdgesHome}/4`} label="slice edges home" />
-            <Stat value={`${step.after.solvedPieces}/20`} label="pieces finished" />
-          </div>
-        ) : null}
-
-        {boundary > 0 && boundary < steps.length ? (
-          <p className="card-note" style={{ margin: 0 }}>
-            The first {boundary} moves are phase one: they finish almost nothing, they just remove
-            every misorientation and put the middle-slice edges back in the middle slice. The
-            remaining {steps.length - boundary === 1 ? 'move is' : `${steps.length - boundary} are`}{' '}
-            phase two, which only rearranges. That is why a
-            computed solution looks like nothing is happening and then everything happens at once —
-            the opposite of a human method, where the cube visibly fills in layer by layer.
+      {step ? (
+        <div className="callout">
+          <h4>
+            {t('scan.moveOf', {
+              i: cursor + 1,
+              n: moves.length,
+              move: MOVE_NAMES[step.move],
+            })}
+          </h4>
+          <p style={{ marginBottom: 6 }}>{describeMove(step.move, t)}</p>
+          <p style={{ marginBottom: 4 }}>
+            <strong>{t('scan.why')}:</strong>{' '}
+            {step.effects.map((e) => t(e.key, e.params)).join(' · ')}
           </p>
-        ) : steps.length ? (
-          <p className="card-note" style={{ margin: 0 }}>
-            This particular route does not split into the usual two phases. The solver searches the
-            cube from six viewpoints — three axes, each forwards and inverted — and this answer came
-            from one of the others, so its structure is a rotated or reversed copy of the two-phase
-            shape rather than the one these counters track. It is still a verified solution of{' '}
-            {steps.length} moves.
-          </p>
-        ) : null}
-      </div>
+          <p className="card-note" style={{ marginBottom: 0 }}>{t('scan.whatItDoes')}</p>
+        </div>
+      ) : cursor >= moves.length && moves.length > 0 ? (
+        <Callout title={t('scan.solvedTitle')}>
+          <p style={{ margin: 0 }}>{t('scan.solvedBody')}</p>
+        </Callout>
+      ) : null}
+
+      {step ? (
+        <div className="row" style={{ gap: 18 }}>
+          <Stat value={`${step.after.orientedEdges}/12`} label={t('scan.edgesOriented')} />
+          <Stat value={`${step.after.orientedCorners}/8`} label={t('scan.cornersOriented')} />
+          <Stat value={`${step.after.sliceEdgesHome}/4`} label={t('scan.sliceHome')} />
+          <Stat value={`${step.after.solvedPieces}/20`} label={t('scan.piecesFinished')} />
+        </div>
+      ) : null}
+
+      {boundary > 0 && boundary < steps.length ? (
+        <p className="card-note" style={{ margin: 0 }}>
+          {tail === 1
+            ? t('scan.phaseNoteOne', { n: boundary })
+            : t('scan.phaseNote', { n: boundary, m: tail })}{' '}
+          {t('scan.phaseNoteTail')}
+        </p>
+      ) : steps.length ? (
+        <p className="card-note" style={{ margin: 0 }}>{t('scan.noPhase', { n: steps.length })}</p>
+      ) : null}
     </Card>
   );
 }
 
 function MethodComparison(): JSX.Element {
+  const { t } = useI18n();
   const max = Math.max(...METHODS.map((m) => m.typicalMoves));
   return (
-    <Card title="What you are giving up, and what you are getting" className="stack">
-      <p className="prose">
-        A twenty-move solution is not a better version of a human method. It is a different kind of
-        object: found by a machine searching millions of positions, unmemorable, and unrelated to
-        anything you could work out at the table. Here is the honest trade-off.
-      </p>
+    <Card title={t('scan.methods')} className="stack">
+      <p className="prose">{t('scan.methodsBody')}</p>
       <div className="scroll-x">
         <table className="data">
           <thead>
-            <tr><th>method</th><th className="num">typical moves</th><th>what you memorise</th><th>how it works</th><th>why it is not optimal</th></tr>
+            <tr>
+              <th>{t('scan.method')}</th>
+              <th className="num">{t('scan.typicalMoves')}</th>
+              <th>{t('scan.memorise')}</th>
+              <th>{t('scan.howItWorks')}</th>
+              <th>{t('scan.whyNotOptimal')}</th>
+            </tr>
           </thead>
           <tbody>
             {METHODS.map((m) => (
-              <tr key={m.name}>
+              <tr key={m.id}>
                 <td>
-                  <strong>{m.name}</strong>
-                  <div><span className={`tag ${m.kind === 'machine' ? 'solid' : m.kind === 'hybrid' ? 'warn' : ''}`}>{m.kind}</span></div>
+                  <strong>{t(`method.${m.id}.name`)}</strong>
+                  <div>
+                    <span className={`tag ${m.kind === 'machine' ? 'solid' : m.kind === 'hybrid' ? 'warn' : ''}`}>
+                      {t(`kind.${m.kind}`)}
+                    </span>
+                  </div>
                 </td>
                 <td className="num">
                   {m.typicalMoves}
@@ -293,9 +301,9 @@ function MethodComparison(): JSX.Element {
                     <i style={{ width: `${(m.typicalMoves / max) * 100}%` }} />
                   </div>
                 </td>
-                <td>{m.algorithmsToLearn}</td>
-                <td>{m.howItWorks}</td>
-                <td>{m.whyNotOptimal}</td>
+                <td>{t(`method.${m.id}.learn`)}</td>
+                <td>{t(`method.${m.id}.how`)}</td>
+                <td>{t(`method.${m.id}.why`)}</td>
               </tr>
             ))}
           </tbody>

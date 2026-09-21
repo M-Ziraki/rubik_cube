@@ -16,7 +16,8 @@ npm install
 npm run dev      # development server
 npm run build    # production build into dist/
 npm run preview  # serve the production build
-npm test         # engine and solver test suite
+npm test         # engine, solver, playback and i18n test suite
+npm run verify   # drive the built app in a real browser (needs `npm run preview`)
 ```
 
 No network access is needed at runtime. Everything, including every solver
@@ -28,7 +29,7 @@ table, is computed in the browser.
 beside a map of its 54 stickers, both driven by one shared state, with
 transport controls for stepping, playing, previewing and comparing turns.
 
-**The Course** — eleven lessons from notation to God's number, each with
+**The Course** — twelve lessons from notation to God's number, each with
 interactive widgets and a question that is only answerable if you understood it.
 
 **Cube lab** — a full 3D cube you can drag, scramble, analyse and solve, with a
@@ -47,6 +48,34 @@ moves or fewer with a reason given for every move.
 
 **Training** — positions generated at a verified exact distance, graded against
 the true optimum.
+
+The whole application is available in **English and Persian**, with the layout
+mirrored properly in Persian rather than merely right-aligned.
+
+## Animation and playback
+
+Everything that moves is driven by one clock (`src/state/turnClock.ts`) and one
+playback controller (`src/state/player.ts`), and both read the same store.
+
+- **The store is the only source of truth.** It holds a starting position, a
+  move list and a cursor. A turn is committed to the store *before* it is
+  animated, so an animation is a picture of a change that has already happened
+  and can never leave the cube half-turned.
+- **One clock, two views.** The 3D scene and the sticker map both subscribe to
+  the same turn, with the same progress value and the same duration, so they
+  cannot drift apart. Half turns get 1.35× the time because they sweep twice as
+  far — the same figure in both views.
+- **Playback waits.** The player advances one move, waits for the clock to
+  report that the turn has been committed, pauses for a readable beat and only
+  then advances again. It never schedules the next move on a timer and hopes.
+- **Six speeds**, from 2000 ms a turn down to no animation at all, changeable
+  mid-solution without restarting it. The default is 900 ms, which is slow
+  enough to follow a twenty-move solution move by move.
+- **Full transport**: play, pause, resume, step forward, step back, restart and
+  stop, plus the current move, the move number, the total, how many remain and
+  the whole sequence with the current move marked. Stop keeps your place;
+  restart rewinds without discarding the sequence; a hand-turn during playback
+  stops the player rather than racing it.
 
 ## The sticker map, and how it was recovered
 
@@ -178,6 +207,31 @@ Dethridge used on the 3×3×3, just thirteen orders of magnitude smaller.
 table lookup: orienting all twelve edges (2,048 states, diameter 7), building
 the bottom cross (190,080 states, diameter 8), and reaching G1 (diameter 12).
 
+## Bilingual support
+
+English is the source of truth (`src/i18n/en.ts`); Persian (`src/i18n/fa.ts`)
+falls back to it key by key, so a missing translation shows readable English
+rather than a raw key. `npm run i18n:report` prints coverage and fails the build
+if any user-visible English has been left hardcoded in a component.
+
+Direction is handled at the document level — `dir="rtl"` on `<html>` — so the
+sidebar, navigation, list markers, table alignment and every logical margin
+mirror, rather than the text merely right-aligning. What deliberately does *not*
+mirror is the mathematics:
+
+- move notation, sequences and formulae are wrapped in `.mono-ltr`, which sets
+  `direction: ltr` and `unicode-bidi: isolate`. `R U R' U'` reads in that order
+  inside a Persian paragraph and means the same thing;
+- the `<T>` component finds runs of notation inside translated prose and
+  isolates them automatically, so a translator never has to think about it;
+- numerals stay Latin, because they have to line up with the notation and with
+  every computed figure on the page;
+- the cube itself, the sticker map and the state-space graph are never mirrored.
+
+Switching language changes only which dictionary is read and the document
+direction. It does not touch the cube, the move list, lesson progress, solver
+results or an animation in flight, and the choice persists across a refresh.
+
 ## Honesty about claims
 
 The application distinguishes three claims everywhere it makes one:
@@ -205,11 +259,32 @@ genuine cube band, that a turn advances a band by three places, that a move and
 its inverse cancel, and that the generated geometry lands on the dots measured
 from the reference video.
 
-`npm run smoke` and `scripts/acceptance.mjs` drive the built app in a real
-browser and check the acceptance criteria end to end: 54 dots and nine arcs,
-six clean groups when solved, twenty stickers lit by a move preview, a turn and
-its inverse restoring the map, four quarter turns restoring it, scramble and
-solve staying synchronised, and picking a dot naming the right sticker.
+It also covers the parts that used to be timing bugs rather than maths bugs
+(`src/state/playback.test.ts`): that a turn is drawn from the position before
+it, that the clock snaps rather than animating when the cursor jumps, that
+playback never begins a move before the previous one has been committed, that
+pause, stop, step-back and restart each leave the cube exactly where they
+should, that a speed change mid-playback does not restart the sequence, and
+that forty rapid interactions neither drop nor duplicate a move.
+
+`src/i18n/i18n.test.ts` checks the translation contract: every key present in
+both languages, every `{placeholder}` preserved, no move symbol translated, and
+numerals written in Latin digits so they match the notation.
+
+`npm run verify` drives the built app in a real browser and checks the things
+that can only be seen there. It reads what the renderer has actually painted
+(`CubeScene.inspect()`) and compares it against the model, sticker by sticker,
+so "the colours went missing" is a failing assertion rather than a judgement
+call. It covers manual rotation, scramble-and-solve, interrupting playback,
+rapid interaction, switching language without disturbing the cube, both
+languages at desktop, tablet and phone widths, and the regression check that the
+sticker map still has its 54 dots and nine circles and the state-space graph is
+still its own page.
+
+`scripts/acceptance.mjs` remains the check against the reference figure: 54 dots
+and nine arcs, six clean groups when solved, twenty stickers lit by a move
+preview, a turn and its inverse restoring the map, four quarter turns restoring
+it, and picking a dot naming the right sticker.
 
 ## Development scripts
 
@@ -218,6 +293,9 @@ npm run bench        # solve 40 random positions, improving for the whole budget
 npm run bench:20     # how long it takes to reach a solution within God's number
 npm run bench:hard   # solve the two hardest known positions, with a long budget
 npm run smoke        # drive the built app in a real browser (needs `npm run preview` first)
+npm run verify       # the full browser verification suite (needs `npm run preview` first)
+npm run acceptance   # check the sticker map against the reference figure
+npm run i18n:report  # translation coverage, and any English left hardcoded
 ```
 
 `npm run bench` is how the figures quoted above were measured; rerun it after

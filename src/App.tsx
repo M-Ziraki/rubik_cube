@@ -8,8 +8,12 @@ import { CoursePage } from './pages/CoursePage';
 import { SolverPage } from './pages/SolverPage';
 import { ScanPage } from './pages/ScanPage';
 import { TrainingPage } from './pages/TrainingPage';
+import { LearningLabPage } from './pages/LearningLabPage';
+import { SettingsPage } from './pages/SettingsPage';
 import { LESSONS } from './lessons/registry';
 import { LANGUAGES, useI18n } from './i18n/I18nProvider';
+import { jevConfig, jevActive, useJevConfig } from './jev/config';
+import { probeJevStatus } from './jev/client';
 
 interface Route {
   id: string;
@@ -28,6 +32,8 @@ const ROUTES: Route[] = [
   { id: 'solver', labelKey: 'nav.solver', glyph: '⟲', groupKey: 'nav.group.lab', element: () => <SolverPage /> },
   { id: 'scan', labelKey: 'nav.scan', glyph: '◧', groupKey: 'nav.group.practice', element: () => <ScanPage /> },
   { id: 'training', labelKey: 'nav.training', glyph: '◈', groupKey: 'nav.group.practice', element: () => <TrainingPage /> },
+  { id: 'ai-lab', labelKey: 'nav.aiLab', glyph: '◇', groupKey: 'nav.group.practice', element: () => <LearningLabPage /> },
+  { id: 'settings', labelKey: 'nav.settings', glyph: '⚙', groupKey: 'nav.group.practice', element: () => <SettingsPage /> },
 ];
 
 function useHashRoute(): [string, (id: string) => void] {
@@ -53,6 +59,18 @@ export function App(): JSX.Element {
   const fraction = useAppState((s) => s.tableFraction);
   const theme = useAppState((s) => s.theme);
   const lessonsDone = useAppState((s) => s.progress.lessonsDone);
+
+  // One cheap request to learn whether the server holds a key. It makes no
+  // upstream call, costs nothing, and is the only request the application
+  // sends without being asked - guessing instead would mean showing the wrong
+  // configuration state on every page.
+  useEffect(() => {
+    const controller = new AbortController();
+    probeJevStatus(controller.signal)
+      .then((s) => jevConfig.setServerStatus(s.serverKey, s.model))
+      .catch(() => jevConfig.markProbed());
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -109,6 +127,7 @@ export function App(): JSX.Element {
         </nav>
         <div className="sidebar-foot">
           <TableStatus ready={tablesReady} stage={stage} fraction={fraction} />
+          <JevStatus />
           <LanguagePicker />
           <div className="row" style={{ justifyContent: 'space-between' }}>
             <span className="card-note">{t('chrome.theme')}</span>
@@ -162,6 +181,23 @@ function TableStatus({ ready, stage, fraction }: { ready: boolean; stage: string
         {t('chrome.buildingTables', { stage })}
       </div>
       <div className="meter"><i style={{ width: `${Math.round(fraction * 100)}%` }} /></div>
+    </div>
+  );
+}
+
+/**
+ * A one-line note about the optional integration.
+ *
+ * Present only when it is actually on, because an application that is complete
+ * without AI should not spend a line of its chrome advertising that AI exists.
+ */
+function JevStatus(): JSX.Element | null {
+  const { t } = useI18n();
+  const config = useJevConfig();
+  if (!jevActive(config)) return null;
+  return (
+    <div className="row" style={{ gap: 6 }}>
+      <span className="tag ok" title={t('jev.badge.jev.help')}>◇ {t('chrome.jevOn')}</span>
     </div>
   );
 }

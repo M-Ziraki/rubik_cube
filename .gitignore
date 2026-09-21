@@ -3,3 +3,7 @@ dist/
 .DS_Store
 *.local
 .vite/
+
+# Local credentials. Never commit these.
+.env
+.env.local

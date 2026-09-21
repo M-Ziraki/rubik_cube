@@ -3,6 +3,7 @@ import { Card, Meter } from '../components/ui';
 import { actions, useAppState } from '../state/store';
 import { LESSONS, LESSON_PARTS, lessonIndex } from '../lessons/registry';
 import { useI18n } from '../i18n/I18nProvider';
+import { TutorPanel } from '../components/TutorPanel';
 
 export function CoursePage(): JSX.Element {
   const { t } = useI18n();
@@ -99,6 +100,10 @@ export function CoursePage(): JSX.Element {
           />
         </div>
       </header>
+
+      <div style={{ marginBottom: 24 }}>
+        <TutorPanel />
+      </div>
 
       <div className="stack" style={{ gap: 28 }}>
         {LESSON_PARTS.map((part) => (

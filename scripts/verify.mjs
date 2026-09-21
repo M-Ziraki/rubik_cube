@@ -280,6 +280,21 @@ await boot();
     rendered !== null && rendered.join(' ') === model.join(' '),
     `${(rendered ?? []).slice(0, 6).join(' ')} vs ${model.slice(0, 6).join(' ')}`);
 
+  // The new AI surfaces have to be translated like everything else, and they
+  // have to work with the integration switched off - which is how most people
+  // will see them.
+  for (const [hash, needle] of [['#/settings', 'تنظیمات'], ['#/ai-lab', 'آزمایشگاه']]) {
+    await page.goto(BASE + hash);
+    await page.waitForTimeout(1500);
+    const h1 = await page.textContent('h1');
+    check(`5j. ${hash} is translated`, h1.includes(needle), h1);
+    const overflow = await page.evaluate(() =>
+      document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    check(`5k. ${hash} has no RTL overflow`, overflow <= 1, `${overflow}px`);
+  }
+  await page.goto(BASE);
+  await page.waitForTimeout(1200);
+
   // and it must persist across a reload
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(1200);
@@ -342,7 +357,8 @@ await boot();
   check('7d. the state-space graph still renders', canvas > 0, `${canvas} canvases`);
 
   for (const [hash, re] of [['#/course', /course/i], ['#/lab', /cube lab/i],
-    ['#/solver', /solvers/i], ['#/scan', /your cube/i], ['#/training', /training/i]]) {
+    ['#/solver', /solvers/i], ['#/scan', /your cube/i], ['#/training', /training/i],
+    ['#/ai-lab', /learning lab/i], ['#/settings', /settings/i]]) {
     await page.goto(BASE + hash);
     await page.waitForTimeout(1800);
     const h1 = await page.textContent('h1');

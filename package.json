@@ -17,9 +17,13 @@
     "acceptance": "node scripts/acceptance.mjs",
     "check:names": "node scripts/check-filenames.mjs",
     "i18n:report": "node scripts/i18n-report.mjs",
-    "verify": "node scripts/verify.mjs"
+    "verify": "node scripts/verify.mjs",
+    "serve": "vite-node server/index.ts",
+    "jev:eval": "vite-node evals/run.ts --",
+    "verify:jev": "node scripts/verify-jev.mjs"
   },
   "dependencies": {
+    "@typesafe-ai/sdk": "0.6.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "three": "^0.186.0"
@@ -32,6 +36,7 @@
     "playwright": "^1.63.0",
     "typescript": "^5.6.3",
     "vite": "^5.4.11",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "vite-node": "^2.1.8"
   }
 }

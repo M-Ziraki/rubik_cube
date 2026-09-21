@@ -8,6 +8,7 @@ import { faceletString, toFacelets, diagnose, parseFaceletString } from '../cube
 import { CORNER_NAMES, EDGE_NAMES, FACE_COLOR_NAMES, FACE_NAMES, MOVE_NAMES, SOLVED_FACELETS } from '../cube/defs';
 import { describeMove, formatSequence, parseSequence, simplifySequence } from '../cube/notation';
 import { T, useI18n } from '../i18n/I18nProvider';
+import { ConceptCheck } from '../components/ConceptCheck';
 import { report } from '../cube/analysis';
 
 /* ============================================================ 1. notation --- */
@@ -85,6 +86,13 @@ export function LessonNotation(): JSX.Element {
         <TryOnTheCube sequence="R R" /> <T k="l.notation.cancel2" />{' '}
         <TryOnTheCube sequence="U D U'" /> <T k="l.notation.cancel3" />
       </p>
+
+      {/* Say it in your own words. Multiple choice can be guessed; an
+          explanation cannot, which is why both exercises are here. */}
+      <ConceptCheck
+        promptId="inverse"
+        rubric={['jev.rubric.inverse.1', 'jev.rubric.inverse.2', 'jev.rubric.inverse.3']}
+      />
 
       <Quiz
         id="notation-q1"

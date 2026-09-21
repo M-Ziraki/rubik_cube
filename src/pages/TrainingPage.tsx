@@ -10,6 +10,7 @@ import { report } from '../cube/analysis';
 import { LESSONS } from '../lessons/registry';
 import { player } from '../state/player';
 import { useI18n } from '../i18n/I18nProvider';
+import { HintLadder } from '../components/HintLadder';
 
 /** Titles, briefs and hints live in the dictionaries under `challenge.<id>.*`. */
 interface Challenge {
@@ -68,6 +69,19 @@ function ChallengeRunner(): JSX.Element {
   const [recorded, setRecorded] = useState<{ used: number; optimal: number } | null>(null);
   const token = useRef(0);
 
+  /* ----------------------------------------------------- the hint ladder --- */
+
+  // Everything the hint system needs, computed rather than guessed at.
+  const [hintsTaken, setHintsTaken] = useState(0);
+  const [restarts, setRestarts] = useState(0);
+  const [startedAt, setStartedAt] = useState(() => Date.now());
+  const [emphasis, setEmphasis] = useState<number[] | null>(null);
+  // The first move of a verified optimal solution for the position *now*, not
+  // for the position the challenge started from. A hint about a position the
+  // learner has already left would be worse than no hint.
+  const [nextMove, setNextMove] = useState<number | null>(null);
+  const hintToken = useRef(0);
+
   const used = useMemo(
     () => simplifySequence(state.moves.slice(0, state.cursor)).length,
     [state.moves, state.cursor],
@@ -79,6 +93,9 @@ function ChallengeRunner(): JSX.Element {
     setChallenge(c);
     setPreparing(true);
     setTarget(null); setShowHint(false); setShowAnswer(false); setRecorded(null);
+    setHintsTaken(0); setRestarts(0); setEmphasis(null); setNextMove(null);
+    setStartedAt(Date.now());
+    hintToken.current++;
     try {
       // Walk out from solved and then verify the true distance, so the
       // advertised difficulty is the real one rather than the scramble length.
@@ -110,6 +127,21 @@ function ChallengeRunner(): JSX.Element {
     }
   };
 
+  // Re-solve the current position whenever it changes, so the ladder always
+  // describes what is on screen. Short positions, so this is quick.
+  useEffect(() => {
+    if (!target || solved) { setNextMove(null); return; }
+    const id = ++hintToken.current;
+    const at = facelets;
+    solveOptimally(at, { timeBudgetMs: 8000, maxLength: 12 })
+      .then((s2) => {
+        if (id !== hintToken.current || currentFacelets() !== at) return;
+        setNextMove(s2.moves.length ? s2.moves[0] : null);
+      })
+      .catch(() => { if (id === hintToken.current) setNextMove(null); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [facelets, target, solved]);
+
   useEffect(() => {
     if (solved && target && used > 0 && !recorded) {
       actions.recordRun(target.optimal, used, target.optimal);
@@ -129,7 +161,10 @@ function ChallengeRunner(): JSX.Element {
             ? t('training.trueOptimum', { n: target.optimal })
             : preparing ? t('training.preparingNote') : t('training.pressStart')}
         >
-          <Cube3D onUserMove={(m) => { if (target) { player.stop(); actions.applyMove(m); } }} />
+          <Cube3D
+            emphasis={emphasis}
+            onUserMove={(m) => { if (target) { player.stop(); actions.applyMove(m); } }}
+          />
           <div className="row" style={{ marginTop: 12 }}>
             <button
               className="btn primary"
@@ -140,7 +175,10 @@ function ChallengeRunner(): JSX.Element {
             </button>
             <button
               className="btn"
-              onClick={() => { player.stop(); actions.rewind(); }}
+              onClick={() => {
+                player.stop(); actions.rewind();
+                setRestarts((n) => n + 1); setEmphasis(null);
+              }}
               disabled={!target}
             >
               {t('training.startOver')}
@@ -225,9 +263,24 @@ function ChallengeRunner(): JSX.Element {
                   <Stat value={`${stateReport.orientedCorners}/8`} label={t('scan.cornersOriented')} />
                   <Stat value={`${stateReport.solvedPieces}/20`} label={t('training.piecesHome')} />
                 </div>
+                {/* The progressive ladder: four rungs, all computed from a
+                    proven solution, with the level chosen by rule or by Jev. */}
+                <HintLadder
+                  nextMove={nextMove}
+                  situation={{
+                    hintsTaken,
+                    movesUsed: used,
+                    optimalLength: target.optimal,
+                    wasted: Math.max(0, used - target.optimal),
+                    restarts,
+                    secondsOnTask: Math.min(86400, Math.round((Date.now() - startedAt) / 1000)),
+                  }}
+                  onEmphasis={setEmphasis}
+                  onHintTaken={() => setHintsTaken((n) => n + 1)}
+                />
                 <div className="row">
-                  <button className="btn small" onClick={() => setShowHint(true)} disabled={showHint}>
-                    {t('common.hint')}
+                  <button className="btn small ghost" onClick={() => setShowHint(true)} disabled={showHint}>
+                    {t('training.challengeHint')}
                   </button>
                   <button
                     className="btn small ghost"
@@ -238,7 +291,7 @@ function ChallengeRunner(): JSX.Element {
                   </button>
                 </div>
                 {showHint ? (
-                  <Callout title={t('common.hint')}>
+                  <Callout title={t('training.challengeHint')}>
                     <p style={{ margin: 0 }}>{t(`challenge.${challenge.id}.hint`)}</p>
                   </Callout>
                 ) : null}

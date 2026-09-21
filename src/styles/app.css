@@ -315,3 +315,53 @@ table.data td.num, table.data th.num { text-align: end; font-family: var(--mono)
   .move-pad { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .btn-text { display: none; }
 }
+
+/* ------------------------------------------------- the Jev integration --- */
+
+/*
+ * A quiet pulse while a judgment is in flight.
+ *
+ * Deliberately not a typing animation: nothing is being written, and
+ * pretending otherwise would misrepresent what the model does. It is a
+ * progress indicator, so it looks like one.
+ */
+.jev-pulse {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--accent);
+  animation: jev-pulse 1.1s ease-in-out infinite;
+  flex: 0 0 auto;
+}
+@keyframes jev-pulse {
+  0%, 100% { opacity: 0.25; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+.jev-thinking { min-height: 22px; }
+
+textarea {
+  font: inherit; padding: 8px 10px; border-radius: var(--radius-s);
+  border: 1px solid var(--line-strong); background: var(--paper);
+  color: var(--ink); width: 100%; resize: vertical; min-height: 84px;
+}
+textarea:disabled { opacity: 0.7; }
+
+select {
+  font: inherit; padding: 5px 8px; border-radius: var(--radius-s);
+  border: 1px solid var(--line-strong); background: var(--paper); color: var(--ink);
+}
+
+/* A details/summary disclosure, styled to match the cards around it. */
+details > summary {
+  cursor: pointer; list-style: none; padding: 2px 0;
+}
+details > summary::-webkit-details-marker { display: none; }
+details > summary::before {
+  content: '▸'; display: inline-block; width: 1em;
+  transition: transform 0.15s; font-size: 0.8em;
+}
+[dir='rtl'] details > summary::before { content: '◂'; }
+details[open] > summary::before { transform: rotate(90deg); }
+[dir='rtl'] details[open] > summary::before { transform: rotate(-90deg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .jev-pulse { animation: none; opacity: 0.7; }
+}

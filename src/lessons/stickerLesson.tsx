@@ -9,6 +9,7 @@ import { parseSequence } from '../cube/notation';
 import { FACE_NAMES, MOVE_NAMES } from '../cube/defs';
 import { MAP_CIRCLES, faceletsAffectedBy, nodeForFacelet } from '../graph/stickerGeometry';
 import { T, useI18n } from '../i18n/I18nProvider';
+import { ConceptCheck } from '../components/ConceptCheck';
 
 /**
  * The lesson that introduces the reference figure and, just as importantly,
@@ -132,6 +133,11 @@ export function LessonStickerMap(): JSX.Element {
 
       <h3>{t('l.map.circlesAreLayers')}</h3>
       <p>{t('l.map.circlesAreLayersBody')}</p>
+
+      <ConceptCheck
+        promptId="map-vs-graph"
+        rubric={['jev.rubric.map.1', 'jev.rubric.map.2', 'jev.rubric.map.3']}
+      />
 
       <Quiz
         id="sticker-q1"

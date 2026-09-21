@@ -12,6 +12,7 @@ import type { PocketStats, StageStats } from '../solver/protocol';
 import { METHODS } from '../data/methods';
 import { TOTAL_STATES } from '../data/facts';
 import { T, useI18n } from '../i18n/I18nProvider';
+import { ConceptCheck } from '../components/ConceptCheck';
 
 /* ============================================================= 8. groups --- */
 
@@ -314,6 +315,11 @@ export function LessonGodsNumber(): JSX.Element {
           <a className="btn" href="#/graph">{t('l.gods.openAtlas')}</a>
         </Card>
       ) : null}
+
+      <ConceptCheck
+        promptId="gods-number"
+        rubric={['jev.rubric.gods.1', 'jev.rubric.gods.2', 'jev.rubric.gods.3']}
+      />
 
       <Quiz
         id="gods-q1"

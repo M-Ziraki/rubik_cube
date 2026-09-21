@@ -11,6 +11,7 @@ import { faceletString, toFacelets } from '../cube/facelet';
 import { parseSequence } from '../cube/notation';
 import { HTM_DISTANCE_DISTRIBUTION, TOTAL_STATES } from '../data/facts';
 import { T, useI18n, type Translate } from '../i18n/I18nProvider';
+import { ConceptCheck } from '../components/ConceptCheck';
 
 /* ============================================================== 4. graph --- */
 
@@ -254,6 +255,11 @@ export function LessonHeuristics(): JSX.Element {
           </div>
         </Card>
       ) : null}
+
+      <ConceptCheck
+        promptId="any-vs-shortest"
+        rubric={['jev.rubric.shortest.1', 'jev.rubric.shortest.2', 'jev.rubric.shortest.3']}
+      />
 
       <Quiz
         id="heuristics-q1"

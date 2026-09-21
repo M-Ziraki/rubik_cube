@@ -16,9 +16,13 @@ npm install
 npm run dev      # development server
 npm run build    # production build into dist/
 npm run preview  # serve the production build
-npm test         # engine, solver, playback and i18n test suite
+npm test         # engine, solver, playback, i18n and Jev test suite
 npm run verify   # drive the built app in a real browser (needs `npm run preview`)
 ```
+
+Everything above works with no network access and no API key. There is an
+optional AI learning companion — see **The optional Jev integration** below —
+which needs a key and a small Node server; nothing else does.
 
 No network access is needed at runtime. Everything, including every solver
 table, is computed in the browser.
@@ -48,6 +52,13 @@ moves or fewer with a reason given for every move.
 
 **Training** — positions generated at a verified exact distance, graded against
 the true optimum.
+
+**AI Learning Lab** — where the tutor's own judgments are put on the same
+footing as everything else: run its evaluation set, compare it against the
+rule-based recommendation, and disagree with it. Works as a description of the
+design with the integration off.
+
+**Settings** — appearance, and the optional integration.
 
 The whole application is available in **English and Persian**, with the layout
 mirrored properly in Persian rather than merely right-aligned.
@@ -207,6 +218,133 @@ Dethridge used on the 3×3×3, just thirteen orders of magnitude smaller.
 table lookup: orienting all twelve edges (2,048 states, diameter 7), building
 the bottom cross (190,080 states, diameter 8), and reaching G1 (diameter 12).
 
+## The optional Jev integration
+
+Cube Atlas is complete without it. Every lesson, solver, visualisation and
+exercise works with no API key, no server and no network access, and with the
+integration off **nothing is ever sent to TypeSafe** — including no background
+check. Turning it on adds an adaptive tutor.
+
+### Setting it up
+
+Two ways, with different security properties.
+
+**A key on the server** (recommended). The key stays in the Node process and
+never reaches the browser:
+
+```bash
+cp .env.example .env         # then put your key in TYPESAFE_API_KEY
+npm run build && npm run serve   # http://127.0.0.1:5173
+```
+
+`npm run dev` mounts the same endpoint as Vite middleware, so development
+behaves identically.
+
+**A key in the browser** (bring your own). Open **Settings → Jev AI
+integration**, paste a key and switch it on. It is held in `sessionStorage`
+for that tab only, never written to disk, and sent to this application's own
+server as a header rather than a body field. It has to be entered again after
+a refresh — deliberately, because a credential in persistent storage outlives
+the session that needed it. The server-side key is the safer arrangement.
+
+Either way, the switch is off until a key exists, and `npm run jev:eval --
+--dry` prints exactly what a request would contain without sending one.
+
+### Why there is a server at all
+
+The TypeSafe SDK refuses to run in a browser unless you pass
+`dangerouslyAllowBrowser`, and it is right to: a key in a bundle is a key
+anyone can read. Cube Atlas was a static site, so the integration adds the
+smallest thing that fixes that — one `node:http` handler in `server/`, no
+framework.
+
+It is deliberately not a proxy. The browser names a **task**, not a question:
+
+```
+POST /api/jev/ask   { "task": "misconception", "promptId": "inverse", ... }
+```
+
+The questions live in `src/jev/questions.ts` and cannot be supplied, altered
+or added to by a caller, so the endpoint cannot be used to spend a key on
+anything else. Every field is validated and bounded before use, requests are
+rate-limited per client and per key source, and `GET /api/jev/status` reports
+whether a key exists without making an upstream call.
+
+### What Jev decides, and what it never touches
+
+Jev is a System One model: it returns typed, calibrated judgments —
+`Choice`, `Score`, `Noul` — rather than text. That is exactly the right shape
+for reading an explanation and the wrong shape for anything about the cube,
+which the engine already computes exactly. A probability is a worse answer
+than a proof.
+
+| Question | Answered by |
+|---|---|
+| What does a turn do to the 54 stickers? | the cube engine |
+| Is this cube physically possible? | the cube engine |
+| Is this solution the shortest? | the optimal solver |
+| How many moves did I use, and how many were wasted? | arithmetic |
+| What does this written explanation show? | **Jev** (`Choice`) |
+| Which activity would help most now? | **Jev** (`Choice`, from a list the prerequisite filter approved) |
+| How much help should this hint give? | **Jev** (`Score`; the hint's *content* is computed) |
+| What did this sentence ask for? | **Jev** (`Choice` + `Noul`) |
+
+Four features use it:
+
+- **Explain it in your own words.** Writing an explanation and comparing it
+  against a worked answer is a study technique in its own right, so the
+  exercise exists in both modes. Jev adds the *reading*: it classifies the
+  answer against a fixed list of misconceptions so the application can show
+  the explanation that addresses it. Every explanation was written by a person
+  and checked against the engine; a wrong diagnosis shows the wrong *correct*
+  explanation, not a false statement. The learner can always disagree, which
+  opens the full material.
+- **What to do next.** Prerequisites are enforced in code first, so an
+  activity the learner is not ready for is never a candidate. The
+  deterministic recommendation is computed every time and shown when the two
+  disagree.
+- **Progressive hints.** Four rungs — the face to look at, the twenty stickers
+  a turn would move, the concept behind that kind of turn, the move itself —
+  all derived from a solution the solver has proved. Jev chooses the rung, can
+  only ever raise it, and can never take help away: a learner who asks for the
+  answer gets it.
+- **The command bar.** Not a chatbot: a fixed list of actions, all of which
+  already existed as buttons. Anything that would turn a face asks first
+  unless the routing was confident *and* the sentence was judged unambiguous.
+
+Every judgment is labelled in the interface as an AI judgment, an AI judgment
+the application declined to act on, or a computed result — with the
+confidence, when there is one.
+
+### When it is off, or fails
+
+The integration is off unless a key exists *and* the switch is on. In every
+other case, and on every failure — no key, rejected key, rate limit, timeout,
+network error, malformed response, a response that arrives after the learner
+has moved on — the deterministic path runs and the interface says which one it
+used. A failure is never fatal, because there is always a deterministic
+answer:
+
+| Feature | Without Jev |
+|---|---|
+| Next step | priority rules over the eligible activities |
+| Explain it | the worked answer and a marking rubric, self-assessed |
+| Hints | one rung per request |
+| Command bar | keyword matching, English and Persian |
+
+Nothing is ever fabricated to stand in for a model answer.
+
+### Calibration
+
+`evals/dataset.ts` holds the cases the thresholds in
+`src/jev/questions.ts` were chosen against — including a right answer phrased
+badly, a confidently wrong one, nonsense, and the same content in both
+languages. `npm run jev:eval` runs them and reports exact matches,
+abstentions and errors, separately for English and Persian, because the
+published documentation makes no claim about non-English performance and it
+therefore has to be measured. The same set runs in the browser from the AI
+Learning Lab, against the learner's own key.
+
 ## Bilingual support
 
 English is the source of truth (`src/i18n/en.ts`); Persian (`src/i18n/fa.ts`)
@@ -271,6 +409,26 @@ that forty rapid interactions neither drop nor duplicate a move.
 both languages, every `{placeholder}` preserved, no move symbol translated, and
 numerals written in Latin digits so they match the notation.
 
+`server/jevHandler.test.ts` and `src/jev/jev.test.ts` cover the integration
+without a key, a network or a request: the behaviour with no key configured,
+every threshold and fallback, a malformed or missing answer from the model, an
+answer naming a label the question could not have elicited, each failure mode
+mapped onto its code, rate limiting per client and per key source, a learner
+key never reaching `localStorage` or a request body, and — the one that only
+shows up under timing you cannot reproduce by hand — a late answer being
+discarded rather than applied to the exercise the learner moved on to.
+
+`npm run verify:jev` drives the whole integration in a browser in three modes.
+With no key: every section still works, the AI controls show a configuration
+state, and *no request reaches TypeSafe* — every request the page makes is
+recorded, so that is an assertion rather than a claim. Against
+`scripts/stub-server.mjs`, which swaps only the object that would talk to
+TypeSafe and keeps all the shipping code between it and the browser: the
+diagnosis, the demonstration, disagreeing with a diagnosis, the side-by-side
+comparison and the confirmation before an ambiguous command. And against the
+same stub set to fail every call: the tutor still recommends, the cube is
+never changed, and the failure is named.
+
 `npm run verify` drives the built app in a real browser and checks the things
 that can only be seen there. It reads what the renderer has actually painted
 (`CubeScene.inspect()`) and compares it against the model, sticker by sticker,
@@ -296,6 +454,10 @@ npm run smoke        # drive the built app in a real browser (needs `npm run pre
 npm run verify       # the full browser verification suite (needs `npm run preview` first)
 npm run acceptance   # check the sticker map against the reference figure
 npm run i18n:report  # translation coverage, and any English left hardcoded
+npm run verify:jev   # the Jev integration, with and without a key
+npm run jev:eval     # run the evaluation set against the live API
+npm run jev:eval -- --dry   # print what a request would contain, and send nothing
+npm run serve        # the production server, which holds the optional API key
 ```
 
 `npm run bench` is how the figures quoted above were measured; rerun it after

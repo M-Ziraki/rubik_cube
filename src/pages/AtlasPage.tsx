@@ -14,6 +14,8 @@ import { FACE_COLOR_NAMES, FACE_NAMES, MOVE_NAMES, GODS_NUMBER } from '../cube/d
 import { describeMove } from '../cube/notation';
 import { TOTAL_STATES } from '../data/facts';
 import { useI18n } from '../i18n/I18nProvider';
+import { CommandBar } from '../components/CommandBar';
+import type { CommandAction } from '../jev/protocol';
 import type { Solution } from '../solver/twophase';
 
 export function AtlasPage(): JSX.Element {
@@ -100,6 +102,26 @@ export function AtlasPage(): JSX.Element {
     solveToken.current++;
     actions.applyMove(m);
     clearPreview();
+  };
+
+  /**
+   * The command bar's actions, every one routed through the same functions the
+   * buttons use. Nothing here is a new way to change the cube; it is a new way
+   * to reach the existing ones.
+   */
+  const runCommand = (action: CommandAction): void => {
+    switch (action) {
+      case 'scramble': void scramble(); break;
+      case 'reset':
+        player.yieldToUser(); solveToken.current++; actions.resetToSolved();
+        setSelected(null); clearPreview();
+        break;
+      case 'solve': void runSolve(); break;
+      case 'play': player.play(); break;
+      case 'step-forward': player.stepForward(); break;
+      case 'step-back': player.stepBack(); break;
+      default: break;
+    }
   };
 
   const mapNote = anim.progress < 1 && anim.move !== null
@@ -237,6 +259,10 @@ export function AtlasPage(): JSX.Element {
           </Callout>
         ) : null}
       </Card>
+
+      <div style={{ marginBottom: 18 }}>
+        <CommandBar onAction={runCommand} />
+      </div>
 
       <div className="split" style={{ marginBottom: 18 }}>
         <StickerInspector facelet={selected ?? hovered} isSelection={selected !== null} />

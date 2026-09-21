@@ -7,7 +7,7 @@ import { actions, currentFacelets, getState, isSolved, useAppState } from '../st
 import { requestScramble, solve } from '../solver/client';
 import {
   MAP_CIRCLES, faceletsAffectedBy, nodeForFacelet, siblingFacelets,
-} from '../graph/stickerMap';
+} from '../graph/stickerGeometry';
 import { FACE_COLOR_NAMES, FACE_NAMES, MOVE_NAMES, GODS_NUMBER } from '../cube/defs';
 import { describeMove } from '../cube/notation';
 import { TOTAL_STATES } from '../data/facts';

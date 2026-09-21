@@ -1,6 +1,12 @@
 /**
  * The sticker map: the figure from the reference animation, reconstructed.
  *
+ * This is the model - geometry and the facelet mapping. The view that draws it
+ * is `StickerMap.tsx`. The two deliberately do not share a name: a module
+ * called `stickerMap` next to one called `StickerMap` resolves to the same file
+ * on case-insensitive filesystems, which breaks the build on macOS and Windows
+ * while compiling perfectly well on Linux.
+ *
  * WHAT THE REFERENCE ACTUALLY IS
  * -----------------------------
  * Measuring the video frame by frame shows the diagram is not a graph of cube

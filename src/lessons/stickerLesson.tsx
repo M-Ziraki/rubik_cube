@@ -7,7 +7,7 @@ import { CubieCube } from '../cube/cubie';
 import { faceletString, toFacelets } from '../cube/facelet';
 import { parseSequence } from '../cube/notation';
 import { FACE_NAMES, MOVE_NAMES } from '../cube/defs';
-import { MAP_CIRCLES, faceletsAffectedBy, nodeForFacelet } from '../graph/stickerMap';
+import { MAP_CIRCLES, faceletsAffectedBy, nodeForFacelet } from '../graph/stickerGeometry';
 
 /**
  * The lesson that introduces the reference figure and, just as importantly,

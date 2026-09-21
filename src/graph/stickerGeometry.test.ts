@@ -3,7 +3,7 @@ import {
   CIRCLE_RADII, FAMILIES, MAP_CIRCLES, STICKER_NODES, bandCircleForMove,
   bandStepsForMove, destinationOf, faceletsAffectedBy, nodeForFacelet,
   siblingFacelets, sourceOf,
-} from './stickerMap';
+} from './stickerGeometry';
 import reference from './referenceNodes.json';
 import { CubieCube } from '../cube/cubie';
 import { FACE_NAMES, MOVE_NAMES, MOVE_FACE, MOVE_INVERSE } from '../cube/defs';

@@ -16,7 +16,7 @@ import { FACE_COLORS, FACE_NAMES, MOVE_NAMES } from '../cube/defs';
 import {
   MAP_CIRCLES, MAP_EXTENT, STICKER_NODES, bandCircleForMove, faceletsAffectedBy,
   nodeForFacelet, siblingFacelets, sourceOf, type StickerNode,
-} from './stickerMap';
+} from './stickerGeometry';
 
 export interface StickerMapProps {
   /** 54-character facelet string, the current state. */

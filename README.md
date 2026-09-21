@@ -72,8 +72,8 @@ is exactly a (cubie, facing) pair, that is, a facelet. The nine dots of a face
 form its 3×3 grid drawn on arcs, and every circle threads the twelve facelets of
 one layer band. For the six outer circles that band is precisely the set of
 stickers a face turn carries round, which is why a turn slides dots a quarter of
-the way along one drawn circle. `src/graph/stickerMap.ts` builds all of this
-from the seven recovered numbers; `referenceNodes.json` holds the measured dot
+the way along one drawn circle. `src/graph/stickerGeometry.ts` builds all of
+this from the seven recovered numbers; `referenceNodes.json` holds the measured dot
 positions so the test suite can check the reconstruction against the video.
 
 **What is deliberately not copied.** The video's *motion* is decorative. In a

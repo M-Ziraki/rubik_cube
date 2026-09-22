@@ -13,10 +13,22 @@ import { CubieCube } from '../cube/cubie';
 import { faceletString, toFacelets } from '../cube/facelet';
 import { GODS_NUMBER } from '../cube/defs';
 import { useI18n } from '../i18n/I18nProvider';
+import { usePublishAssistantContext } from '../jev/assistantContext';
+import { go } from '../state/navigation';
 
 type Engine = 'two-phase' | 'optimal';
 
 export function SolverPage(): JSX.Element {
+  // What the study panel offers from this page. The panel itself always
+  // carries the universal help; these are the jumps that only make sense
+  // from here.
+  usePublishAssistantContext(() => ({ labelKey: 'nav.solver', actions: [
+      { id: 'lesson-search', labelKey: 'assist.act.searchLesson', noteKey: 'assist.act.searchLesson.note',
+        run: () => go('#/course/search') },
+      { id: 'lesson-gods', labelKey: 'assist.act.godsLesson', noteKey: 'assist.act.godsLesson.note',
+        run: () => go('#/course/gods-number') },
+    ] }), []);
+
   const { t } = useI18n();
   const state = useAppState((s) => s);
   const facelets = useMemo(

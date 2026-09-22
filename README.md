@@ -63,6 +63,35 @@ design with the integration off.
 The whole application is available in **English and Persian**, with the layout
 mirrored properly in Persian rather than merely right-aligned.
 
+## Finding your way around
+
+**Study help** is one affordance in the same corner of every page. It knows
+which page it is on and offers what that page can do: a recommendation of what
+to study next from anywhere, a box you can type an instruction into wherever
+there is a cube to act on, and shortcuts into the tools the page already has —
+the hint ladder on Training, the demonstration on a lesson. It works with no
+key, saying so plainly, and every answer carries a label saying whether it was
+computed or judged.
+
+**A workspace puts its controls where the work is.** The Atlas's page bar
+carries scramble, solve and reset; playback is docked directly under the two
+views; the move pad, move list and sticker inspector collapse into one panel
+that remembers whether you left it open. Space plays and pauses, the arrow keys
+step a move, Home restarts.
+
+**`Ctrl K` goes anywhere** — every page and every lesson, matched by substring.
+This is a plain text match, not a judgment, and it works with no key.
+
+**A lesson can hand you the cube and take it back.** Lessons with a sequence
+worth watching have a "Try it in the Atlas" button: it loads the sequence,
+queued rather than applied, and leaves a way back to the lesson you came from.
+The sequences and the number of repetitions each needs to come home are
+asserted against the engine in `src/lessons/registry.test.ts`.
+
+**On a phone** there is a tab bar for the four main destinations and a sheet
+for the rest, a slim top bar carrying the language, and the study panel opens
+as a bottom sheet that stops above the tab bar rather than covering it.
+
 ## Animation and playback
 
 Everything that moves is driven by one clock (`src/state/turnClock.ts`) and one
@@ -444,6 +473,20 @@ and nine arcs, six clean groups when solved, twenty stickers lit by a move
 preview, a turn and its inverse restoring the map, four quarter turns restoring
 it, and picking a dot naming the right sticker.
 
+`npm run verify:ux` tests the interface as journeys rather than as components,
+because a page can render every one of its parts and still be unusable. A first
+visit that starts from one of the four doors, finishes a lesson and is sent to
+the next; a scramble, a solve, a pause part-way and a step back, then the same
+transport driven from the keyboard; a lesson handing the cube to the Atlas and
+taking it back with its progress intact; every standard feature with no key,
+including a check that study help is present, in the same place, and one
+interaction away on all nine pages; the whole essential workflow by touch at
+390×844 with an assertion that nothing fixed covers a control; and a language
+switch mid-solution that keeps the position, the queue, the cursor and the
+speed. It also records the measurements that motivated the redesign — where the
+primary controls land relative to the fold, how many interactions study help
+takes — so they cannot quietly regress.
+
 ## Development scripts
 
 ```bash
@@ -455,6 +498,7 @@ npm run verify       # the full browser verification suite (needs `npm run previ
 npm run acceptance   # check the sticker map against the reference figure
 npm run i18n:report  # translation coverage, and any English left hardcoded
 npm run verify:jev   # the Jev integration, with and without a key
+npm run verify:ux    # the user journeys, the measurements and the phone layout
 npm run jev:eval     # run the evaluation set against the live API
 npm run jev:eval -- --dry   # print what a request would contain, and send nothing
 npm run serve        # the production server, which holds the optional API key

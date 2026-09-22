@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Cube3D } from '../components/Cube3D';
-import { Transport } from '../components/Transport';
+import { TransportDock } from '../components/TransportDock';
+import { PageBar, ErrandBar } from '../components/PageBar';
+import { Welcome } from '../components/Welcome';
 import { StickerMap } from '../graph/StickerMap';
 import { useStickerAnimation } from '../graph/useStickerAnimation';
 import { Callout, Card, Sequence, Stat, formatBig } from '../components/ui';
@@ -13,13 +15,28 @@ import {
 import { FACE_COLOR_NAMES, FACE_NAMES, MOVE_NAMES, GODS_NUMBER } from '../cube/defs';
 import { describeMove } from '../cube/notation';
 import { TOTAL_STATES } from '../data/facts';
-import { useI18n } from '../i18n/I18nProvider';
-import { CommandBar } from '../components/CommandBar';
+import { T, useI18n } from '../i18n/I18nProvider';
+import { go } from '../state/navigation';
+import { session, useCollapsed, useSession } from '../state/session';
+import { usePublishAssistantContext } from '../jev/assistantContext';
 import type { CommandAction } from '../jev/protocol';
 import type { Solution } from '../solver/twophase';
 
+/**
+ * The workspace.
+ *
+ * What changed, and why, in one place: the cube and the map were already the
+ * best things on the page, and everything that let a learner *do* anything to
+ * them was a thousand pixels underneath. The verbs are now in the bar above
+ * the two views, playback is docked directly beneath them, and the tools a
+ * learner reaches for less often - the sticker inspector, the move list, the
+ * by-hand pad - are grouped into one panel that remembers whether it was open.
+ *
+ * Two views, one state, and no third copy of the cube anywhere: that part was
+ * right and is untouched.
+ */
 export function AtlasPage(): JSX.Element {
-  const { t } = useI18n();
+  const { t, dir } = useI18n();
   const state = useAppState((s) => s);
   const facelets = useMemo(
     () => currentFacelets(state),
@@ -28,6 +45,9 @@ export function AtlasPage(): JSX.Element {
   );
   const solved = useMemo(() => isSolved(state), [facelets]); // eslint-disable-line react-hooks/exhaustive-deps
   const anim = useStickerAnimation();
+  const welcomeSeen = useSession((s) => s.welcomeSeen);
+  const errand = useSession((s) => s.errand);
+  const [toolsCollapsed, setToolsCollapsed] = useCollapsed('atlas.tools', false);
 
   const [selected, setSelected] = useState<number | null>(null);
   const [hovered, setHovered] = useState<number | null>(null);
@@ -59,7 +79,7 @@ export function AtlasPage(): JSX.Element {
     return m === null ? null : faceletsAffectedBy(m);
   }, [previewMove, anim.move, anim.progress]);
 
-  const runSolve = async (): Promise<void> => {
+  const runSolve = useCallback(async (): Promise<void> => {
     const token = ++solveToken.current;
     setSolving(true);
     setSolveError(null);
@@ -82,9 +102,9 @@ export function AtlasPage(): JSX.Element {
     } finally {
       if (token === solveToken.current) setSolving(false);
     }
-  };
+  }, []);
 
-  const scramble = async (): Promise<void> => {
+  const scramble = useCallback(async (): Promise<void> => {
     player.yieldToUser();
     solveToken.current++;
     setSolving(false);
@@ -92,9 +112,17 @@ export function AtlasPage(): JSX.Element {
     actions.setPosition(r.facelets, r.moves);
     setSelected(null);
     clearPreview();
-  };
+  }, [clearPreview]);
 
-  const manualMove = (m: number): void => {
+  const reset = useCallback((): void => {
+    player.yieldToUser();
+    solveToken.current++;
+    actions.resetToSolved();
+    setSelected(null);
+    clearPreview();
+  }, [clearPreview]);
+
+  const manualMove = useCallback((m: number): void => {
     // A hand-turn during playback stops the player rather than racing it.
     const wasPlaying = player.isActive();
     player.yieldToUser();
@@ -102,27 +130,77 @@ export function AtlasPage(): JSX.Element {
     solveToken.current++;
     actions.applyMove(m);
     clearPreview();
-  };
+  }, [clearPreview]);
 
   /**
-   * The command bar's actions, every one routed through the same functions the
+   * The assistant's actions, every one routed through the same functions the
    * buttons use. Nothing here is a new way to change the cube; it is a new way
    * to reach the existing ones.
    */
-  const runCommand = (action: CommandAction): void => {
+  const runCommand = useCallback((action: CommandAction): void => {
     switch (action) {
       case 'scramble': void scramble(); break;
-      case 'reset':
-        player.yieldToUser(); solveToken.current++; actions.resetToSolved();
-        setSelected(null); clearPreview();
-        break;
+      case 'reset': reset(); break;
       case 'solve': void runSolve(); break;
       case 'play': player.play(); break;
       case 'step-forward': player.stepForward(); break;
       case 'step-back': player.stepBack(); break;
+      case 'show-sticker-map': setShowLabels(true); break;
+      case 'show-state-space': go('#/graph'); break;
+      case 'open-notation-lesson': go('#/course/notation'); break;
+      case 'open-training': go('#/training'); break;
+      case 'explain-inverse': go('#/course/notation'); break;
       default: break;
     }
-  };
+  }, [scramble, reset, runSolve]);
+
+  // What the assistant can offer from here. Published while this page is on
+  // screen and withdrawn when it leaves, so the panel never advertises an
+  // action that would act on a page the learner has left.
+  usePublishAssistantContext(() => ({
+    labelKey: 'nav.atlas',
+    commandSink: runCommand,
+    actions: [
+      {
+        id: 'scramble', labelKey: 'assist.act.scramble', noteKey: 'assist.act.scramble.note',
+        run: () => { void scramble(); },
+      },
+      {
+        id: 'solve', labelKey: 'assist.act.solve', noteKey: 'assist.act.solve.note',
+        run: () => { void runSolve(); },
+      },
+      {
+        id: 'notation', labelKey: 'assist.act.notation', noteKey: 'assist.act.notation.note',
+        run: () => go('#/course/notation'),
+      },
+    ],
+  }), [runCommand, scramble, runSolve]);
+
+  /**
+   * Keyboard control of playback.
+   *
+   * The arrows follow the reading direction, exactly as the buttons do: in
+   * Persian the button labelled "next" points left, so the left arrow is the
+   * one that means next. An arrow that disagreed with the arrow drawn next to
+   * it would be worse than no shortcut at all.
+   */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      const el = e.target as HTMLElement | null;
+      if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;
+      if (el?.closest('[role="dialog"]')) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const forward = dir === 'rtl' ? 'ArrowLeft' : 'ArrowRight';
+      const back = dir === 'rtl' ? 'ArrowRight' : 'ArrowLeft';
+      if (e.key === ' ' || e.key === 'k') { e.preventDefault(); player.toggle(); }
+      else if (e.key === forward) { e.preventDefault(); player.stepForward(); }
+      else if (e.key === back) { e.preventDefault(); player.stepBack(); }
+      else if (e.key === 'Home') { e.preventDefault(); player.restart(); }
+      else if (e.key === 'Escape') setSelected(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [dir]);
 
   const mapNote = anim.progress < 1 && anim.move !== null
     ? t('atlas.map.turning', { move: MOVE_NAMES[anim.move] })
@@ -132,14 +210,59 @@ export function AtlasPage(): JSX.Element {
 
   return (
     <>
-      <header className="page-head">
-        <div className="eyebrow">{t('atlas.eyebrow')}</div>
-        <h1>{t('atlas.title')}</h1>
-        <p className="lede">{t('atlas.lede')}</p>
-      </header>
+      <PageBar
+        title={t('nav.atlas')}
+        status={(
+          <span className={`tag ${solved ? 'ok' : ''}`}>
+            {solved ? t('common.solved') : t('atlas.cube.movesFromStart', { n: state.cursor })}
+          </span>
+        )}
+        actions={(
+          <>
+            <button className="btn" data-action="scramble" onClick={scramble}>
+              {t('common.scramble')}
+            </button>
+            <button
+              className="btn primary" data-action="solve" onClick={runSolve}
+              disabled={solving || solved || !state.tablesReady}
+            >
+              {solving ? t('common.searching') : t('atlas.solveAndPlay')}
+            </button>
+            <button className="btn" data-action="reset" onClick={reset}>
+              {t('common.resetToSolved')}
+            </button>
+          </>
+        )}
+        about={(
+          <div className="prose">
+            <h3 style={{ marginTop: 0 }}>{t('atlas.title')}</h3>
+            <p><T k="atlas.lede" /></p>
+            <ul style={{ marginBottom: 8 }}>
+              <li><T k="atlas.reading.b1" /></li>
+              <li><T k="atlas.reading.b2" /></li>
+              <li><T k="atlas.reading.b3" /></li>
+            </ul>
+            <p style={{ marginBottom: 6 }}><T k="atlas.whereThisFits.body" /></p>
+            <p className="card-note" style={{ marginBottom: 0 }}>
+              {t('atlas.shortcuts')}
+            </p>
+          </div>
+        )}
+      >
+        {errand ? (
+          <ErrandBar
+            fromKey={errand.fromKey}
+            aboutKey={errand.aboutKey}
+            onReturn={() => { const to = errand.returnTo; session.endErrand(); go(to); }}
+          />
+        ) : null}
+      </PageBar>
 
-      <div className="split" style={{ marginBottom: 18 }}>
+      {!welcomeSeen ? <Welcome /> : null}
+
+      <div className="stage">
         <Card
+          className="stage-panel"
           title={t('atlas.cube')}
           note={solved ? t('common.solved') : t('atlas.cube.movesFromStart', { n: state.cursor })}
         >
@@ -150,26 +273,23 @@ export function AtlasPage(): JSX.Element {
             emphasis={emphasised}
             selected={selected}
           />
-          <p className="card-note" style={{ marginTop: 10, marginBottom: 0 }}>
-            {t('atlas.cube.hint')}
-          </p>
+          <p className="card-note stage-hint">{t('atlas.cube.hint')}</p>
         </Card>
 
         <Card
+          className="stage-panel"
           title={t('atlas.map')}
           note={mapNote}
           actions={(
             <div className="row tight">
               <button
-                className="btn small ghost"
-                aria-pressed={showLabels}
+                className="btn small ghost" aria-pressed={showLabels}
                 onClick={() => setShowLabels((v) => !v)}
               >
                 {t('atlas.map.labels')}
               </button>
               <button
-                className="btn small ghost"
-                aria-pressed={showGhost}
+                className="btn small ghost" aria-pressed={showGhost}
                 onClick={() => setShowGhost((v) => !v)}
               >
                 {t('atlas.map.ghost')}
@@ -177,7 +297,7 @@ export function AtlasPage(): JSX.Element {
             </div>
           )}
         >
-          <div style={{ background: 'var(--map-paper)', borderRadius: 'var(--radius-s)', padding: 2 }}>
+          <div className="map-frame">
             <StickerMap
               facelets={anim.facelets}
               previousFacelets={anim.previousFacelets}
@@ -192,102 +312,73 @@ export function AtlasPage(): JSX.Element {
               showGhost={showGhost}
             />
           </div>
-          <p className="card-note" style={{ marginTop: 8, marginBottom: 0 }}>
-            {t('atlas.map.hint')}
-          </p>
+          <p className="card-note stage-hint">{t('atlas.map.hint')}</p>
         </Card>
       </div>
 
-      <Card title={t('atlas.controls')} className="stack" style={{ marginBottom: 18 }}>
-        <div className="row">
-          <button className="btn" data-action="scramble" onClick={scramble}>
-            {t('common.scramble')}
-          </button>
-          <button
-            className="btn"
-            data-action="reset"
-            onClick={() => {
-              player.yieldToUser();
-              solveToken.current++;
-              actions.resetToSolved();
-              setSelected(null);
-              clearPreview();
-            }}
-          >
-            {t('common.resetToSolved')}
-          </button>
-          <button
-            className="btn primary"
-            data-action="solve"
-            onClick={runSolve}
-            disabled={solving || solved || !state.tablesReady}
-          >
-            {solving ? t('common.searching') : t('atlas.solveAndPlay')}
-          </button>
+      <TransportDock />
+
+      {yielded ? <div className="card-note dock-note">{t('atlas.playbackStopped')}</div> : null}
+      {solveError ? (
+        <div className="card-note dock-note" style={{ color: 'var(--danger)' }}>
+          {t('solver.failed')} {solveError}
         </div>
+      ) : null}
+      {solution ? (
+        <Callout title={t('atlas.solutionFound', { n: solution.length })}>
+          <p style={{ marginBottom: 6 }}>{t('atlas.solutionHint')}</p>
+          <Sequence name="solution" label={t('atlas.solutionHint')} moves={solution.moves} />
+        </Callout>
+      ) : null}
 
-        <Transport />
-
-        {yielded ? (
-          <div className="card-note">{t('atlas.playbackStopped')}</div>
-        ) : null}
-        {solveError ? (
-          <div className="card-note" style={{ color: 'var(--danger)' }}>
-            {t('solver.failed')} {solveError}
+      {/*
+        Everything below is the second tier: useful, not constant. It collapses
+        into one line, and the choice is remembered, so a learner who works
+        mostly with the two views is not scrolling past three cards they never
+        opened - and one who uses the pad every day never has to reopen it.
+      */}
+      <section className="tools">
+        <button
+          className="tools-toggle"
+          aria-expanded={!toolsCollapsed}
+          aria-controls="atlas-tools"
+          onClick={() => setToolsCollapsed(!toolsCollapsed)}
+        >
+          <span className="tools-caret" aria-hidden="true">{toolsCollapsed ? '▸' : '▾'}</span>
+          {t('atlas.tools')}
+          <span className="card-note">{t('atlas.tools.note')}</span>
+        </button>
+        {!toolsCollapsed ? (
+          <div className="tools-body" id="atlas-tools">
+            <div className="split">
+              <Card title={t('lab.turnTheCube')} note={t('atlas.byHand')}>
+                <PreviewMovePad onPreview={setPreviewMove} onMove={manualMove} />
+                <div className="tools-sub">
+                  <div className="card-note" style={{ marginBottom: 4 }}>{t('atlas.moveList')}</div>
+                  <Sequence
+                    name="moves"
+                    label={t('atlas.moveList')}
+                    moves={state.moves}
+                    cursor={state.cursor}
+                    onSeek={(i) => { player.seek(i); }}
+                    empty={t('atlas.moveList.empty')}
+                  />
+                </div>
+              </Card>
+              <StickerInspector facelet={selected ?? hovered} isSelection={selected !== null} />
+            </div>
+            <Card title={t('atlas.reading')} style={{ marginTop: 14 }}>
+              <div className="prose">
+                <p style={{ marginBottom: 0 }}>
+                  <T k="atlas.reading.p2" />{' '}
+                  <a href="#/graph">{t('nav.graph')}</a>{' · '}
+                  <span className="mono-ltr">{formatBig(TOTAL_STATES)}</span>
+                </p>
+              </div>
+            </Card>
           </div>
         ) : null}
-
-        <div>
-          <div className="card-note" style={{ marginBottom: 4 }}>{t('atlas.moveList')}</div>
-          <Sequence
-            moves={state.moves}
-            cursor={state.cursor}
-            onSeek={(i) => { player.seek(i); }}
-            empty={t('atlas.moveList.empty')}
-          />
-        </div>
-
-        <div>
-          <div className="card-note" style={{ marginBottom: 6 }}>{t('atlas.byHand')}</div>
-          <PreviewMovePad onPreview={setPreviewMove} onMove={manualMove} />
-        </div>
-
-        {solution ? (
-          <Callout title={t('atlas.solutionFound', { n: solution.length })}>
-            <p style={{ marginBottom: 6 }}>{t('atlas.solutionHint')}</p>
-            <Sequence moves={solution.moves} />
-          </Callout>
-        ) : null}
-      </Card>
-
-      <div style={{ marginBottom: 18 }}>
-        <CommandBar onAction={runCommand} />
-      </div>
-
-      <div className="split" style={{ marginBottom: 18 }}>
-        <StickerInspector facelet={selected ?? hovered} isSelection={selected !== null} />
-        <Card title={t('atlas.reading')}>
-          <div className="prose">
-            <p>{t('atlas.reading.p1')}</p>
-            <ul style={{ marginBottom: 8 }}>
-              <li>{t('atlas.reading.b1')}</li>
-              <li>{t('atlas.reading.b2')}</li>
-              <li>{t('atlas.reading.b3')}</li>
-            </ul>
-            <p style={{ marginBottom: 0 }}>
-              {t('atlas.reading.p2')}{' '}
-              <a href="#/graph">{t('nav.graph')}</a>{' · '}
-              <span className="mono-ltr">{formatBig(TOTAL_STATES)}</span>
-            </p>
-          </div>
-        </Card>
-      </div>
-
-      <Card title={t('atlas.whereThisFits')}>
-        <div className="prose">
-          <p style={{ marginBottom: 0 }}>{t('atlas.whereThisFits.body')}</p>
-        </div>
-      </Card>
+      </section>
     </>
   );
 }
@@ -352,7 +443,10 @@ function StickerInspector({ facelet, isSelection }: { facelet: number | null; is
   if (facelet === null) {
     return (
       <Card title={t('atlas.inspector')} note={t('atlas.inspector.empty')}>
-        <p className="card-note" style={{ margin: 0 }}>{t('atlas.inspector.emptyHelp')}</p>
+        <div className="empty-state">
+          <span className="empty-glyph" aria-hidden="true">◎</span>
+          <p className="card-note" style={{ margin: 0 }}>{t('atlas.inspector.emptyHelp')}</p>
+        </div>
       </Card>
     );
   }

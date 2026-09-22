@@ -28,10 +28,18 @@ export interface HintLadderProps {
   onEmphasis: (facelets: number[] | null) => void;
   /** Told each time the learner takes a hint, so the situation stays honest. */
   onHintTaken: () => void;
+  /**
+   * Hands the page a way to ask for a hint from somewhere else - the study
+   * assistant, which is on every page and is where a stuck learner looks
+   * first. It is the same call the button makes, not a second implementation
+   * of it, so a hint requested from the panel is identical in every respect
+   * to one requested here.
+   */
+  registerAsk?: (ask: (() => void) | null) => void;
 }
 
 export function HintLadder({
-  nextMove, situation, onEmphasis, onHintTaken,
+  nextMove, situation, onEmphasis, onHintTaken, registerAsk,
 }: HintLadderProps): JSX.Element {
   const { t, lang } = useI18n();
   const task = useJevTask<HintLevelDecision>();
@@ -57,6 +65,14 @@ export function HintLadder({
     const decision = await task.run({ task: 'hint-level', situation, language: lang });
     reveal(decision ? decision.level : ruleBasedHintLevel(situation));
   };
+
+  // Republished whenever the position or the situation changes, so the panel
+  // never fires a request built from a position the learner has left.
+  useEffect(() => {
+    registerAsk?.(nextMove === null ? null : () => { void askForHint(); });
+    return () => registerAsk?.(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [registerAsk, nextMove, JSON.stringify(situation), task.available]);
 
   if (nextMove === null) {
     return <p className="card-note" style={{ margin: 0 }}>{t('jev.hint.unavailable')}</p>;

@@ -11,10 +11,22 @@ import { NOTABLE_POSITIONS } from '../data/facts';
 import { CubieCube } from '../cube/cubie';
 import { faceletString, toFacelets } from '../cube/facelet';
 import { useI18n, type Translate } from '../i18n/I18nProvider';
+import { usePublishAssistantContext } from '../jev/assistantContext';
+import { go } from '../state/navigation';
 import type { Solution } from '../solver/twophase';
 import { GODS_NUMBER } from '../cube/defs';
 
 export function LabPage(): JSX.Element {
+  // What the study panel offers from this page. The panel itself always
+  // carries the universal help; these are the jumps that only make sense
+  // from here.
+  usePublishAssistantContext(() => ({ labelKey: 'nav.lab', actions: [
+      { id: 'lesson-groups', labelKey: 'assist.act.groupsLesson', noteKey: 'assist.act.groupsLesson.note',
+        run: () => go('#/course/groups') },
+      { id: 'open-atlas', labelKey: 'assist.act.openAtlas', noteKey: 'assist.act.openAtlas.note',
+        run: () => go('#/atlas') },
+    ] }), []);
+
   const { t } = useI18n();
   const state = useAppState((s) => s);
   const facelets = useMemo(

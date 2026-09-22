@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Callout, Card } from '../components/ui';
 import { actions, useAppState } from '../state/store';
 import { LANGUAGES, T, useI18n } from '../i18n/I18nProvider';
+import { usePublishAssistantContext } from '../jev/assistantContext';
+import { go } from '../state/navigation';
 import { jevConfig, keySource, useJevConfig } from '../jev/config';
 import { JevError, probeJevStatus, testJevConnection } from '../jev/client';
 
@@ -20,6 +22,14 @@ type TestState =
  * a learner is missing out until they find a key.
  */
 export function SettingsPage(): JSX.Element {
+  // What the study panel offers from this page. The panel itself always
+  // carries the universal help; these are the jumps that only make sense
+  // from here.
+  usePublishAssistantContext(() => ({ labelKey: 'nav.settings', actions: [
+      { id: 'ai-lab', labelKey: 'assist.act.aiLab', noteKey: 'assist.act.aiLab.note',
+        run: () => go('#/ai-lab') },
+    ] }), []);
+
   const { t, lang, setLang } = useI18n();
   const theme = useAppState((s) => s.theme);
   const config = useJevConfig();

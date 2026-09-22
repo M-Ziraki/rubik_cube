@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Cube3D } from '../components/Cube3D';
 import { MovePad } from '../components/MovePad';
 import { Callout, Card, Segmented, Sequence, Stat } from '../components/ui';
@@ -11,6 +11,8 @@ import { LESSONS } from '../lessons/registry';
 import { player } from '../state/player';
 import { useI18n } from '../i18n/I18nProvider';
 import { HintLadder } from '../components/HintLadder';
+import { usePublishAssistantContext } from '../jev/assistantContext';
+import { go } from '../state/navigation';
 
 /** Titles, briefs and hints live in the dictionaries under `challenge.<id>.*`. */
 interface Challenge {
@@ -82,6 +84,15 @@ function ChallengeRunner(): JSX.Element {
   const [nextMove, setNextMove] = useState<number | null>(null);
   const hintToken = useRef(0);
 
+  /*
+   * The hint ladder hands us the same call its own button makes, so a learner
+   * who is stuck can reach it from the study panel - which is in the same
+   * corner of every page - rather than having to know that this page keeps its
+   * hints halfway down the right-hand column.
+   */
+  const askHint = useRef<(() => void) | null>(null);
+  const registerAsk = useCallback((fn: (() => void) | null) => { askHint.current = fn; }, []);
+
   const used = useMemo(
     () => simplifySequence(state.moves.slice(0, state.cursor)).length,
     [state.moves, state.cursor],
@@ -151,6 +162,32 @@ function ChallengeRunner(): JSX.Element {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const stateReport = useMemo(() => report(currentCube(state)), [facelets]);
+
+  // What the study panel can offer from a challenge: a hint at the level the
+  // learner has earned, a fresh position, and the lesson behind the skill.
+  usePublishAssistantContext(() => ({
+    labelKey: 'nav.training',
+    actions: [
+      ...(nextMove !== null ? [{
+        id: 'hint',
+        labelKey: 'assist.act.hint',
+        noteKey: 'assist.act.hint.note',
+        run: () => askHint.current?.(),
+      }] : []),
+      {
+        id: 'new-position',
+        labelKey: 'assist.act.newPosition',
+        noteKey: 'assist.act.newPosition.note',
+        run: () => { void start(challenge); },
+      },
+      {
+        id: 'method',
+        labelKey: 'assist.act.method',
+        noteKey: 'assist.act.method.note',
+        run: () => go('#/course/human-vs-machine'),
+      },
+    ],
+  }), [nextMove, challenge.id]);
 
   return (
     <div className="split">
@@ -277,6 +314,7 @@ function ChallengeRunner(): JSX.Element {
                   }}
                   onEmphasis={setEmphasis}
                   onHintTaken={() => setHintsTaken((n) => n + 1)}
+                  registerAsk={registerAsk}
                 />
                 <div className="row">
                   <button className="btn small ghost" onClick={() => setShowHint(true)} disabled={showHint}>

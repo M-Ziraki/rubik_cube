@@ -62,12 +62,16 @@ export function MoveChip({ move, state = 'plain', onClick, title }: {
   );
 }
 
-export function Sequence({ moves, cursor, onSeek, empty = 'no moves yet' }: {
+export function Sequence({ moves, cursor, onSeek, empty = 'no moves yet', name, label }: {
   moves: number[]; cursor?: number; onSeek?: (i: number) => void; empty?: string;
+  /** Distinguishes this list from any other on the page. */
+  name?: string;
+  /** Accessible name, for a list that is not next to its own heading. */
+  label?: string;
 }): JSX.Element {
-  if (moves.length === 0) return <div className="seq-empty">{empty}</div>;
+  if (moves.length === 0) return <div className="seq-empty" data-seq={name}>{empty}</div>;
   return (
-    <div className="seq">
+    <div className="seq" data-seq={name} role="group" aria-label={label}>
       {moves.map((m, i) => (
         <MoveChip
           key={i}

@@ -267,11 +267,16 @@ await boot();
   // The strongest form of "do not reverse move sequences": what is on screen,
   // read in visual order, has to be the move list the model holds.
   const rendered = await page.evaluate(() => {
-    const seq = document.querySelector('.seq');
+    const seq = document.querySelector('[data-seq="moves"]');
     if (!seq) return null;
+    // Reading order, not x order: the list wraps, and sorting a wrapped list
+    // by x alone interleaves the rows into a sequence nobody is looking at.
     return [...seq.children]
-      .map((c) => ({ x: c.getBoundingClientRect().x, t: c.textContent.trim() }))
-      .sort((a, b) => a.x - b.x)
+      .map((c) => {
+        const r = c.getBoundingClientRect();
+        return { x: r.x, y: Math.round(r.y), t: c.textContent.trim() };
+      })
+      .sort((a, b) => (a.y - b.y) || (a.x - b.x))
       .map((c) => c.t);
   });
   const model = (await state()).moves

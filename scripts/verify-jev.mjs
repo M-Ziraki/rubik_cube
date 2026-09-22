@@ -44,6 +44,23 @@ async function boot(hash = '') {
   await page.goto(BASE + hash, { waitUntil: 'networkidle' });
   await page.waitForSelector('.tag.ok', { timeout: 90000 });
   await page.waitForTimeout(700);
+  await dismissWelcome();
+}
+
+/** The starting-points card is a first-visit affordance, not the subject here. */
+async function dismissWelcome() {
+  const seen = await page.$('[data-welcome="dismiss"]');
+  if (seen) { await seen.click(); await page.waitForTimeout(200); }
+}
+
+/** The study panel, opened the way a learner opens it. */
+async function openAssistant() {
+  const expanded = await page.getAttribute('[data-assistant="dock"]', 'aria-expanded');
+  if (expanded !== 'true') {
+    await page.click('[data-assistant="dock"]');
+    await page.waitForSelector('.assistant-panel', { timeout: 10000 });
+    await page.waitForTimeout(350);
+  }
 }
 
 /* ================================================== A. with no key at all === */
@@ -99,17 +116,27 @@ if (MODE === 'nokey') {
     check('A7. the connection test is unavailable without a key', testDisabled);
   }
 
-  // The deterministic tutor still recommends something.
+  // The deterministic tutor still recommends something - and now does so from
+  // the panel, which is on every page rather than only on the course index.
   {
     await page.goto(BASE + '#/course');
     await page.waitForTimeout(1500);
+    await dismissWelcome();
+    await openAssistant();
+    const state0 = await page.getAttribute('[data-assistant-status]', 'data-assistant-status');
+    check('A8a. the panel says plainly that there is no key',
+      state0 === 'needs-key', String(state0));
     await page.click('[data-jev="recommend"]');
     await page.waitForTimeout(600);
-    const body = await page.textContent('.card:has-text("What to do next")');
+    const body = await page.textContent('[data-assistant="next"]');
     check('A8. the tutor recommends without AI', /Read:|Practise:|Explore:|Compare:/.test(body),
       body.replace(/\s+/g, ' ').slice(0, 80));
-    const badge = await page.textContent('.card:has-text("What to do next") .tag');
+    const badge = await page.textContent('[data-assistant="next"] .tag');
     check('A9. and labels the recommendation as computed', /computed/i.test(badge), badge.trim());
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(250);
+    const closed = await page.$('.assistant-panel');
+    check('A9b. Escape closes the panel', closed === null);
   }
 
   // The concept check falls back to a self-check with the worked answer.
@@ -124,11 +151,13 @@ if (MODE === 'nokey') {
     check('A11. and the marking rubric', /A complete answer says/i.test(body));
   }
 
-  // The command bar routes on keywords.
+  // The command box routes on keywords.
   {
     await page.goto(BASE);
     await page.waitForTimeout(1500);
-    await page.fill('.card:has-text("Ask the laboratory") input', 'open the state space graph');
+    await dismissWelcome();
+    await openAssistant();
+    await page.fill('[data-jev="command-text"]', 'open the state space graph');
     await page.click('[data-jev="command"]');
     await page.waitForTimeout(1200);
     check('A12. the keyword router navigates', page.url().includes('#/graph'), page.url());
@@ -206,15 +235,25 @@ if (MODE === 'stub') {
   {
     await page.goto(BASE);
     await page.waitForTimeout(1500);
+    await dismissWelcome();
+    await openAssistant();
     const before = (await state()).facelets;
-    await page.fill('.card:has-text("Ask the laboratory") input', 'do the thing');
+    await page.fill('[data-jev="command-text"]', 'do the thing');
     await page.click('[data-jev="command"]');
     await page.waitForTimeout(1500);
-    const body = await page.textContent('.card:has-text("Ask the laboratory")');
-    const asked = /Do you want to|did not match/i.test(body);
-    check('B10. an ambiguous command does not act on its own', asked,
-      body.replace(/\s+/g, ' ').slice(0, 90));
+    const body = await page.textContent('[data-assistant="command"]');
+    const asked = /Did you mean|did not match/i.test(body);
+    const confirmButton = await page.$('[data-assistant="confirm"]');
+    check('B10. an ambiguous command asks instead of acting',
+      asked && confirmButton !== null, body.replace(/\s+/g, ' ').slice(0, 90));
     check('B11. and the cube is untouched', (await state()).facelets === before);
+  }
+
+  // The panel is the only place a learner can be told the difference between
+  // a judgment and a calculation, so it has to say so wherever it is open.
+  {
+    const tone = await page.getAttribute('[data-assistant-status]', 'data-assistant-status');
+    check('B12a. the panel reports Jev as on', tone === 'on', String(tone));
   }
 
   check('B12. no console errors', errors.length === 0, errors.join(' | '));
@@ -224,7 +263,7 @@ if (MODE === 'stub') {
 
 if (MODE === 'failing') {
   await boot('#/settings');
-  await page.click('[data-jev="on"]').catch(() => undefined);
+  await page.click('.card:has-text("Jev") [data-jev="on"]').catch(() => undefined);
   await page.waitForTimeout(300);
 
   {
@@ -237,9 +276,11 @@ if (MODE === 'failing') {
   {
     await page.goto(BASE + '#/course');
     await page.waitForTimeout(1500);
+    await dismissWelcome();
+    await openAssistant();
     await page.click('[data-jev="recommend"]');
     await page.waitForTimeout(2000);
-    const body = await page.textContent('.card:has-text("What to do next")');
+    const body = await page.textContent('[data-assistant="next"]');
     check('C2. the tutor still recommends after a failure',
       /Read:|Practise:|Explore:|Compare:/.test(body), body.replace(/\s+/g, ' ').slice(0, 90));
     check('C3. and says the service failed', /error|rejected|reach|too long|Try again/i.test(body));
@@ -248,15 +289,19 @@ if (MODE === 'failing') {
   {
     await page.goto(BASE);
     await page.waitForTimeout(1500);
+    await dismissWelcome();
+    await openAssistant();
     const before = (await state()).facelets;
-    await page.fill('.card:has-text("Ask the laboratory") input', 'scramble the cube');
+    await page.fill('[data-jev="command-text"]', 'scramble the cube');
     await page.click('[data-jev="command"]');
     await page.waitForTimeout(2500);
     check('C4. a failure never changes the cube on its own',
       (await state()).facelets === before);
-    const body = await page.textContent('.card:has-text("Ask the laboratory")');
-    check('C5. the keyword router takes over', /Do you want to/i.test(body),
+    const body = await page.textContent('[data-assistant="command"]');
+    check('C5. the keyword router takes over', /Keyword matching/i.test(body),
       body.replace(/\s+/g, ' ').slice(0, 80));
+    check('C5b. and offers the action rather than performing it',
+      /Did you mean/i.test(body), body.replace(/\s+/g, ' ').slice(0, 80));
   }
 
   check('C6. no console errors', errors.length === 0, errors.join(' | '));

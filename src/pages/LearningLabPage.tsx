@@ -2,6 +2,8 @@ import { useMemo, useRef, useState } from 'react';
 import { Callout, Card, Segmented, Stat } from '../components/ui';
 import { JevBadge, JevFailure, JevThinking } from '../components/JevBadge';
 import { T, useI18n } from '../i18n/I18nProvider';
+import { usePublishAssistantContext } from '../jev/assistantContext';
+import { go } from '../state/navigation';
 import { useAppState } from '../state/store';
 import { useJevConfig, jevActive } from '../jev/config';
 import { askJev, JevError } from '../jev/client';
@@ -31,6 +33,14 @@ type Tab = 'compare' | 'evaluate' | 'categories';
  * a confident answer is still only an answer.
  */
 export function LearningLabPage(): JSX.Element {
+  // What the study panel offers from this page. The panel itself always
+  // carries the universal help; these are the jumps that only make sense
+  // from here.
+  usePublishAssistantContext(() => ({ labelKey: 'nav.aiLab', actions: [
+      { id: 'settings', labelKey: 'assist.act.settings', noteKey: 'assist.act.settings.note',
+        run: () => go('#/settings') },
+    ] }), []);
+
   const { t } = useI18n();
   const [tab, setTab] = useState<Tab>('compare');
   const config = useJevConfig();

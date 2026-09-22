@@ -9,12 +9,24 @@ import { diagnose, faceletString, parseFaceletString, toFacelets } from '../cube
 import { FACE_COLOR_NAMES, FACE_NAMES, GODS_NUMBER, MOVE_NAMES, SOLVED_FACELETS } from '../cube/defs';
 import { describeMove } from '../cube/notation';
 import { useI18n } from '../i18n/I18nProvider';
+import { usePublishAssistantContext } from '../jev/assistantContext';
+import { go } from '../state/navigation';
 import { explainMoves, requestScramble, solve } from '../solver/client';
 import type { SolutionNarrative } from '../cube/analysis';
 import type { Solution } from '../solver/twophase';
 import { METHODS } from '../data/methods';
 
 export function ScanPage(): JSX.Element {
+  // What the study panel offers from this page. The panel itself always
+  // carries the universal help; these are the jumps that only make sense
+  // from here.
+  usePublishAssistantContext(() => ({ labelKey: 'nav.scan', actions: [
+      { id: 'lesson-notation', labelKey: 'assist.act.notation', noteKey: 'assist.act.notation.note',
+        run: () => go('#/course/notation') },
+      { id: 'lesson-method', labelKey: 'assist.act.method', noteKey: 'assist.act.method.note',
+        run: () => go('#/course/human-vs-machine') },
+    ] }), []);
+
   const { t } = useI18n();
   const tablesReady = useAppState((s) => s.tablesReady);
   const [grid, setGrid] = useState<Uint8Array>(() => parseFaceletString(SOLVED_FACELETS));

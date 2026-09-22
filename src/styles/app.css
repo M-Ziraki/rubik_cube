@@ -71,7 +71,11 @@ button { font: inherit; color: inherit; }
 .sidebar-foot { padding: 12px; border-top: 1px solid var(--line); display: grid; gap: 8px; }
 
 .main { min-width: 0; display: flex; flex-direction: column; }
-.page { padding: clamp(20px, 3vw, 44px); max-width: 1320px; width: 100%; margin: 0 auto; }
+.page {
+  --page-pad: clamp(16px, 2.4vw, 36px);
+  padding: var(--page-pad);
+  max-width: 1400px; width: 100%; margin: 0 auto;
+}
 .page-head { margin-bottom: 28px; }
 .page-head .eyebrow { font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-faint); }
 .lede { font-size: 1.04rem; color: var(--ink-soft); max-width: min(62ch, 100%); }
@@ -111,7 +115,7 @@ button { font: inherit; color: inherit; }
 
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-  padding: 7px 13px; border-radius: var(--radius-s);
+  padding: 7px 13px; min-height: 34px; border-radius: var(--radius-s);
   border: 1px solid var(--line-strong); background: var(--paper-raised);
   cursor: pointer; font-size: 0.86rem; font-weight: 500;
   transition: background 0.12s, border-color 0.12s, transform 0.06s;
@@ -139,13 +143,19 @@ button { font: inherit; color: inherit; }
 .btn.primary:hover:not(:disabled) { background: var(--accent); filter: brightness(1.12); }
 .btn.ghost { border-color: transparent; background: transparent; }
 .btn.ghost:hover:not(:disabled) { background: var(--paper-sunken); }
-.btn.small { padding: 4px 9px; font-size: 0.78rem; }
+.btn.small { padding: 3px 10px; min-height: 28px; font-size: 0.78rem; }
+
+/* A button whose whole label is one glyph. Square, and never below 34px, so
+   the playback controls stay comfortably above the 24px floor on a phone. */
+.btn.icon {
+  min-width: 34px; padding: 0 9px; font-size: 0.9rem;
+}
 .btn.mono { font-family: var(--mono); }
 
 .seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: var(--radius-s); overflow: hidden; }
 .seg button {
-  padding: 5px 11px; border: 0; background: var(--paper-raised); cursor: pointer;
-  font-size: 0.8rem; border-inline-end: 1px solid var(--line);
+  padding: 4px 11px; min-height: 30px; border: 0; background: var(--paper-raised);
+  cursor: pointer; font-size: 0.8rem; border-inline-end: 1px solid var(--line);
 }
 .seg button:last-child { border-inline-end: 0; }
 .seg button[aria-pressed='true'] { background: var(--accent-soft); font-weight: 600; }
@@ -164,7 +174,7 @@ label.field { display: grid; gap: 4px; font-size: 0.8rem; color: var(--ink-soft)
   font-family: var(--mono); font-size: 0.82rem; font-weight: 600;
   padding: 3px 7px; border-radius: 5px;
   border: 1px solid var(--line-strong); background: var(--paper);
-  cursor: pointer; min-width: 34px; text-align: center;
+  cursor: pointer; min-width: 34px; min-height: 28px; text-align: center;
 }
 .move-chip:hover { background: var(--paper-sunken); }
 .move-chip.current { background: var(--accent); border-color: var(--accent); color: #fff; }
@@ -233,24 +243,10 @@ table.data td.num, table.data th.num { text-align: end; font-family: var(--mono)
 }
 @keyframes shimmer { to { background-position: -200% 0; } }
 
-.mobile-nav { display: none; }
 
-@media (max-width: 900px) {
-  .app { grid-template-columns: 1fr; }
-  .sidebar { display: none; }
-  .mobile-nav {
-    display: flex; gap: 6px; overflow-x: auto; padding: 10px 16px;
-    border-bottom: 1px solid var(--line); background: var(--paper-raised);
-    position: sticky; top: 0; z-index: 20;
-    align-items: center;
-  }
-  /* First in the row, so it sits at the reading edge and is on screen without
-     scrolling in either direction. */
-  .mobile-nav > .seg { flex: 0 0 auto; }
-  .mobile-nav > .seg button { padding: 4px 8px; font-size: 0.74rem; }
+@media (max-width: 1080px) {
   .split { grid-template-columns: minmax(0, 1fr); }
   .grid.two, .grid.three { grid-template-columns: minmax(0, 1fr); }
-  .page { padding: 16px; }
   .scene-host { min-height: 220px; }
 }
 

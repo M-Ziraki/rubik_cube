@@ -1,0 +1,549 @@
+/*
+ * The shell and the workspace.
+ *
+ * Kept apart from app.css, which is the typographic and component base. What
+ * is here is the furniture a learner navigates by - the sidebar, the phone's
+ * tab bar, the page bar, the assistant, the palette - plus the workspace
+ * layout that the Atlas and its relatives share.
+ *
+ * Every measurement that looks arbitrary is not. Interactive things are at
+ * least 24 CSS pixels in both directions (WCAG 2.2, 2.5.8). Anything that
+ * sticks leaves room for the thing it could otherwise cover (2.4.11). The
+ * assistant clears the tab bar rather than sitting on top of it.
+ */
+
+/* ------------------------------------------------------------- skip link --- */
+
+.skip-link {
+  position: absolute;
+  inset-inline-start: 8px;
+  top: -60px;
+  z-index: 200;
+  background: var(--paper-raised);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-s);
+  padding: 8px 14px;
+  transition: top 0.15s;
+}
+.skip-link:focus { top: 8px; }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* --------------------------------------------------------------- sidebar --- */
+
+.brand-mark {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  background: none; border: 0; cursor: pointer; text-align: start; padding: 0;
+  color: inherit;
+}
+.brand-mark > span { display: grid; }
+.brand-mark:hover .brand-title { color: var(--accent); }
+
+.nav-item { min-height: 34px; }
+.nav-label { flex: 1; min-width: 0; }
+
+.palette-hint {
+  display: flex; justify-content: space-between; width: 100%;
+  min-height: 30px; font-size: 0.78rem;
+}
+.palette-hint kbd {
+  border: 1px solid var(--line-strong); border-radius: 4px;
+  padding: 0 5px; font-size: 0.72rem; color: var(--ink-faint);
+}
+
+/* -------------------------------------------------------------- page bar --- */
+
+/*
+ * A workspace header. One line, sticky, and the verbs live in it - which is
+ * the whole reason it exists: before this the Atlas's Scramble and Solve
+ * buttons rendered at y=1045 in a 1000-pixel window.
+ */
+.page-bar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  margin: calc(-1 * var(--page-pad)) calc(-1 * var(--page-pad)) 16px;
+  padding: 10px var(--page-pad);
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+.page-bar-row {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  min-height: 40px;
+}
+.page-bar-title { display: flex; align-items: center; gap: 10px; min-width: 0; flex-wrap: wrap; }
+.page-bar-title h1 {
+  font-size: clamp(1.15rem, 2.2vw, 1.5rem); margin: 0; letter-spacing: -0.015em;
+}
+.page-bar-status { flex: 0 0 auto; }
+.page-bar-actions { display: flex; gap: 8px; align-items: center; margin-inline-start: auto; flex-wrap: wrap; }
+.page-bar-about {
+  margin-top: 10px; padding: 12px 0 2px; border-top: 1px solid var(--line);
+  max-width: min(72ch, 100%);
+}
+
+/* The way back from an errand a lesson sent the learner on. */
+.errand-bar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-top: 8px; padding: 7px 12px;
+  border: 1px solid var(--accent); border-radius: var(--radius-s);
+  background: var(--accent-soft); font-size: 0.85rem;
+}
+.errand-text { flex: 1; min-width: 0; }
+
+/* ------------------------------------------------------------- workspace --- */
+
+/*
+ * The two views, side by side and as large as the window allows. They are
+ * capped by viewport height rather than a fixed pixel size so the transport
+ * below them stays on the first screen on a laptop as well as a monitor.
+ */
+.stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: stretch;
+}
+.stage-panel { display: flex; flex-direction: column; }
+.stage-panel .scene-host,
+.stage-panel .map-frame {
+  flex: 1;
+  min-height: 240px;
+  max-height: min(58vh, 620px);
+}
+.map-frame {
+  background: var(--map-paper); border-radius: var(--radius-s); padding: 2px;
+  display: flex; align-items: center; justify-content: center;
+}
+.map-frame > svg { width: 100%; height: 100%; }
+.stage-hint { margin: 8px 0 0; }
+
+/* ------------------------------------------------------- transport dock --- */
+
+.transport-dock {
+  position: sticky;
+  /* Above the phone's tab bar, which is fixed to the bottom of the viewport
+     and would otherwise sit on top of the playback controls. */
+  bottom: var(--tabbar-h, 0px);
+  z-index: 25;
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  margin: 14px 0 0;
+  /*
+   * The assistant sits in the bottom inline-end corner of every page and this
+   * bar is pinned to the bottom of the workspace, so without a reserved gutter
+   * the two overlap and the speed control loses its last preset behind the
+   * pill. The gutter is the width of the pill plus its offset.
+   */
+  padding: 10px calc(14px + var(--dock-reserve, 0px)) 10px 14px;
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-s);
+}
+[dir='rtl'] .transport-dock { padding: 10px 14px 10px calc(14px + var(--dock-reserve, 0px)); }
+.transport-buttons { display: flex; gap: 6px; align-items: center; }
+.transport-play { min-width: 96px; }
+.transport-progress { flex: 1 1 220px; min-width: 160px; display: grid; gap: 4px; }
+.transport-count { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.transport-speed { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.dock-note { margin-top: 8px; }
+
+/* ----------------------------------------------------------- tools panel --- */
+
+.tools { margin-top: 18px; }
+.tools-toggle {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  min-height: 40px; padding: 8px 12px;
+  background: var(--paper-sunken); border: 1px solid var(--line);
+  border-radius: var(--radius-s); cursor: pointer;
+  font-weight: 500; text-align: start;
+}
+.tools-toggle:hover { border-color: var(--line-strong); }
+.tools-toggle .card-note { margin-inline-start: auto; }
+.tools-caret { display: inline-block; width: 1em; }
+[dir='rtl'] .tools-caret { transform: scaleX(-1); }
+.tools-body { margin-top: 14px; }
+.tools-sub { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+
+/* --------------------------------------------------------------- welcome --- */
+
+.welcome { border-color: var(--line-strong); }
+.welcome-head { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 14px; }
+.welcome-head > div { flex: 1; min-width: 0; }
+.welcome-title { font-size: 1.3rem; margin: 4px 0 6px; }
+.welcome-lede { max-width: 62ch; }
+.welcome-doors {
+  display: grid; gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+.welcome-door {
+  display: grid; gap: 3px; text-align: start;
+  padding: 12px 14px; min-height: 92px;
+  border: 1px solid var(--line-strong); border-radius: var(--radius-s);
+  background: var(--paper); cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+.welcome-door:hover { border-color: var(--accent); background: var(--accent-soft); }
+.welcome-glyph { font-size: 1.1rem; opacity: 0.7; }
+.welcome-door-title { font-weight: 600; }
+
+/* ---------------------------------------------------- sheets and scrims --- */
+
+.scrim {
+  position: fixed; inset: 0; z-index: 90;
+  background: rgba(20, 18, 12, 0.34);
+  animation: fade-in 0.14s ease-out;
+}
+@keyframes fade-in { from { opacity: 0; } }
+
+.sheet {
+  position: fixed;
+  z-index: 100;
+  background: var(--paper-raised);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow);
+  display: flex; flex-direction: column;
+  max-height: 100dvh;
+}
+.sheet:focus { outline: none; }
+
+.sheet-end {
+  inset-block: 0;
+  inset-inline-end: 0;
+  width: var(--sheet-w);
+  border-block: 0;
+  border-inline-end: 0;
+}
+
+.sheet-centre {
+  top: 12vh;
+  inset-inline: 0;
+  margin-inline: auto;
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(70vh, 640px);
+  border-radius: var(--radius);
+}
+
+/* ------------------------------------------------------------- assistant --- */
+
+/*
+ * One entry point, the same corner of every page.
+ *
+ * Bottom inline-end, because that corner holds no controls on any page here,
+ * and offset above the phone's tab bar so it never covers a destination.
+ */
+:root { --dock-reserve: 150px; --sheet-w: min(420px, 100vw); }
+
+.assistant-dock {
+  position: fixed;
+  z-index: 80;
+  inset-inline-end: 18px;
+  bottom: calc(18px + var(--tabbar-h, 0px));
+  display: flex; align-items: center; gap: 8px;
+  min-height: 44px; padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--paper-raised);
+  box-shadow: var(--shadow);
+  cursor: pointer; font-size: 0.86rem; font-weight: 500;
+}
+.assistant-dock:hover { border-color: var(--accent); }
+.assistant-dock:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/*
+ * While the panel is open the dock steps aside rather than hiding.
+ *
+ * A toggle that disappears the moment it is used is a toggle you cannot press
+ * twice, and it takes the keyboard's focus anchor with it when the panel
+ * closes. On a wide screen there is room beside the sheet; on a narrow one the
+ * sheet comes up from the bottom, so the dock goes to the top, above the
+ * scrim, where it is still the same button in the same reading corner.
+ */
+.assistant-dock[aria-expanded='true'] {
+  inset-inline-end: calc(var(--sheet-w) + 18px);
+  z-index: 110;
+}
+
+/* The one glance that says which of the four situations you are in. */
+.assistant-dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
+.assistant-dot.on { background: var(--ok); }
+.assistant-dot.off { background: var(--ink-faint); }
+.assistant-dot.needs-key { background: var(--line-strong); border: 1px solid var(--ink-faint); }
+.assistant-dot.unavailable { background: var(--warn); }
+
+.assistant-panel { }
+.assistant-inner { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.assistant-head {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 14px 16px; border-bottom: 1px solid var(--line);
+}
+.assistant-head > div:first-child { flex: 1; min-width: 0; }
+.assistant-status {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 10px 16px; border-bottom: 1px solid var(--line);
+  background: var(--paper-sunken);
+}
+.assistant-body { flex: 1; overflow-y: auto; padding: 4px 16px 16px; }
+.assistant-section { padding: 14px 0; border-bottom: 1px solid var(--line); }
+.assistant-section:last-child { border-bottom: 0; }
+.assistant-h {
+  font-family: var(--sans); font-size: 0.72rem; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint);
+  margin: 0 0 8px;
+}
+.assistant-p { margin: 0 0 8px; }
+.assistant-result { display: grid; gap: 8px; margin-top: 10px; }
+.assistant-answer { font-size: 1rem; }
+.assistant-action-label { display: block; font-weight: 500; margin-bottom: 2px; }
+.assistant-details { margin-top: 6px; }
+.assistant-explain {
+  margin-top: 8px; padding: 10px 12px;
+  background: var(--paper-sunken); border-radius: var(--radius-s);
+}
+.assistant-command { display: flex; gap: 6px; align-items: center; }
+.assistant-command input { flex: 1; min-width: 0; min-height: 34px; }
+.assistant-confirm { margin-top: 10px; }
+.assistant-foot {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 12px 16px; border-top: 1px solid var(--line);
+  background: var(--paper-sunken);
+}
+.assistant-foot.column { flex-direction: column; align-items: stretch; }
+.assistant-foot.column .assistant-command { width: 100%; }
+
+.prob-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-size: 0.78rem; }
+.prob-label { flex: 0 0 38%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prob-num { flex: 0 0 auto; color: var(--ink-faint); }
+
+/* ------------------------------------------------------- command palette --- */
+
+.palette { padding: 0; }
+.palette-input {
+  border: 0; border-bottom: 1px solid var(--line); border-radius: 0;
+  font-size: 1rem; padding: 14px 16px; background: transparent;
+}
+.palette-input:focus { outline: none; border-bottom-color: var(--accent); }
+.palette-list { list-style: none; margin: 0; padding: 6px; overflow-y: auto; flex: 1; }
+.palette-list li {
+  display: grid; gap: 1px; padding: 8px 10px; border-radius: var(--radius-s);
+  cursor: pointer; margin: 0;
+}
+.palette-list li.active { background: var(--accent-soft); }
+.palette-label { font-weight: 500; }
+.palette-empty { color: var(--ink-faint); font-style: italic; cursor: default; }
+.palette-foot { padding: 8px 16px; border-top: 1px solid var(--line); }
+
+/* -------------------------------------------------------- phone tab bar --- */
+
+/*
+ * Replaces a horizontally scrolling row of nine identical pills, of which
+ * three were on screen and none looked current. Four destinations, a "more"
+ * sheet for the rest, and the current one unmistakable.
+ */
+.topbar { display: none; }
+.tabbar { display: none; }
+.tabbar-spacer { display: none; }
+.more-sheet { }
+.more-list { padding: 12px 16px; display: grid; gap: 8px; overflow-y: auto; }
+.more-foot {
+  display: flex; gap: 10px; justify-content: space-between; flex-wrap: wrap;
+  padding: 12px 16px; border-top: 1px solid var(--line); background: var(--paper-sunken);
+}
+
+/* ----------------------------------------------------------- empty state --- */
+
+.empty-state {
+  display: grid; gap: 8px; justify-items: center; text-align: center;
+  padding: 22px 12px; color: var(--ink-faint);
+}
+.empty-glyph { font-size: 1.6rem; opacity: 0.45; }
+
+/* ------------------------------------------------------------ responsive --- */
+
+@media (max-width: 1080px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+
+  .topbar {
+    display: flex; align-items: center; gap: 10px;
+    position: sticky; top: 0; z-index: 40;
+    padding: 6px 12px; min-height: 48px;
+    background: var(--paper-raised); border-bottom: 1px solid var(--line);
+  }
+  .topbar-home {
+    display: flex; align-items: center; justify-content: center;
+    min-width: 34px; min-height: 34px; padding: 0;
+    background: none; border: 0; cursor: pointer; color: var(--ink);
+  }
+  .topbar-where { display: grid; line-height: 1.25; flex: 1; min-width: 0; }
+  .topbar-where .card-note { font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; }
+  .topbar-where strong { font-size: 0.92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .topbar .seg button { padding: 3px 8px; font-size: 0.74rem; min-height: 28px; }
+
+  /* The page bar sticks under the top bar rather than over it. */
+  .page-bar { top: 48px; }
+
+  .tabbar {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    position: fixed; inset-inline: 0; bottom: 0; z-index: 70;
+    background: var(--paper-raised);
+    border-top: 1px solid var(--line);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .tab {
+    display: grid; gap: 2px; justify-items: center;
+    min-height: 54px; padding: 7px 4px;
+    background: none; border: 0; cursor: pointer;
+    color: var(--ink-faint); font-size: 0.68rem;
+  }
+  .tab-glyph { font-size: 1.05rem; line-height: 1.1; }
+  .tab-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .tab[aria-current='true'] { color: var(--accent); font-weight: 600; }
+  .tab[aria-current='true'] .tab-glyph { transform: scale(1.1); }
+  .tabbar-spacer { display: block; height: 72px; }
+
+  :root { --tabbar-h: 58px; }
+
+  /* A bottom sheet on a phone: reachable with a thumb, and it never covers
+     the tab bar the learner uses to leave it. */
+  .sheet-end {
+    inset-block: auto var(--tabbar-h, 0px);
+    inset-inline: 0;
+    width: 100%;
+    max-height: 82dvh;
+    border-start-start-radius: var(--radius-l);
+    border-start-end-radius: var(--radius-l);
+    border-inline: 0;
+    border-bottom: 0;
+  }
+
+  .stage { grid-template-columns: minmax(0, 1fr); }
+  .stage-panel .scene-host, .stage-panel .map-frame { max-height: min(62vh, 520px); }
+}
+
+@media (max-width: 640px) {
+  .page-bar-actions { width: 100%; margin-inline-start: 0; }
+  .page-bar-actions > .btn { flex: 1; }
+  /* Keeps the gutter the study-help pill sits in; a bare `padding` here would
+     silently drop it and put the pill back on top of the speed control. */
+  .transport-dock {
+    gap: 10px;
+    padding: 8px calc(10px + var(--dock-reserve, 0px)) 8px 10px;
+  }
+  [dir='rtl'] .transport-dock {
+    padding: 8px 10px 8px calc(10px + var(--dock-reserve, 0px));
+  }
+  .transport-buttons { width: 100%; justify-content: space-between; }
+  .transport-speed { width: 100%; }
+  .transport-speed .seg { flex: 1; }
+  .transport-speed .seg button { flex: 1; }
+  .assistant-dock { inset-inline-end: 12px; bottom: calc(12px + var(--tabbar-h, 0px)); }
+  .assistant-dock[aria-expanded='true'] {
+    inset-inline-end: 12px;
+    top: 10px;
+    bottom: auto;
+  }
+  .assistant-dock-label { display: none; }
+  .assistant-dock { padding: 0; width: 46px; gap: 4px; justify-content: center; }
+  .assistant-glyph { display: inline; }
+  :root { --dock-reserve: 62px; }
+  .welcome-doors { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scrim { animation: none; }
+  .skip-link { transition: none; }
+}
+
+/* ------------------------------------------------------------ the course --- */
+
+/*
+ * "Where was I" gets the top of the course page, because that is the question
+ * a returning learner actually has. It is answered from the record alone: no
+ * judgment, no model, nothing that could be wrong about it.
+ */
+.resume-card { border-color: var(--accent); }
+.resume-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.resume-row > div { flex: 1; min-width: 200px; }
+.resume-title { display: block; font-size: 1.05rem; margin-top: 2px; }
+
+.part-head {
+  display: flex; align-items: baseline; gap: 10px;
+  margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--line);
+}
+.part-head h2 { font-size: 1.25rem; }
+
+.lesson-card.next { border-color: var(--accent); }
+
+.lesson-progress { margin-top: 8px; }
+.lesson-foot {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line);
+}
+
+/* A range track is 16px tall by default, which is under the 24px floor for a
+   target. The extra height is padding around the same track, so nothing about
+   the control changes except how easy it is to hit. */
+input[type='range'] { min-height: 26px; }
+
+/* The assistant pill collapses to a circle on a phone, so it needs a mark of
+   its own rather than a bare status dot. */
+.assistant-glyph { display: none; font-size: 1.05rem; line-height: 1; }
+
+
+/* -------------------------------------------------------- focus, always --- */
+
+/*
+ * Every custom control gets the same ring. Written once, here, because the
+ * failure mode is per-control: a button styled from scratch quietly loses the
+ * outline the user agent would have drawn, and nobody notices until someone
+ * tries to use the page from the keyboard.
+ */
+.nav-item:focus-visible,
+.tab:focus-visible,
+.brand-mark:focus-visible,
+.tools-toggle:focus-visible,
+.welcome-door:focus-visible,
+.assistant-dock:focus-visible,
+.palette-input:focus-visible,
+.palette-list li:focus-visible,
+.sheet :focus-visible,
+details > summary:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-s);
+}
+
+/*
+ * A sticky bar can sit on top of whatever the keyboard has just moved to, and
+ * WCAG 2.2 counts that as obscured focus. Scroll padding keeps the target
+ * clear of the page bar above and the transport dock below.
+ */
+html {
+  scroll-padding-top: 76px;
+  scroll-padding-bottom: 96px;
+}
+@media (max-width: 1080px) {
+  html { scroll-padding-bottom: calc(96px + var(--tabbar-h, 0px)); }
+}
+
+/* The skip link's destination has to be focusable for the skip to land. */
+.main:focus { outline: none; }
+
+
+/*
+ * A workspace wants the whole window; a page of prose does not. Text set
+ * across 1400 pixels is text nobody finishes, so the reading pages are given a
+ * column and centred in the space that is left.
+ */
+.page-reading { max-width: 1060px; }

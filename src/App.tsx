@@ -1,3 +1,23 @@
+/**
+ * The shell: navigation, global affordances, and nothing else.
+ *
+ * Three things changed here, and all three came out of watching the rendered
+ * application rather than reading it.
+ *
+ * The sections were named after the machinery ("Laboratory", "Practice") and
+ * grouped by what built them, so "The Atlas" and "Cube lab" sat in different
+ * groups while being the same kind of thing. They are now named after what a
+ * learner wants - learn it, explore it, practise it - and a one-line
+ * description follows every label anywhere there is room for one.
+ *
+ * The phone had a horizontally scrolling row of nine identical pills, of which
+ * three were visible and none looked current. It now has a tab bar with the
+ * four destinations that matter and a sheet for the rest, which is the
+ * convention every phone user already knows.
+ *
+ * And the assistant was nowhere. It is now in the same corner of every page.
+ */
+
 import { useEffect, useMemo, useState } from 'react';
 import { actions, useAppState } from './state/store';
 import { prepareTables } from './solver/client';
@@ -14,51 +34,32 @@ import { LESSONS } from './lessons/registry';
 import { LANGUAGES, useI18n } from './i18n/I18nProvider';
 import { jevConfig, jevActive, useJevConfig } from './jev/config';
 import { probeJevStatus } from './jev/client';
+import { ROUTES, SECTIONS, go, routeById, useRoute, type RouteDef } from './state/navigation';
+import { session } from './state/session';
+import { AssistantDock } from './components/Assistant';
+import { CommandPalette } from './components/CommandPalette';
+import { Sheet } from './components/Sheet';
 
-interface Route {
-  id: string;
-  /** i18n key for the label, so navigation translates with everything else. */
-  labelKey: string;
-  glyph: string;
-  groupKey: string;
-  element: () => JSX.Element;
-}
-
-const ROUTES: Route[] = [
-  { id: 'atlas', labelKey: 'nav.atlas', glyph: '◎', groupKey: 'nav.group.start', element: () => <AtlasPage /> },
-  { id: 'course', labelKey: 'nav.course', glyph: '▤', groupKey: 'nav.group.start', element: () => <CoursePage /> },
-  { id: 'lab', labelKey: 'nav.lab', glyph: '▣', groupKey: 'nav.group.lab', element: () => <LabPage /> },
-  { id: 'graph', labelKey: 'nav.graph', glyph: '✳', groupKey: 'nav.group.lab', element: () => <GraphPage /> },
-  { id: 'solver', labelKey: 'nav.solver', glyph: '⟲', groupKey: 'nav.group.lab', element: () => <SolverPage /> },
-  { id: 'scan', labelKey: 'nav.scan', glyph: '◧', groupKey: 'nav.group.practice', element: () => <ScanPage /> },
-  { id: 'training', labelKey: 'nav.training', glyph: '◈', groupKey: 'nav.group.practice', element: () => <TrainingPage /> },
-  { id: 'ai-lab', labelKey: 'nav.aiLab', glyph: '◇', groupKey: 'nav.group.practice', element: () => <LearningLabPage /> },
-  { id: 'settings', labelKey: 'nav.settings', glyph: '⚙', groupKey: 'nav.group.practice', element: () => <SettingsPage /> },
-];
-
-function useHashRoute(): [string, (id: string) => void] {
-  const read = (): string => {
-    const raw = window.location.hash.replace(/^#\/?/, '').split('/')[0];
-    return ROUTES.some((r) => r.id === raw) ? raw : 'atlas';
-  };
-  const [route, setRoute] = useState(read);
-  useEffect(() => {
-    const onHash = (): void => setRoute(read());
-    window.addEventListener('hashchange', onHash);
-    return () => window.removeEventListener('hashchange', onHash);
-  }, []);
-  const go = (id: string): void => { window.location.hash = `#/${id}`; };
-  return [route, go];
-}
+const PAGES: Record<string, () => JSX.Element> = {
+  atlas: () => <AtlasPage />,
+  course: () => <CoursePage />,
+  lab: () => <LabPage />,
+  graph: () => <GraphPage />,
+  solver: () => <SolverPage />,
+  scan: () => <ScanPage />,
+  training: () => <TrainingPage />,
+  'ai-lab': () => <LearningLabPage />,
+  settings: () => <SettingsPage />,
+};
 
 export function App(): JSX.Element {
   const { t } = useI18n();
-  const [route, go] = useHashRoute();
+  const route = useRoute();
   const tablesReady = useAppState((s) => s.tablesReady);
   const stage = useAppState((s) => s.tableStage);
   const fraction = useAppState((s) => s.tableFraction);
-  const theme = useAppState((s) => s.theme);
   const lessonsDone = useAppState((s) => s.progress.lessonsDone);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   // One cheap request to learn whether the server holds a key. It makes no
   // upstream call, costs nothing, and is the only request the application
@@ -80,101 +81,165 @@ export function App(): JSX.Element {
     return () => { cancelled = true; };
   }, []);
 
-  const groups = useMemo(() => {
-    const out: { key: string; items: Route[] }[] = [];
-    for (const r of ROUTES) {
-      let g = out.find((x) => x.key === r.groupKey);
-      if (!g) { g = { key: r.groupKey, items: [] }; out.push(g); }
-      g.items.push(r);
-    }
-    return out;
-  }, []);
+  // Moving to another page should start it at the top, and should close the
+  // "more" sheet that was used to get there.
+  useEffect(() => {
+    setMoreOpen(false);
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+  }, [route]);
 
-  const active = ROUTES.find((r) => r.id === route) ?? ROUTES[0];
+  const sections = useMemo(
+    () => SECTIONS.map((id) => ({ id, items: ROUTES.filter((r) => r.section === id) }))
+      .filter((s) => s.items.length),
+    [],
+  );
+
+  const active = routeById(route);
+  const primary = ROUTES.filter((r) => r.primary);
+  const secondary = ROUTES.filter((r) => !r.primary);
 
   return (
     <div className="app">
+      <a className="skip-link" href="#main">{t('chrome.skip')}</a>
+
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-mark">
+          <button className="brand-mark" onClick={() => go('#/atlas')}>
             <CubeGlyph />
-            <div>
-              <div className="brand-title">{t('app.title')}</div>
-              <div className="brand-sub">{t('app.tagline')}</div>
-            </div>
-          </div>
+            <span>
+              <span className="brand-title">{t('app.title')}</span>
+              <span className="brand-sub">{t('app.tagline')}</span>
+            </span>
+          </button>
         </div>
-        <nav className="nav">
-          {groups.map((g) => (
-            <div key={g.key}>
-              <div className="nav-group-title">{t(g.key)}</div>
-              {g.items.map((r) => (
-                <button
+        <nav className="nav" aria-label={t('chrome.primaryNav')}>
+          {sections.map((s) => (
+            <div key={s.id}>
+              <div className="nav-group-title">{t(`nav.section.${s.id}`)}</div>
+              {s.items.map((r) => (
+                <NavItem
                   key={r.id}
-                  className="nav-item"
-                  aria-current={r.id === active.id}
-                  onClick={() => go(r.id)}
-                >
-                  <span className="glyph">{r.glyph}</span>
-                  {t(r.labelKey)}
-                  {r.id === 'course' ? (
-                    <span className="nav-badge">{lessonsDone.length}/{LESSONS.length}</span>
-                  ) : null}
-                </button>
+                  route={r}
+                  active={r.id === active.id}
+                  badge={r.id === 'course' ? `${lessonsDone.length}/${LESSONS.length}` : undefined}
+                />
               ))}
             </div>
           ))}
         </nav>
         <div className="sidebar-foot">
+          <button className="btn ghost small palette-hint" onClick={() => session.setPaletteOpen(true)}>
+            <span>{t('palette.title')}</span>
+            <kbd className="mono-ltr">Ctrl K</kbd>
+          </button>
           <TableStatus ready={tablesReady} stage={stage} fraction={fraction} />
           <JevStatus />
           <LanguagePicker />
-          <div className="row" style={{ justifyContent: 'space-between' }}>
-            <span className="card-note">{t('chrome.theme')}</span>
-            <div className="seg">
-              {(['auto', 'light', 'dark'] as const).map((mode) => (
-                <button key={mode} aria-pressed={theme === mode} onClick={() => actions.setTheme(mode)}>
-                  {t(`chrome.theme.${mode}`)}
-                </button>
-              ))}
-            </div>
-          </div>
+          <ThemePicker />
         </div>
       </aside>
 
-      <main className="main">
-        <div className="mobile-nav">
-          {/* The sidebar is hidden on narrow screens, so the language and
-              theme controls that live in it have to appear here too - a
-              language selector nobody can reach on a phone is not a selector. */}
-          <LanguagePicker compact />
-          {ROUTES.map((r) => (
-            <button
-              key={r.id}
-              className="btn small"
-              aria-pressed={r.id === active.id}
-              style={r.id === active.id ? { background: 'var(--accent-soft)', fontWeight: 600 } : undefined}
-              onClick={() => go(r.id)}
-            >
-              {t(r.labelKey)}
+      {/*
+        A slim bar for the widths where the sidebar is not there.
+        It carries the three things the sidebar was carrying that a learner
+        needs at any moment and cannot find by scrolling: the way home, which
+        section they are in, and the language. Everything else in the sidebar
+        is reachable from the tab bar or from "More".
+      */}
+      <div className="topbar">
+        <button className="topbar-home" onClick={() => go('#/atlas')} aria-label={t('app.title')}>
+          <CubeGlyph />
+        </button>
+        <span className="topbar-where">
+          <span className="card-note">{t(`nav.section.${active.section}`)}</span>
+          <strong>{t(active.labelKey)}</strong>
+        </span>
+        <LanguagePicker compact />
+      </div>
+
+      <main className="main" id="main" tabIndex={-1}>
+        <div className={`page page-${active.kind}`}>{(PAGES[active.id] ?? PAGES.atlas)()}</div>
+        <div className="tabbar-spacer" aria-hidden="true" />
+      </main>
+
+      {/* The phone's navigation. Four destinations, always visible, with the
+          current one unmistakable; everything else behind one more tap. */}
+      <nav className="tabbar" aria-label={t('chrome.primaryNav')}>
+        {primary.map((r) => (
+          <button
+            key={r.id}
+            className="tab"
+            aria-current={r.id === active.id}
+            onClick={() => go(`#/${r.id}`)}
+          >
+            <span className="tab-glyph" aria-hidden="true">{r.glyph}</span>
+            <span className="tab-label">{t(r.labelKey)}</span>
+          </button>
+        ))}
+        <button
+          className="tab"
+          aria-expanded={moreOpen}
+          aria-current={secondary.some((r) => r.id === active.id)}
+          onClick={() => setMoreOpen(true)}
+        >
+          <span className="tab-glyph" aria-hidden="true">⋯</span>
+          <span className="tab-label">{t('chrome.more')}</span>
+        </button>
+      </nav>
+
+      <Sheet
+        open={moreOpen}
+        onClose={() => setMoreOpen(false)}
+        label={t('chrome.more')}
+        className="more-sheet"
+      >
+        <header className="assistant-head">
+          <div className="card-title">{t('chrome.more')}</div>
+          <button className="btn ghost icon" onClick={() => setMoreOpen(false)} aria-label={t('common.close')}>✕</button>
+        </header>
+        <div className="more-list">
+          {secondary.map((r) => (
+            <button key={r.id} className="btn block" onClick={() => go(`#/${r.id}`)}>
+              <span className="assistant-action-label">
+                <span className="glyph" aria-hidden="true">{r.glyph}</span> {t(r.labelKey)}
+              </span>
+              <span className="card-note">{t(r.blurbKey)}</span>
             </button>
           ))}
         </div>
-        <div className="page">{active.element()}</div>
-      </main>
+        <div className="more-foot">
+          <LanguagePicker compact />
+          <ThemePicker compact />
+        </div>
+      </Sheet>
+
+      <AssistantDock />
+      <CommandPalette />
     </div>
+  );
+}
+
+function NavItem({ route, active, badge }: {
+  route: RouteDef; active: boolean; badge?: string;
+}): JSX.Element {
+  const { t } = useI18n();
+  return (
+    <button
+      className="nav-item"
+      aria-current={active}
+      onClick={() => go(`#/${route.id}`)}
+      title={t(route.blurbKey)}
+    >
+      <span className="glyph" aria-hidden="true">{route.glyph}</span>
+      <span className="nav-label">{t(route.labelKey)}</span>
+      {badge ? <span className="nav-badge mono-ltr">{badge}</span> : null}
+    </button>
   );
 }
 
 function TableStatus({ ready, stage, fraction }: { ready: boolean; stage: string; fraction: number }): JSX.Element {
   const { t } = useI18n();
-  if (ready) {
-    return (
-      <div className="row" style={{ gap: 6 }}>
-        <span className="tag ok">{t('chrome.solverReady')}</span>
-      </div>
-    );
-  }
+  if (ready) return <span className="tag ok">{t('chrome.solverReady')}</span>;
   return (
     <div>
       <div className="card-note" style={{ marginBottom: 4 }}>
@@ -190,16 +255,13 @@ function TableStatus({ ready, stage, fraction }: { ready: boolean; stage: string
  *
  * Present only when it is actually on, because an application that is complete
  * without AI should not spend a line of its chrome advertising that AI exists.
+ * The assistant dock carries the state the rest of the time.
  */
 function JevStatus(): JSX.Element | null {
   const { t } = useI18n();
   const config = useJevConfig();
   if (!jevActive(config)) return null;
-  return (
-    <div className="row" style={{ gap: 6 }}>
-      <span className="tag ok" title={t('jev.badge.jev.help')}>◇ {t('chrome.jevOn')}</span>
-    </div>
-  );
+  return <span className="tag ok" title={t('jev.badge.jev.help')}>◇ {t('chrome.jevOn')}</span>;
 }
 
 /**
@@ -207,20 +269,15 @@ function JevStatus(): JSX.Element | null {
  *
  * Switching language only changes which dictionary strings are read from and
  * the document direction. It touches no cube state, no move list, no lesson
- * progress and no solver result, so anything in flight survives the switch.
+ * progress, no Jev configuration and no solver result, so anything in flight
+ * survives the switch.
  */
 function LanguagePicker({ compact = false }: { compact?: boolean }): JSX.Element {
   const { t, lang, setLang } = useI18n();
   const seg = (
     <div className="seg" role="group" aria-label={t('chrome.language')}>
       {LANGUAGES.map((l) => (
-        <button
-          key={l.id}
-          data-lang={l.id}
-          aria-pressed={lang === l.id}
-          lang={l.id}
-          onClick={() => setLang(l.id)}
-        >
+        <button key={l.id} data-lang={l.id} aria-pressed={lang === l.id} lang={l.id} onClick={() => setLang(l.id)}>
           {l.label}
         </button>
       ))}
@@ -230,6 +287,27 @@ function LanguagePicker({ compact = false }: { compact?: boolean }): JSX.Element
   return (
     <div className="row" style={{ justifyContent: 'space-between' }}>
       <span className="card-note">{t('chrome.language')}</span>
+      {seg}
+    </div>
+  );
+}
+
+function ThemePicker({ compact = false }: { compact?: boolean }): JSX.Element {
+  const { t } = useI18n();
+  const theme = useAppState((s) => s.theme);
+  const seg = (
+    <div className="seg" role="group" aria-label={t('chrome.theme')}>
+      {(['auto', 'light', 'dark'] as const).map((mode) => (
+        <button key={mode} data-theme-pick={mode} aria-pressed={theme === mode} onClick={() => actions.setTheme(mode)}>
+          {t(`chrome.theme.${mode}`)}
+        </button>
+      ))}
+    </div>
+  );
+  if (compact) return seg;
+  return (
+    <div className="row" style={{ justifyContent: 'space-between' }}>
+      <span className="card-note">{t('chrome.theme')}</span>
       {seg}
     </div>
   );

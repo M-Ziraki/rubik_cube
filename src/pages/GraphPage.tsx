@@ -13,10 +13,24 @@ import { MOVE_NAMES, N_MOVES } from '../cube/defs';
 import { HTM_DISTANCE_DISTRIBUTION, TOTAL_STATES } from '../data/facts';
 import { player } from '../state/player';
 import { useI18n } from '../i18n/I18nProvider';
+import { usePublishAssistantContext } from '../jev/assistantContext';
+import { go } from '../state/navigation';
 
 type View = 'near' | 'pocket' | 'growth';
 
 export function GraphPage(): JSX.Element {
+  // What the study panel offers from this page. The panel itself always
+  // carries the universal help; these are the jumps that only make sense
+  // from here.
+  usePublishAssistantContext(() => ({ labelKey: 'nav.graph', actions: [
+      { id: 'lesson-graph', labelKey: 'assist.act.graphLesson', noteKey: 'assist.act.graphLesson.note',
+        run: () => go('#/course/graph') },
+      { id: 'lesson-distance', labelKey: 'assist.act.distanceLesson', noteKey: 'assist.act.distanceLesson.note',
+        run: () => go('#/course/distance') },
+      { id: 'try-atlas', labelKey: 'assist.act.openAtlas', noteKey: 'assist.act.openAtlas.note',
+        run: () => go('#/atlas') },
+    ] }), []);
+
   const { t } = useI18n();
   const [view, setView] = useState<View>('near');
   return (

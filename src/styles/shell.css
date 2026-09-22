@@ -664,3 +664,11 @@ html {
 /* Destructive confirmation. Named by colour and by word, never colour alone. */
 .btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
 .btn.danger:hover:not(:disabled) { background: var(--danger); filter: brightness(1.08); }
+
+/* The model-backed offers, shown only when the deterministic list is empty. */
+.palette-ask {
+  display: grid; gap: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  border-top: 1px solid var(--line);
+  background: var(--paper-sunken);
+}

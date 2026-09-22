@@ -304,6 +304,78 @@ describe('next step', () => {
   });
 });
 
+describe('shaping an exercise', () => {
+  const body = {
+    task: 'exercise' as const,
+    signals: {
+      lessonsDone: 4, lessonsTotal: 12, exercisesDone: 2, attempts: 6,
+      optimalSolves: 1, avgWasted: 2, lastWasted: 2, hintsLastAttempt: 0,
+      strugglingWith: [],
+    },
+    bands: [3, 5, 7, 9, 11],
+    language: 'en' as const,
+  };
+
+  it('takes the difficulty and the focus the model chose', async () => {
+    const d = await runTask(body, stubClient({
+      difficulty: score(2, 0.8, { 2: 'A middling distance.' }),
+      focus: choice('orientation', 0.7),
+    }));
+    if (d.kind !== 'exercise') throw new Error('wrong kind');
+    expect(d.distance).toBe(7);
+    expect(d.focus).toBe('orientation');
+    expect(d.source).toBe('jev');
+    expect(d.bandLegend).toBe('A middling distance.');
+  });
+
+  it('always reports what the record alone would have chosen', async () => {
+    const d = await runTask(body, stubClient({
+      difficulty: score(4, 0.9), focus: choice('mixed', 0.9),
+    }));
+    if (d.kind !== 'exercise') throw new Error('wrong kind');
+    expect(body.bands).toContain(d.deterministicDistance);
+  });
+
+  it('refuses a focus it cannot check and uses the neutral one', async () => {
+    const d = await runTask(body, stubClient({
+      difficulty: score(1, 0.8), focus: choice('parity-traps', 0.95),
+    }));
+    if (d.kind !== 'exercise') throw new Error('wrong kind');
+    expect(d.focus).toBe('mixed');
+  });
+
+  it('falls back when the difficulty answer is missing', async () => {
+    const d = await runTask(body, stubClient({ focus: choice('mixed', 0.9) }));
+    if (d.kind !== 'exercise') throw new Error('wrong kind');
+    expect(d.distance).toBe(d.deterministicDistance);
+    expect(d.source).toBe('jev-uncertain');
+  });
+
+  it('never returns a distance outside the bands the client offered', async () => {
+    for (const s of [-3, 0, 2, 4, 99]) {
+      const d = await runTask({ ...body, bands: [3, 5] }, stubClient({
+        difficulty: score(s, 0.9), focus: choice('mixed', 0.9),
+      }));
+      if (d.kind !== 'exercise') throw new Error('wrong kind');
+      expect([3, 5]).toContain(d.distance);
+    }
+  });
+
+  it('ignores a band the application does not generate', () => {
+    // The bands are the application's, not the caller's: a request for a
+    // position forty moves out is a request to hang the solver.
+    const parsed = parseRequest({ ...body, bands: [3, 40, 7] });
+    if (parsed.task !== 'exercise') throw new Error('wrong task');
+    expect(parsed.bands).toEqual([3, 7]);
+  });
+
+  it('falls back to every band when none of them is one we generate', () => {
+    const parsed = parseRequest({ ...body, bands: [40, 41] });
+    if (parsed.task !== 'exercise') throw new Error('wrong task');
+    expect(parsed.bands).toEqual([3, 5, 7, 9, 11]);
+  });
+});
+
 describe('a described difficulty', () => {
   const body = {
     task: 'stuck' as const,

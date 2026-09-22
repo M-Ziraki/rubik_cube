@@ -9,10 +9,12 @@ import { LEARNING_PATH } from '../data/methods';
 import { report } from '../cube/analysis';
 import { LESSONS } from '../lessons/registry';
 import { player } from '../state/player';
-import { useI18n } from '../i18n/I18nProvider';
+import { useI18n, type Translate } from '../i18n/I18nProvider';
 import { HintLadder } from '../components/HintLadder';
 import { Dialog } from '../components/Dialog';
 import { EmptyState } from '../components/EmptyState';
+import { ExerciseMaker } from '../components/ExerciseMaker';
+import type { GeneratedExercise } from '../jev/exercise';
 import { usePublishAssistantContext } from '../jev/assistantContext';
 import { go } from '../state/navigation';
 
@@ -36,6 +38,19 @@ const CHALLENGES: Challenge[] = [
  * have I learned" is a different question from "give me something to do" and
  * it was hidden one level down inside the answer to the second one.
  */
+/**
+ * A challenge's name, whether it came off the list or was made to order.
+ *
+ * A generated one has no dictionary entry and should not pretend to: it is
+ * named by the only thing that is true of it and proved about it, which is
+ * how far from solved it is.
+ */
+function challengeTitle(challenge: Challenge, t: Translate): string {
+  return challenge.id.startsWith('made-')
+    ? t('exercise.madeTitle', { n: challenge.distance })
+    : t(`challenge.${challenge.id}.title`);
+}
+
 export function ChallengeRunner(): JSX.Element {
   const { t } = useI18n();
   const state = useAppState((s) => s);
@@ -120,6 +135,27 @@ export function ChallengeRunner(): JSX.Element {
     }
   };
 
+  /**
+   * Start a graded attempt on a position the maker has already proved.
+   *
+   * It goes through exactly the same state as a challenge off the list -
+   * same reset, same target, same grading - because a shaped exercise that
+   * scored differently from a picked one would not be comparable, and the
+   * whole point of the record is that its numbers mean one thing.
+   */
+  const startGenerated = useCallback((exercise: GeneratedExercise): void => {
+    const id = ++token.current;
+    player.stop();
+    setChallenge({ id: `made-${exercise.distance}`, distance: exercise.distance });
+    setTarget(null); setShowHint(false); setShowAnswer(false); setRecorded(null);
+    setHintsTaken(0); setRestarts(0); setEmphasis(null); setNextMove(null);
+    setStartedAt(Date.now());
+    hintToken.current++;
+    if (id !== token.current) return;
+    actions.setPosition(exercise.facelets, []);
+    setTarget({ optimal: exercise.distance, moves: exercise.solution, proven: true });
+  }, []);
+
   // Re-solve the current position whenever it changes, so the ladder always
   // describes what is on screen. Short positions, so this is quick.
   useEffect(() => {
@@ -175,7 +211,7 @@ export function ChallengeRunner(): JSX.Element {
     <div className="split">
       <div className="stack">
         <Card
-          title={t(`challenge.${challenge.id}.title`)}
+          title={challengeTitle(challenge, t)}
           note={target
             ? t('training.trueOptimum', { n: target.optimal })
             : preparing ? t('training.preparingNote') : t('training.pressStart')}
@@ -218,6 +254,16 @@ export function ChallengeRunner(): JSX.Element {
       </div>
 
       <div className="stack">
+        {/*
+          The shaped exercise sits above the fixed list rather than replacing
+          it. A learner who knows they want seven moves should not have to ask
+          for one, and a fixed list is the only thing that makes the shaped
+          one legible: you can see what it chose, and what it chose instead of.
+        */}
+        <Card title={t('exercise.title')} note={t('exercise.sub')}>
+          <ExerciseMaker disabled={preparing} onReady={startGenerated} />
+        </Card>
+
         <Card title={t('training.pickDifficulty')}>
           <div className="stack" style={{ gap: 8 }}>
             {CHALLENGES.map((c) => (
@@ -312,7 +358,11 @@ export function ChallengeRunner(): JSX.Element {
                 </div>
                 {showHint ? (
                   <Callout title={t('training.challengeHint')}>
-                    <p style={{ margin: 0 }}>{t(`challenge.${challenge.id}.hint`)}</p>
+                    <p style={{ margin: 0 }}>
+                      {challenge.id.startsWith('made-')
+                        ? t('exercise.madeHint')
+                        : t(`challenge.${challenge.id}.hint`)}
+                    </p>
                   </Callout>
                 ) : null}
                 {showAnswer ? (

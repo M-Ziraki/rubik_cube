@@ -10,7 +10,7 @@
 
 /** The tasks the server is willing to ask Jev about. */
 export type JevTask =
-  | 'misconception' | 'next-step' | 'hint-level' | 'command' | 'stuck';
+  | 'misconception' | 'next-step' | 'hint-level' | 'command' | 'stuck' | 'exercise';
 
 /** Where a judgment came from. Shown in the UI; never guessed at. */
 export type DecisionSource =
@@ -80,6 +80,43 @@ export interface StuckRequest {
   language: 'en' | 'fa';
 }
 
+/**
+ * Asking for an exercise shaped to the learner rather than picked off a list.
+ *
+ * The division of labour is the whole design. Jev chooses the *shape* - how
+ * hard, and what kind of difficulty - and the cube engine builds a position
+ * to that shape and proves it: the distance is verified by the optimal
+ * solver, and the focus is checked against the position's own analysis. A
+ * model never asserts that a position is nine moves from solved. It says
+ * "nine would suit them", and then the search either finds such a position or
+ * the application says it could not.
+ */
+export interface ExerciseRequest {
+  task: 'exercise';
+  signals: LearnerSignals;
+  /** Distances the application is willing to generate, smallest first. */
+  bands: number[];
+  language: 'en' | 'fa';
+}
+
+/** What a generated exercise can be about, as the engine can check it. */
+export const EXERCISE_FOCUSES = ['orientation', 'placement', 'mixed'] as const;
+export type ExerciseFocus = (typeof EXERCISE_FOCUSES)[number];
+
+export interface ExerciseDecision {
+  kind: 'exercise';
+  /** One of the offered bands. Never a number the client did not offer. */
+  distance: number;
+  focus: ExerciseFocus;
+  source: DecisionSource;
+  confidence?: number;
+  /** What the rules alone would have set, always computed. */
+  deterministicDistance: number;
+  /** The model's own wording for the difficulty level it chose. */
+  bandLegend?: string;
+  trace?: JevTrace;
+}
+
 export interface HintLevelRequest {
   task: 'hint-level';
   situation: HintSituation;
@@ -94,7 +131,7 @@ export interface CommandRequest {
 
 export type JevRequest =
   | MisconceptionRequest | NextStepRequest | HintLevelRequest | CommandRequest
-  | StuckRequest;
+  | StuckRequest | ExerciseRequest;
 
 /**
  * Everything the tutor knows about a learner, as numbers.
@@ -259,7 +296,7 @@ export interface CommandDecision {
 
 export type JevDecision =
   | MisconceptionDecision | NextStepDecision | HintLevelDecision | CommandDecision
-  | StuckDecision;
+  | StuckDecision | ExerciseDecision;
 
 /* --------------------------------------------------------------- errors --- */
 

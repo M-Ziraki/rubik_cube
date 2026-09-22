@@ -22,17 +22,19 @@ import {
   type Questions, type SystemOneResult,
 } from '@typesafe-ai/sdk';
 import {
-  commandQuestions, commandState, hintQuestions, hintState, misconceptionQuestions,
-  misconceptionState, nextStepQuestions, nextStepState, stuckQuestions, stuckState,
-  type QuestionSpec,
+  commandQuestions, commandState, exerciseQuestions, exerciseState, hintQuestions,
+  hintState, misconceptionQuestions, misconceptionState, nextStepQuestions,
+  nextStepState, stuckQuestions, stuckState, type QuestionSpec,
 } from '../src/jev/questions';
 import {
-  eligibleActivities, planSecondStep, resolveCommand, resolveHintLevel,
-  resolveMisconception, resolveNextStep, resolveStuck, ruleBasedCommand,
-  ruleBasedHintLevel, ruleBasedNextStep,
+  EXERCISE_BANDS, eligibleActivities, planSecondStep, resolveCommand,
+  resolveExercise, resolveHintLevel, resolveMisconception, resolveNextStep,
+  resolveStuck, ruleBasedBand, ruleBasedCommand, ruleBasedHintLevel,
+  ruleBasedNextStep,
 } from '../src/jev/decisions';
 import {
-  COMMAND_ACTIONS, type CommandAction, type HintSituation, type JevDecision,
+  COMMAND_ACTIONS, EXERCISE_FOCUSES, type CommandAction, type ExerciseFocus,
+  type HintSituation, type JevDecision,
   type JevErrorBody, type JevErrorCode, type JevRequest, type JevStatusBody,
   type JevTrace, type LearnerSignals, type TracedAnswer,
 } from '../src/jev/protocol';
@@ -157,6 +159,35 @@ export function parseRequest(body: unknown): JevRequest {
       };
     }
     return { task, signals, candidates, language: lang(body.language) };
+  }
+
+  if (task === 'exercise') {
+    const raw = body.signals;
+    if (!isRecord(raw)) throw new BadRequest('signals must be an object');
+    const struggling = Array.isArray(raw.strugglingWith)
+      ? raw.strugglingWith.filter((x): x is string => typeof x === 'string')
+        .slice(0, LIMITS.strugglingWith).map((x) => x.slice(0, 64))
+      : [];
+    const signals: LearnerSignals = {
+      lessonsDone: num(raw.lessonsDone, 'lessonsDone', 0, 999),
+      lessonsTotal: num(raw.lessonsTotal, 'lessonsTotal', 0, 999),
+      exercisesDone: num(raw.exercisesDone, 'exercisesDone', 0, 9999),
+      attempts: num(raw.attempts, 'attempts', 0, 99999),
+      optimalSolves: num(raw.optimalSolves, 'optimalSolves', 0, 99999),
+      avgWasted: num(raw.avgWasted, 'avgWasted', 0, 999),
+      lastWasted: raw.lastWasted === null || raw.lastWasted === undefined
+        ? null : num(raw.lastWasted, 'lastWasted', 0, 999),
+      hintsLastAttempt: num(raw.hintsLastAttempt, 'hintsLastAttempt', 0, 99),
+      strugglingWith: struggling,
+    };
+    // The bands are the application's, not the caller's: a request asking for
+    // a position forty moves out would be a request to hang the solver.
+    const offered = Array.isArray(body.bands)
+      ? body.bands.filter((x): x is number => typeof x === 'number'
+        && EXERCISE_BANDS.includes(x as (typeof EXERCISE_BANDS)[number]))
+      : [];
+    const bands = offered.length ? [...new Set(offered)].sort((a, b) => a - b) : [...EXERCISE_BANDS];
+    return { task, signals, bands, language: lang(body.language) };
   }
 
   if (task === 'hint-level') {
@@ -436,6 +467,41 @@ export async function runTask(
       specificity: specificity.score,
       needsDetail: resolved.needsDetail,
       deterministicChoice: fallback,
+      trace,
+    };
+  }
+
+  if (request.task === 'exercise') {
+    const fallback = ruleBasedBand(request.signals, request.bands);
+    const spec = exerciseQuestions(request.bands);
+    const result = await ask(
+      client, exerciseState(request.signals, request.bands), spec, signal,
+    );
+    const trace = traceOf(result, Date.now() - started);
+    const raw = result.answers as Record<string, unknown>;
+    const difficulty = readScore(raw, 'difficulty');
+    const focusAnswer = readChoice(raw, 'focus');
+    const focus: ExerciseFocus = focusAnswer
+      && (EXERCISE_FOCUSES as readonly string[]).includes(focusAnswer.choice)
+      ? focusAnswer.choice as ExerciseFocus : 'mixed';
+
+    if (!difficulty) {
+      return {
+        kind: 'exercise', distance: fallback, focus, source: 'jev-uncertain',
+        deterministicDistance: fallback, trace,
+      };
+    }
+    const resolved = resolveExercise(
+      difficulty.score, difficulty.confidence, request.bands, fallback,
+    );
+    return {
+      kind: 'exercise',
+      distance: resolved.distance,
+      focus,
+      source: resolved.used ? 'jev' : 'jev-uncertain',
+      confidence: difficulty.confidence,
+      deterministicDistance: fallback,
+      bandLegend: legendOf(difficulty, Math.round(difficulty.score)),
       trace,
     };
   }

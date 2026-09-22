@@ -156,11 +156,19 @@ if (MODE === 'nokey') {
     await page.goto(BASE);
     await page.waitForTimeout(1500);
     await dismissWelcome();
-    await openAssistant();
-    await page.fill('[data-jev="command-text"]', 'open the state space graph');
-    await page.click('[data-jev="command"]');
+    /*
+     * One input now. With no key it is purely a name matcher, so the check is
+     * that a destination still resolves without anything being asked - which
+     * is the promise the whole application makes when it is off.
+     */
+    await page.keyboard.press('Control+k');
+    await page.waitForSelector('.palette', { timeout: 8000 });
+    await page.fill('.palette-input', 'state space');
+    await page.waitForTimeout(400);
+    await page.keyboard.press('Enter');
     await page.waitForTimeout(1200);
-    check('A12. the keyword router navigates', page.url().includes('#/explore/state-space'), page.url());
+    check('A12. a destination resolves with nothing asked',
+      page.url().includes('#/explore/state-space'), page.url());
   }
 
   // Nothing reached TypeSafe.
@@ -236,14 +244,16 @@ if (MODE === 'stub') {
     await page.goto(BASE);
     await page.waitForTimeout(1500);
     await dismissWelcome();
-    await openAssistant();
     const before = (await state()).facelets;
-    await page.fill('[data-jev="command-text"]', 'do the thing');
-    await page.click('[data-jev="command"]');
-    await page.waitForTimeout(1500);
-    const body = await page.textContent('[data-assistant="command"]');
+    await page.keyboard.press('Control+k');
+    await page.waitForSelector('.palette', { timeout: 8000 });
+    await page.fill('.palette-input', 'do the thing');
+    await page.waitForTimeout(450);
+    await page.click('[data-palette="do"]');
+    await page.waitForTimeout(2000);
+    const body = await page.textContent('.palette-ask');
     const asked = /Did you mean|did not match/i.test(body);
-    const confirmButton = await page.$('[data-assistant="confirm"]');
+    const confirmButton = await page.$('[data-palette="confirm"]');
     check('B10. an ambiguous command asks instead of acting',
       asked && confirmButton !== null, body.replace(/\s+/g, ' ').slice(0, 90));
     check('B11. and the cube is untouched', (await state()).facelets === before);
@@ -252,6 +262,9 @@ if (MODE === 'stub') {
   // The panel is the only place a learner can be told the difference between
   // a judgment and a calculation, so it has to say so wherever it is open.
   {
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(300);
+    await openAssistant();
     const tone = await page.getAttribute('[data-assistant-status]', 'data-assistant-status');
     check('B12a. the panel reports Jev as on', tone === 'on', String(tone));
   }
@@ -290,18 +303,20 @@ if (MODE === 'failing') {
     await page.goto(BASE);
     await page.waitForTimeout(1500);
     await dismissWelcome();
-    await openAssistant();
     const before = (await state()).facelets;
-    await page.fill('[data-jev="command-text"]', 'scramble the cube');
-    await page.click('[data-jev="command"]');
-    await page.waitForTimeout(2500);
+    await page.keyboard.press('Control+k');
+    await page.waitForSelector('.palette', { timeout: 8000 });
+    await page.fill('.palette-input', 'scramble the cube please');
+    await page.waitForTimeout(450);
+    await page.click('[data-palette="do"]');
+    await page.waitForTimeout(3000);
     check('C4. a failure never changes the cube on its own',
       (await state()).facelets === before);
-    const body = await page.textContent('[data-assistant="command"]');
-    check('C5. the keyword router takes over', /Keyword matching/i.test(body),
-      body.replace(/\s+/g, ' ').slice(0, 80));
-    check('C5b. and offers the action rather than performing it',
+    const body = await page.textContent('.palette-ask');
+    check('C5. the keyword router takes over after the failure',
       /Did you mean/i.test(body), body.replace(/\s+/g, ' ').slice(0, 80));
+    check('C5b. and offers the action rather than performing it',
+      (await page.$('[data-palette="confirm"]')) !== null);
   }
 
   check('C6. no console errors', errors.length === 0, errors.join(' | '));

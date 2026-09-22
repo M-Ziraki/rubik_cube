@@ -9,10 +9,15 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  MAX_HINT_LEVEL, eligibleActivities, planSecondStep, resolveCommand, resolveHintLevel,
-  resolveMisconception, resolveNextStep, resolveStuck, ruleBasedCommand, ruleBasedHintLevel,
-  ruleBasedNextStep,
+  MAX_HINT_LEVEL, eligibleActivities, planSecondStep, resolveCommand, resolveExercise,
+  resolveHintLevel, resolveMisconception, resolveNextStep, resolveStuck, ruleBasedBand,
+  ruleBasedCommand, ruleBasedHintLevel, ruleBasedNextStep,
 } from './decisions';
+import { matchesFocus } from './exercise';
+import { CubieCube } from '../cube/cubie';
+import { faceletString, fromFacelets, toFacelets } from '../cube/facelet';
+import { parseSequence } from '../cube/notation';
+import { report } from '../cube/analysis';
 import {
   ACTIVITIES, MISCONCEPTION_PROMPTS, THRESHOLDS, commandQuestions, hintQuestions,
   misconceptionQuestions, misconceptionState, nextStepQuestions,
@@ -20,7 +25,7 @@ import {
 import { COMMAND_ACTIONS, MISCONCEPTION_LABELS, type LearnerSignals } from './protocol';
 import { hintLadder, REMEDIES } from './content';
 import { TaskRunner } from './runner';
-import { MOVE_NAMES } from '../cube/defs';
+import { MOVE_NAMES, SOLVED_FACELETS } from '../cube/defs';
 
 const signals = (patch: Partial<LearnerSignals> = {}): LearnerSignals => ({
   lessonsDone: 0, lessonsTotal: 12, exercisesDone: 0, attempts: 0, optimalSolves: 0,
@@ -575,5 +580,93 @@ describe('routing a described difficulty', () => {
   it('asks for more rather than acting on a low-confidence route', () => {
     const out = resolveStuck('lesson-notation', 0.2, 0.9, 1.9, candidates);
     expect(out).toEqual({ activity: null, needsDetail: true, used: false });
+  });
+});
+
+/* ==================================== an exercise shaped, then proved ===== */
+
+describe('choosing the difficulty of an exercise', () => {
+  const bands = [3, 5, 7, 9, 11];
+  const learner = (over: Partial<LearnerSignals> = {}): LearnerSignals => ({
+    lessonsDone: 4, lessonsTotal: 12, exercisesDone: 2, attempts: 0,
+    optimalSolves: 0, avgWasted: 0, lastWasted: null, hintsLastAttempt: 0,
+    strugglingWith: [], ...over,
+  });
+
+  it('starts a learner with no record at the easiest band', () => {
+    expect(ruleBasedBand(learner(), bands)).toBe(3);
+  });
+
+  it('steps up for someone solving cleanly', () => {
+    const clean = learner({ attempts: 6, optimalSolves: 4, avgWasted: 0.5 });
+    const ordinary = learner({ attempts: 6, optimalSolves: 0, avgWasted: 2 });
+    expect(ruleBasedBand(clean, bands)).toBeGreaterThan(ruleBasedBand(ordinary, bands));
+  });
+
+  it('steps down for someone leaning on hints', () => {
+    const struggling = learner({ attempts: 6, hintsLastAttempt: 3 });
+    const ordinary = learner({ attempts: 6 });
+    expect(ruleBasedBand(struggling, bands)).toBeLessThan(ruleBasedBand(ordinary, bands));
+  });
+
+  it('never returns a distance the application did not offer', () => {
+    for (const attempts of [0, 1, 5, 20, 500]) {
+      for (const wasted of [0, 1, 5]) {
+        expect(bands).toContain(ruleBasedBand(learner({ attempts, avgWasted: wasted }), bands));
+      }
+    }
+  });
+});
+
+describe('accepting a difficulty from the model', () => {
+  const bands = [3, 5, 7, 9, 11];
+
+  it('takes a confident, in-range answer', () => {
+    expect(resolveExercise(2, 0.8, bands, 3)).toEqual({ distance: 7, used: true });
+  });
+
+  it('rounds a score that lands between bands', () => {
+    expect(resolveExercise(1.6, 0.8, bands, 3)).toEqual({ distance: 7, used: true });
+  });
+
+  it('falls back below the confidence floor', () => {
+    expect(resolveExercise(4, 0.1, bands, 5)).toEqual({ distance: 5, used: false });
+  });
+
+  it('refuses an index outside the offered bands rather than clamping it', () => {
+    // Out of range is evidence the answer was about something else, not a
+    // near miss to be rounded into range.
+    expect(resolveExercise(9, 0.9, bands, 5)).toEqual({ distance: 5, used: false });
+    expect(resolveExercise(-1, 0.9, bands, 5)).toEqual({ distance: 5, used: false });
+    expect(resolveExercise(Number.NaN, 0.9, bands, 5)).toEqual({ distance: 5, used: false });
+  });
+});
+
+describe('the focus predicates', () => {
+  it('mixed accepts anything, because it promises nothing', () => {
+    expect(matchesFocus(SOLVED_FACELETS, 'mixed')).toBe(true);
+  });
+
+  it('placement means every piece oriented and something still to move', () => {
+    // A solved cube is oriented but has nothing to move, so it is not an
+    // exercise about placement - it is not an exercise.
+    expect(matchesFocus(SOLVED_FACELETS, 'placement')).toBe(false);
+    const cube = new CubieCube();
+    for (const m of parseSequence('U R2 U2 R2 U').moves) cube.applyMove(m);
+    const facelets = faceletString(toFacelets(cube));
+    const r = report(fromFacelets(facelets));
+    // The sequence keeps every piece oriented, which is what makes it a
+    // placement-only position; the predicate has to agree with the analysis.
+    expect(r.orientedEdges === 12 && r.orientedCorners === 8)
+      .toBe(matchesFocus(facelets, 'placement'));
+  });
+
+  it('orientation means enough pieces are facing the wrong way to notice', () => {
+    const cube = new CubieCube();
+    for (const m of parseSequence("R U R' U' R U R' U'").moves) cube.applyMove(m);
+    const facelets = faceletString(toFacelets(cube));
+    const r = report(fromFacelets(facelets));
+    expect(matchesFocus(facelets, 'orientation'))
+      .toBe(r.orientedEdges <= 10 || r.orientedCorners <= 6);
   });
 });

@@ -47,6 +47,8 @@ export const THRESHOLDS = {
   stuckOnTopic: 0.40,
   /** Below this score the learner is asked to say more instead. */
   stuckSpecificity: 0.75,
+  /** Below this, the exercise is built to the rule's difficulty instead. */
+  exerciseConfidence: 0.40,
   /** Below this, the hint ladder escalates by its own rule. */
   hintConfidence: 0.35,
   /** A command that changes the cube needs at least this much confidence. */
@@ -495,6 +497,88 @@ export function stuckQuestions(candidates: readonly string[]): QuestionSpec {
         + 'turn goes, what happens after the first layer, why a shortest solution is different '
         + 'from any solution.',
       ],
+    },
+  };
+}
+
+/* ------------------------------------------- 2c. an exercise to measure --- */
+
+export interface ExerciseState {
+  learner: LearnerSignals;
+  available_distances: number[];
+}
+
+export function exerciseState(
+  signals: LearnerSignals, bands: readonly number[],
+): ExerciseState {
+  return { learner: signals, available_distances: [...bands] };
+}
+
+/**
+ * How hard, and what kind of hard.
+ *
+ * Both questions are about the learner, and neither is about the cube. The
+ * model is not asked how far a position is from solved - the optimal solver
+ * knows that exactly and a probability would be a worse answer - it is asked
+ * what would suit this person now. The engine then builds a position to that
+ * shape and proves it, or reports that it could not.
+ *
+ * A Score for the difficulty because the bands are ordered and a value
+ * between two of them is meaningful: the code rounds, and the learner can
+ * always pick a different one by hand.
+ */
+export function exerciseQuestions(bands: readonly number[]): QuestionSpec {
+  const levels = bands.map((n, i) => {
+    const place = i === 0 ? 'the easiest'
+      : i === bands.length - 1 ? 'the hardest' : 'a middling';
+    return `Set them ${place} of the available distances, ${n} moves from solved. `
+      + (i === 0
+        ? 'Right for somebody new, or somebody who has just got something wrong and needs a win.'
+        : i === bands.length - 1
+          ? 'Right only for somebody solving reliably at the distance below and wasting almost nothing.'
+          : 'Right for somebody who is solving at the distance below but not yet cleanly.');
+  });
+
+  return {
+    difficulty: {
+      type: 'score',
+      instructions: {
+        task:
+          'A learner has asked for a position to practise on. Every position offered is a '
+          + 'known, exact number of moves from solved. How hard should the next one be?',
+        signals:
+          'In `learner`: attempts counts recorded attempts; optimalSolves counts those that '
+          + 'matched the proven shortest solution; avgWasted is the mean number of moves spent '
+          + 'beyond the optimum; lastWasted is the same for the most recent attempt; '
+          + 'hintsLastAttempt counts hints taken on it.',
+        principle:
+          'Stretch without discouraging. Somebody solving cleanly is bored; somebody wasting '
+          + 'several moves an attempt, or leaning on hints, is not ready for more.',
+      },
+      criteria: levels as unknown as readonly [string, string, ...string[]],
+    },
+    focus: {
+      type: 'choice',
+      instructions: {
+        task:
+          'What kind of difficulty would teach this learner the most right now?',
+        note:
+          'These describe properties of a cube position that the application can check and '
+          + 'guarantee. Choose `mixed` when nothing in their record points either way.',
+      },
+      criteria: {
+        orientation:
+          'A position where several pieces are in roughly the right area but facing the wrong '
+          + 'way. Teaches the difference between where a piece is and which way it points - the '
+          + 'idea a learner is missing when they think in stickers rather than pieces.',
+        placement:
+          'A position where every piece is already oriented correctly and the work is entirely '
+          + 'in moving them to the right slots. Right for somebody who has orientation and '
+          + 'needs to plan a route.',
+        mixed:
+          'An ordinary position with both kinds of work in it. The right answer when their '
+          + 'record does not point at one weakness rather than the other.',
+      },
     },
   };
 }

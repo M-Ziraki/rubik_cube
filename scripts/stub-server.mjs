@@ -65,6 +65,24 @@ function stubAnswers(body) {
       },
     };
   }
+  if (body?.task === 'exercise') {
+    const bands = body.bands ?? [3, 5, 7, 9, 11];
+    const attempts = body.signals?.attempts ?? 0;
+    const index = Math.min(bands.length - 1, attempts >= 6 ? 2 : attempts >= 2 ? 1 : 0);
+    const wasted = body.signals?.avgWasted ?? 0;
+    const focus = wasted >= 2 ? 'orientation' : attempts >= 4 ? 'placement' : 'mixed';
+    return {
+      difficulty: {
+        type: 'score', score: index, confidence: 0.68,
+        legend: Object.fromEntries(bands.map((n, i) => [i, `Set them ${n} moves from solved.`])),
+        probabilities: Object.fromEntries(bands.map((_, i) => [i, i === index ? 0.68 : 0.08])),
+      },
+      focus: {
+        type: 'choice', choice: focus, confidence: 0.74,
+        probabilities: { [focus]: 0.74, mixed: 0.26 },
+      },
+    };
+  }
   if (body?.task === 'stuck') {
     const text = String(body.description ?? '').toLowerCase();
     const vague = text.trim().split(/\s+/).length < 4 || /^(help|hard|lost|stuck)/.test(text);

@@ -428,6 +428,42 @@ the weather is declined. It is the only feature that disappears entirely
 without a key, because a keyword matcher pretending to read a sentence would
 be worse than saying this part needs a model.
 
+### An exercise made to order
+
+The clearest division of labour in the application, and the reason the feature
+is worth having. Jev chooses the *shape* - how hard, and what kind of hard -
+and the cube engine builds a position to that shape and proves it. The
+difficulty is a judgment; the distance is a proof, checked with the optimal
+solver before the learner sees it, and the attempt is graded against that
+proof exactly as a challenge off the list is.
+
+The two kinds of hard are properties the engine can check, not adjectives:
+*orientation* means enough pieces are facing the wrong way to notice, and
+*placement* means every piece is already oriented and the work is entirely in
+moving them - which is membership of the subgroup the lessons call G1. When no
+position with the requested property turns up inside the budget, the learner
+is told so and gets an ordinary one rather than a position quietly pretending
+to have a property it does not have.
+
+With no key it still works: the rules pick the difficulty from the record, the
+generator does identical work, and the badge says the choice was computed.
+
+### One input
+
+There were three: the palette, which navigated; a command box in the study
+panel, which carried out instructions; and a box for describing a difficulty,
+which routed to an activity. Three inputs that take a sentence and do
+different things with it is not three features, it is a guessing game about
+which box to type in.
+
+`Ctrl K` is now the only one, and the order it resolves in is the point.
+Deterministic first: a substring match against translated names and aliases,
+which costs nothing, cannot be wrong, and works with no key. Only when nothing
+matches does the model get asked - and then it is *offered*, as two rows named
+for what they would do, rather than acted on. So the fast path stays fast, the
+offline path stays complete, and the model is a fallback rather than the front
+door.
+
 ### When it is off, or fails
 
 The integration is off unless a key exists *and* the switch is on. In every

@@ -14,8 +14,13 @@
  * they cannot quietly start failing again.
  *
  *   npm run build && npx vite preview --port 4173 &
- *   node scripts/verify-ux.mjs                     # journeys A, B, D, E, F
- *   BASE=http://127.0.0.1:4180/ node scripts/verify-ux.mjs   # adds C
+ *   node scripts/verify-ux.mjs                              # everything but J
+ *   BASE=http://127.0.0.1:4180/ JEV=1 node scripts/verify-ux.mjs  # adds J
+ *
+ * A to F are the journeys a person walks; G is the measurements and keyboard
+ * access; H is an experienced user moving fast; I is themes and tablet width;
+ * J is the model-backed half, which needs the stub; K is playback, dialogs and
+ * the docked panel; L is an exercise shaped then proved; M is the one input.
  */
 import { chromium } from 'playwright';
 
@@ -301,8 +306,12 @@ const ROUTES = ['learn', 'cube', 'practise', 'explore', 'settings'];
   await page.goto(BASE + '#/cube');
   await page.waitForTimeout(1200);
   await openAssistant(page);
-  check('D8. the command box appears where there is a cube',
-    (await page.$('[data-jev="command-text"]')) !== null);
+  // There is one input in the product now, and the panel points at it. What
+  // changes with the page is what the panel says it can do there.
+  const ask = await page.textContent('[data-assistant="ask"]');
+  check('D8. the panel offers the one input, and says the cube is in reach',
+    (await page.$('[data-assistant="open-palette"]')) !== null && /cube/i.test(ask),
+    ask.replace(/\s+/g, ' ').slice(0, 70));
   const pageActions = await page.$$eval('[data-assistant-action]', (e) => e.length);
   check('D9. and the page contributes its own shortcuts', pageActions >= 3, `${pageActions} actions`);
 
@@ -563,10 +572,15 @@ const ROUTES = ['learn', 'cube', 'practise', 'explore', 'settings'];
         .then(() => true).catch(() => false);
     }
     if (!opened) await page.waitForSelector('.palette', { timeout: 8000 });
-    await page.keyboard.type(query);
-    await page.waitForTimeout(300);
+    // `fill` rather than `type`: a stray keystroke from the page underneath
+    // cannot corrupt the query, and the value is set in one go.
+    await page.fill('.palette-input', query);
+    await page.waitForTimeout(400);
+    const before = page.url();
     await page.keyboard.press('Enter');
-    await page.waitForTimeout(1200);
+    await page.waitForFunction((u) => window.location.href !== u, before, { timeout: 8000 })
+      .catch(() => undefined);
+    await page.waitForTimeout(600);
     hops.push({ query, url: page.url(), ok: page.url().includes(expect) });
   }
   check('H1. every section is reachable by name from wherever you are',
@@ -756,6 +770,80 @@ const ROUTES = ['learn', 'cube', 'practise', 'explore', 'settings'];
   await page.context().close();
 }
 
+/* ========== L. an exercise shaped by judgment and proved by the engine ==== */
+{
+  const page = await fresh({ width: 1440, height: 1000 });
+  await ready(page, '#/practise');
+
+  const maker = await page.$('[data-exercise="make"]');
+  check('L1. practise offers a position made to order', maker !== null);
+
+  await page.click('[data-exercise="make"]');
+  // Generating and proving a position runs the optimal solver several times.
+  await page.waitForSelector('[data-exercise="result"]', { timeout: 180000 });
+  const result = await page.textContent('[data-exercise="result"]');
+  check('L2. and says how far from solved it is, as a proof',
+    /proved \d+ moves from solved/i.test(result), result.replace(/\s+/g, ' ').slice(0, 80));
+
+  // With no key the difficulty came from the record, and the badge says so.
+  check('L3. with no key the difficulty is labelled as computed',
+    /computed/i.test(result), result.replace(/\s+/g, ' ').slice(0, 60));
+
+  /*
+   * The point of the whole feature: whoever chose the difficulty, the
+   * distance is the engine's. This verifies it independently - solve the
+   * position that was set up and check the optimal length against the claim.
+   */
+  const claimed = Number(/proved (\d+) moves/i.exec(result)?.[1] ?? 0);
+  const state = await snapshot(page);
+  check('L4. the position that was set up is not solved',
+    !state.solved && claimed > 0, `claimed ${claimed}`);
+
+  const attempt = await page.textContent('.card:has-text("Your attempt")').catch(() => '');
+  check('L5. and it is graded against that same proven length',
+    attempt.includes(String(claimed)), attempt.replace(/\s+/g, ' ').slice(0, 80));
+  await page.context().close();
+}
+
+/* =============== M. one input: go anywhere, or ask ======================= */
+{
+  const page = await fresh({ width: 1440, height: 1000 });
+  await ready(page, '#/cube');
+
+  // Deterministic first: a name resolves with no model involved at all.
+  await page.keyboard.press('Control+k');
+  await page.waitForSelector('.palette', { timeout: 8000 });
+  await page.keyboard.type('solvers');
+  await page.waitForTimeout(350);
+  check('M1. a name matches without asking anything',
+    (await page.$('[data-palette="ask"]')) === null
+    && (await page.$$eval('.palette-list li', (e) => e.length)) > 0);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+
+  // Nothing matches, and with no key it says so rather than pretending.
+  await page.keyboard.press('Control+k');
+  await page.waitForSelector('.palette', { timeout: 8000 });
+  await page.keyboard.type('my corners keep twisting the wrong way');
+  await page.waitForTimeout(400);
+  const empty = await page.textContent('.palette-empty').catch(() => '');
+  check('M2. an unmatched sentence is answered honestly with no key',
+    empty.length > 0 && (await page.$('[data-palette="ask"]')) === null,
+    empty.slice(0, 60));
+
+  // The panel points at the same input rather than offering its own.
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+  await openAssistant(page);
+  check('M3. the study panel has no input of its own any more',
+    (await page.$('[data-jev="command-text"]')) === null
+    && (await page.$('[data-jev="stuck-text"]')) === null);
+  await page.click('[data-assistant="open-palette"]');
+  await page.waitForSelector('.palette', { timeout: 8000 });
+  check('M4. and sends you to the one that exists', true);
+  await page.context().close();
+}
+
 /* ============ J. contextual help that actually does something (stub) ====== */
 if (WITH_JEV) {
   const page = await fresh({ width: 1440, height: 1000 });
@@ -817,19 +905,40 @@ if (WITH_JEV) {
     /AI judgment|judged/i.test(detail ?? ''), (detail ?? '').replace(/\s+/g, ' ').slice(0, 60));
 
   /* ---- a described difficulty: route, ask for more, or decline ---------- */
-  const stuckBox = await page.$('[data-jev="stuck-text"]');
-  check('J7. the panel accepts a described difficulty', stuckBox !== null);
-
+  /*
+   * The same three outcomes, now reached through the one input rather than a
+   * box of its own: type a sentence nothing matches, and the model-backed
+   * offers appear.
+   */
   const describe = async (text) => {
-    await page.fill('[data-jev="stuck-text"]', text);
-    await page.click('[data-jev="stuck"]');
-    await page.waitForTimeout(2500);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(250);
+    await page.keyboard.press('Control+k');
+    await page.waitForSelector('.palette', { timeout: 8000 });
+    await page.fill('.palette-input', text);
+    await page.waitForTimeout(400);
+    await page.click('[data-palette="stuck"]');
+    // Wait for an outcome rather than a fixed sleep: the three ways this can
+    // end are all visible in the DOM, so there is nothing to guess at.
+    await page.waitForSelector(
+      '[data-palette="go"], [data-palette="detail"], [data-palette="none"]',
+      { timeout: 30000 },
+    ).catch(() => undefined);
+    await page.waitForTimeout(200);
   };
+
+  await page.keyboard.press('Control+k');
+  await page.waitForSelector('.palette', { timeout: 8000 });
+  await page.fill('.palette-input', 'I can get the first layer and then I am just guessing');
+  await page.waitForTimeout(450);
+  check('J7. an unmatched sentence offers to be read', (await page.$('[data-palette="ask"]')) !== null);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(250);
 
   await describe('I can get the first layer and then I am just guessing moves');
   check('J8. a specific description is routed to an activity',
-    (await page.$('[data-assistant="stuck-go"]')) !== null,
-    (await page.textContent('[data-assistant="stuck"]')).replace(/\s+/g, ' ').slice(0, 70));
+    (await page.$('[data-palette="go"]')) !== null,
+    (await page.textContent('.palette-ask')).replace(/\s+/g, ' ').slice(0, 70));
 
   /*
    * This learner has finished notation and answered its question, so the
@@ -840,17 +949,19 @@ if (WITH_JEV) {
    */
   await describe('I keep losing track of which way round R prime is supposed to go');
   check('J8b. and never routed to an activity the filter excluded',
-    (await page.$('[data-assistant="stuck-go"]')) === null
-    && (await page.$('[data-assistant="stuck-none"]')) !== null);
+    (await page.$('[data-palette="go"]')) === null
+    && (await page.$('[data-palette="none"]')) !== null);
 
-  await describe('help');
+  await describe('help me please with this');
   check('J9. a vague one is answered with a request for more',
-    (await page.$('[data-assistant="stuck-detail"]')) !== null);
+    (await page.$('[data-palette="detail"]')) !== null);
 
   await describe('the weather has been terrible all week');
   check('J10. and one about something else is declined rather than routed',
-    (await page.$('[data-assistant="stuck-none"]')) !== null
-    && (await page.$('[data-assistant="stuck-go"]')) === null);
+    (await page.$('[data-palette="none"]')) !== null
+    && (await page.$('[data-palette="go"]')) === null,
+    (await page.textContent('.palette-ask').catch(() => '(none)'))
+      .replace(/\s+/g, ' ').slice(0, 70));
 
   await page.context().close();
 }

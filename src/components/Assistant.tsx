@@ -21,7 +21,7 @@
  * computed whether or not a model was consulted.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Sheet } from './Sheet';
 import { JevBadge, JevFailure, JevThinking } from './JevBadge';
 import { T, useI18n } from '../i18n/I18nProvider';
@@ -33,14 +33,9 @@ import { useAssistantContextValue } from '../jev/assistantContext';
 import { useJevTask } from '../jev/useJevTask';
 import { jevActive, jevConfig, keySource, useJevConfig } from '../jev/config';
 import { learnerSignals } from '../jev/signals';
-import {
-  eligibleActivities, ruleBasedCommand, ruleBasedNextStep,
-} from '../jev/decisions';
+import { eligibleActivities, ruleBasedNextStep } from '../jev/decisions';
 import { ACTIVITIES } from '../jev/questions';
-import {
-  MUTATING_ACTIONS,
-  type CommandAction, type CommandDecision, type NextStepDecision, type StuckDecision,
-} from '../jev/protocol';
+import type { NextStepDecision } from '../jev/protocol';
 
 /* ------------------------------------------------------------ the state --- */
 
@@ -157,8 +152,7 @@ function AssistantPanel({ open, status, onHardFailure }: {
 
         <div className="assistant-body">
           <NextStepSection onHardFailure={onHardFailure} />
-          <StuckSection />
-          {ctx.commandSink ? <CommandSection sink={ctx.commandSink} /> : null}
+          <AskSection hasCube={Boolean(ctx.commandSink)} />
           {ctx.actions.length ? (
             <section className="assistant-section" data-assistant="page-actions">
               <h3 className="assistant-h">{t('assist.onThisPage')}</h3>
@@ -388,226 +382,37 @@ function ExplainNextStep({ signals, candidates, decision }: {
   );
 }
 
-/* --------------------------------------------------- a described problem --- */
+/* ------------------------------------------------------------- asking --- */
 
 /**
- * "What are you stuck on?"
+ * One door to the one input.
  *
- * The one thing in this panel that no rule could do. A learner who writes "I
- * can do the first layer and then I'm just guessing" has said something
- * specific and useful, and no keyword in that sentence maps to an activity.
- * The model reads it; the list of places it may send them is computed from
- * their prerequisites first; and three independent judgments decide between
- * routing, asking for more, and admitting the course does not cover it.
- *
- * Without a key it is not shown at all, because there is nothing honest to
- * put in its place: a keyword matcher pretending to read a sentence would be
- * worse than the panel saying plainly that this part needs a model.
+ * This section used to be two: a command box and a box for describing a
+ * difficulty. Both took a sentence, both did something different with it, and
+ * neither was where a learner looked first. They are now the same input as
+ * the one Ctrl-K opens, which matches destinations deterministically before
+ * it asks anything - so the fast path stays fast and the model is a fallback
+ * rather than the front door.
  */
-function StuckSection(): JSX.Element | null {
-  const { t, lang } = useI18n();
-  const state = useAppState((s) => s);
-  const task = useJevTask<StuckDecision>();
-  const [text, setText] = useState('');
-  const [sent, setSent] = useState(false);
-
-  const signals = learnerSignals(state);
-  const candidates = eligibleActivities(signals, state.progress.lessonsDone);
-
-  if (!task.available) return null;
-
-  const submit = async (e: React.FormEvent): Promise<void> => {
-    e.preventDefault();
-    const description = text.trim();
-    if (description.length < 3) return;
-    setSent(true);
-    await task.run({ task: 'stuck', description, candidates, signals, language: lang });
-  };
-
-  const decision = task.decision;
-  const routed = decision?.activity
-    ? ACTIVITIES.find((a) => a.id === decision.activity) ?? null
-    : null;
-  const failed = task.phase === 'failed' && task.error !== 'disabled';
-
+function AskSection({ hasCube }: { hasCube: boolean }): JSX.Element {
+  const { t } = useI18n();
   return (
-    <section className="assistant-section" data-assistant="stuck">
-      <h3 className="assistant-h">{t('assist.stuck.title')}</h3>
-      <form onSubmit={submit} className="stack" style={{ gap: 6 }}>
-        <textarea
-          data-jev="stuck-text"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={t('assist.stuck.placeholder')}
-          aria-label={t('assist.stuck.title')}
-          maxLength={600}
-          rows={3}
-        />
-        <div className="row tight">
-          <button className="btn" type="submit" data-jev="stuck" disabled={text.trim().length < 3}>
-            {t('assist.stuck.send')}
-          </button>
-        </div>
-      </form>
-
-      <div aria-live="polite">
-        {task.phase === 'thinking' ? <JevThinking /> : null}
-        {failed ? (
-          <>
-            <JevFailure code={task.error ?? 'server'} retryAfter={task.retryAfter} />
-            <p className="card-note assistant-p">{t('assist.stuck.failed')}</p>
-          </>
-        ) : null}
-
-        {sent && decision ? (
-          <div className="assistant-result">
-            <JevBadge source={decision.source} confidence={decision.confidence} />
-            {routed ? (
-              <>
-                <strong className="assistant-answer">{t(`jev.activity.${routed.id}`)}</strong>
-                <p className="card-note assistant-p">{t(`jev.activity.${routed.id}.why`)}</p>
-                <div className="row tight">
-                  <button
-                    className="btn primary" data-assistant="stuck-go"
-                    onClick={() => { go(routed.route); session.setAssistantOpen(false); }}
-                  >
-                    {t('jev.tutor.go')}
-                  </button>
-                  <button
-                    className="btn ghost small" data-assistant="stuck-again"
-                    onClick={() => { setSent(false); task.cancel(); }}
-                  >
-                    {t('assist.stuck.notThat')}
-                  </button>
-                </div>
-              </>
-            ) : decision.needsDetail ? (
-              <p className="assistant-p" data-assistant="stuck-detail">{t('assist.stuck.moreDetail')}</p>
-            ) : (
-              <p className="assistant-p" data-assistant="stuck-none">{t('assist.stuck.noMatch')}</p>
-            )}
-          </div>
-        ) : null}
-      </div>
+    <section className="assistant-section" data-assistant="ask">
+      <h3 className="assistant-h">{t('assist.ask.title')}</h3>
+      <p className="card-note assistant-p">
+        {hasCube ? t('assist.ask.introCube') : t('assist.ask.intro')}
+      </p>
+      <button
+        className="btn"
+        data-assistant="open-palette"
+        onClick={() => { session.setAssistantOpen(false); session.setPaletteOpen(true); }}
+      >
+        {t('assist.ask.open')}
+      </button>
     </section>
   );
 }
 
-/* ------------------------------------------------------------- commands --- */
-
-/**
- * "Scramble it", "go back one", "نمایش نقشه".
- *
- * The list of things it can do is fixed and every one of them is a button that
- * already exists elsewhere in the page. Nothing here invents a move, and an
- * instruction that is not clearly one of them is not carried out: it is
- * offered, with a button, for the learner to confirm. An AI judgment is
- * allowed to save a click; it is not allowed to turn the cube on a guess.
- */
-function CommandSection({ sink }: { sink: (a: CommandAction) => void }): JSX.Element {
-  const { t, lang } = useI18n();
-  const task = useJevTask<CommandDecision>();
-  const [text, setText] = useState('');
-  const [pending, setPending] = useState<CommandAction | null>(null);
-  const [ruled, setRuled] = useState<CommandAction | null>(null);
-  const input = useRef<HTMLInputElement>(null);
-
-  /**
-   * Carry out a keyword match, or offer it.
-   *
-   * The rule is the same whether the model was off or the call failed: a
-   * keyword match may navigate on its own, and may not turn the cube on its
-   * own. Only a model judgment that cleared both of its thresholds is allowed
-   * to change the position without being asked twice, and a failure is not a
-   * judgment. Navigation is free to undo by pressing Back; a scramble the
-   * learner did not mean to ask for costs them the position they were on.
-   */
-  const applyFallback = (fallback: CommandAction): void => {
-    if (fallback === 'none') return;
-    if (MUTATING_ACTIONS.includes(fallback)) { setPending(fallback); return; }
-    sink(fallback);
-    setText('');
-  };
-
-  const submit = async (e: React.FormEvent): Promise<void> => {
-    e.preventDefault();
-    const utterance = text.trim();
-    if (!utterance) return;
-    setPending(null);
-    const fallback = ruleBasedCommand(utterance, lang);
-    setRuled(fallback);
-
-    if (!jevActive()) { applyFallback(fallback); return; }
-
-    const decision = await task.run({ task: 'command', utterance, language: lang });
-    if (!decision) { applyFallback(fallback); return; }
-    if (decision.action === 'none') return;
-    if (decision.needsConfirmation) { setPending(decision.action); return; }
-    sink(decision.action);
-    setText('');
-  };
-
-  const decided = task.decision;
-  const failed = task.phase === 'failed' && task.error !== 'disabled';
-
-  return (
-    <section className="assistant-section" data-assistant="command">
-      <h3 className="assistant-h">{t('assist.command.title')}</h3>
-      <form onSubmit={submit} className="assistant-command">
-        <input
-          ref={input}
-          type="text"
-          data-jev="command-text"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={t('assist.command.placeholder')}
-          aria-label={t('assist.command.title')}
-          maxLength={300}
-        />
-        <button className="btn" type="submit" data-jev="command" disabled={!text.trim()}>
-          {t('assist.command.run')}
-        </button>
-      </form>
-      <p className="card-note assistant-p">{t('assist.command.note')}</p>
-
-      <div aria-live="polite">
-        {task.phase === 'thinking' ? <JevThinking /> : null}
-        {failed ? <JevFailure code={task.error ?? 'server'} /> : null}
-        {ruled !== null && ruled !== 'none' && (failed || !task.available) ? (
-          <p className="card-note assistant-p" data-assistant="used-rules">
-            {t('assist.command.usedRules')}
-          </p>
-        ) : null}
-
-        {pending ? (
-          <div className="callout warn assistant-confirm">
-            <p style={{ marginBottom: 8 }}>
-              {t('assist.command.confirm', { action: t(`jev.action.${pending}`) })}
-            </p>
-            <div className="row tight">
-              <button
-                className="btn primary small"
-                data-assistant="confirm"
-                onClick={() => { sink(pending); setPending(null); setText(''); }}
-              >
-                {t('assist.command.doIt')}
-              </button>
-              <button className="btn small" onClick={() => setPending(null)}>
-                {t('common.cancel')}
-              </button>
-            </div>
-          </div>
-        ) : null}
-
-        {!pending && decided && decided.action === 'none' ? (
-          <p className="card-note assistant-p" data-assistant="no-match">
-            {t('assist.command.noMatch')}
-          </p>
-        ) : null}
-      </div>
-    </section>
-  );
-}
 
 /* ---------------------------------------------------------------- notes --- */
 

@@ -189,6 +189,62 @@ export function resolveStuck(
   return { activity: choice, needsDetail: false, used: true };
 }
 
+/* -------------------------------------------- 2c. shaping an exercise --- */
+
+/**
+ * The distances the application will generate, smallest first.
+ *
+ * Fixed here rather than chosen by the model, because every one of them has
+ * to be reachable by the generator and provable by the optimal solver within
+ * a time a learner will wait. Beyond eleven the search stops being quick.
+ */
+export const EXERCISE_BANDS = [3, 5, 7, 9, 11] as const;
+
+/**
+ * The difficulty the record alone justifies.
+ *
+ * Deliberately conservative: step up only on evidence of solving cleanly, and
+ * step down on evidence of struggling. It runs whether or not Jev is asked,
+ * and the application shows it beside the model's choice when they differ.
+ */
+export function ruleBasedBand(
+  signals: LearnerSignals, bands: readonly number[] = EXERCISE_BANDS,
+): number {
+  const first = bands[0] ?? 3;
+  if (signals.attempts === 0) return first;
+
+  // Leaning on hints or wasting moves means the current level is not yet done.
+  const struggling = signals.hintsLastAttempt >= 2 || signals.avgWasted >= 3;
+  const clean = signals.optimalSolves >= 2 && signals.avgWasted <= 1;
+
+  const attempted = Math.min(bands.length - 1, Math.floor(signals.attempts / 3));
+  const index = clean ? Math.min(bands.length - 1, attempted + 1)
+    : struggling ? Math.max(0, attempted - 1)
+      : attempted;
+  return bands[index] ?? first;
+}
+
+/**
+ * Accept the model's shape only if the application offered it.
+ *
+ * A distance outside the offered bands is not a near miss to be rounded into
+ * range; it is evidence that the answer was about something other than the
+ * question, and the rule takes over.
+ */
+export function resolveExercise(
+  score: number,
+  confidence: number,
+  bands: readonly number[],
+  fallback: number,
+): { distance: number; used: boolean } {
+  if (confidence < THRESHOLDS.exerciseConfidence) return { distance: fallback, used: false };
+  const index = Math.round(score);
+  if (!Number.isFinite(index) || index < 0 || index >= bands.length) {
+    return { distance: fallback, used: false };
+  }
+  return { distance: bands[index], used: true };
+}
+
 /* --------------------------------------------------------- 3. hint level --- */
 
 /** The ladder has four rungs; this keeps every caller agreed on that. */

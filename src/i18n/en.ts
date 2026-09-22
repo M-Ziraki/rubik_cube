@@ -1207,6 +1207,16 @@ export const en = {
   'palette.noMatch': 'Nothing matches that.',
   'palette.keys': 'Arrows to move · Enter to open · Esc to close',
   'palette.lessonHint': 'Lesson',
+  'palette.group.goTo': 'Go to',
+  'palette.group.onThisPage': 'On this page',
+  'palette.group.lessons': 'Lessons',
+  'palette.group.jev': 'Suggested by Jev',
+  'palette.doHint': 'Carried out on this page',
+  'palette.clear': 'Clear what you typed',
+  'palette.reading': 'Reading what you wrote',
+  'palette.willRead': 'Nothing matches that yet. Stop typing for a moment and it will be read.',
+  'palette.jevNoMatch': 'Reading it did not turn up anything either.',
+  'palette.noMatchOffline': 'Jev is off, so there is nothing further to try.',
 
   /* ---------------------------------------------------------- first visit --- */
   'welcome.eyebrow': 'First time here',
@@ -1397,9 +1407,6 @@ export const en = {
   'exercise.madeTitle': 'Made for you: {n} moves out',
   'exercise.madeHint': 'Work out which pieces are already home, and leave them there.',
   /* ------------------------------------------------------- one input ---- */
-  'palette.noMatchAsk': 'Nothing here matches that. It can be read instead:',
-  'palette.doIt': 'Do it on the cube',
-  'palette.findMe': 'Find me something for this',
   'assist.ask.title': 'Ask for something',
   'assist.ask.intro': 'Go anywhere by name, or say what you are stuck on and let it find something.',
   'assist.ask.introCube': 'Go anywhere by name, ask for something on the cube, or say what you are stuck on.',

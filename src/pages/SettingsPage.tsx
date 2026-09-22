@@ -78,10 +78,9 @@ export function SettingsPage(): JSX.Element {
   return (
     <>
 
-      <div className="split">
-        <div className="stack">
-          <Card title={t('settings.appearance')} className="stack">
-            <div className="row" style={{ justifyContent: 'space-between' }}>
+      <Card title={t('settings.appearance')}>
+        <div className="split">
+          <div className="row" style={{ justifyContent: 'space-between' }}>
               <span>{t('chrome.language')}</span>
               <div className="seg" role="group" aria-label={t('chrome.language')}>
                 {LANGUAGES.map((l) => (
@@ -95,34 +94,36 @@ export function SettingsPage(): JSX.Element {
                     {l.label}
                   </button>
                 ))}
-              </div>
             </div>
-            <div className="row" style={{ justifyContent: 'space-between' }}>
-              <span>{t('chrome.theme')}</span>
-              <div className="seg" role="group" aria-label={t('chrome.theme')}>
-                {(['auto', 'light', 'dark'] as const).map((mode) => (
-                  <button key={mode} aria-pressed={theme === mode} onClick={() => actions.setTheme(mode)}>
-                    {t(`chrome.theme.${mode}`)}
-                  </button>
-                ))}
-              </div>
+          </div>
+          <div className="row" style={{ justifyContent: 'space-between' }}>
+            <span>{t('chrome.theme')}</span>
+            <div className="seg" role="group" aria-label={t('chrome.theme')}>
+              {(['auto', 'light', 'dark'] as const).map((mode) => (
+                <button key={mode} aria-pressed={theme === mode} onClick={() => actions.setTheme(mode)}>
+                  {t(`chrome.theme.${mode}`)}
+                </button>
+              ))}
             </div>
-          </Card>
-
-          <Card title={t('settings.privacy')}>
-            <div className="prose">
-              <p style={{ marginBottom: 8 }}>{t('settings.privacyBody')}</p>
-              <ul style={{ marginBottom: 0 }}>
-                <li>{t('settings.privacy.b1')}</li>
-                <li>{t('settings.privacy.b2')}</li>
-                <li>{t('settings.privacy.b3')}</li>
-              </ul>
-            </div>
-          </Card>
+          </div>
         </div>
+      </Card>
 
-        <div className="stack">
-          <Card
+      {/* Read as a pair - what is sent, and what turns the sending on - so
+          they are levelled rather than left to end wherever they end. */}
+      <div className="split level">
+        <Card title={t('settings.privacy')}>
+          <div className="prose">
+            <p style={{ marginBottom: 8 }}>{t('settings.privacyBody')}</p>
+            <ul style={{ marginBottom: 0 }}>
+              <li>{t('settings.privacy.b1')}</li>
+              <li>{t('settings.privacy.b2')}</li>
+              <li>{t('settings.privacy.b3')}</li>
+            </ul>
+          </div>
+        </Card>
+
+        <Card
             title={t('settings.jev')}
             note={t('settings.jevOptional')}
             actions={<span className={`tag ${status === 'connected' ? 'ok' : status === 'error' ? 'danger' : ''}`}>
@@ -222,9 +223,7 @@ export function SettingsPage(): JSX.Element {
                 </p>
               </Callout>
             ) : null}
-          </Card>
-
-        </div>
+        </Card>
       </div>
 
       <Card title={t('settings.whatItAffects')}>

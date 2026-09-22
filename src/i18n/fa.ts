@@ -1212,6 +1212,16 @@ export const fa: Record<string, string> = {
   'palette.noMatch': 'چیزی با آن مطابقت ندارد.',
   'palette.keys': 'کلیدهای جهت‌نما برای حرکت · Enter برای باز کردن · Esc برای بستن',
   'palette.lessonHint': 'درس',
+  'palette.group.goTo': 'رفتن به',
+  'palette.group.onThisPage': 'در این صفحه',
+  'palette.group.lessons': 'درس‌ها',
+  'palette.group.jev': 'پیشنهاد جِو',
+  'palette.doHint': 'در همین صفحه انجام می‌شود',
+  'palette.clear': 'پاک کردن آنچه نوشته‌اید',
+  'palette.reading': 'در حال خواندن آنچه نوشتید',
+  'palette.willRead': 'هنوز چیزی با آن مطابقت ندارد. لحظه‌ای تایپ را متوقف کنید تا خوانده شود.',
+  'palette.jevNoMatch': 'خواندنش هم به چیزی نرسید.',
+  'palette.noMatchOffline': 'جِو خاموش است، پس چیز دیگری برای امتحان نیست.',
 
   /* ---------------------------------------------------------- first visit --- */
   'welcome.eyebrow': 'اولین بار',
@@ -1402,9 +1412,6 @@ export const fa: Record<string, string> = {
   'exercise.madeTitle': 'ساخته‌شده برای تو: {n} حرکت دورتر',
   'exercise.madeHint': 'پیدا کن کدام قطعه‌ها از قبل سر جایشان هستند، و همان‌جا نگهشان دار.',
   /* ------------------------------------------------------- one input ---- */
-  'palette.noMatchAsk': 'چیزی اینجا با آن مطابقت ندارد. به‌جایش می‌توان آن را خواند:',
-  'palette.doIt': 'روی مکعب انجامش بده',
-  'palette.findMe': 'برای این چیزی برایم پیدا کن',
   'assist.ask.title': 'چیزی بخواه',
   'assist.ask.intro': 'با نام به هر جا برو، یا بگو کجا گیر کرده‌ای تا چیزی پیدا کند.',
   'assist.ask.introCube': 'با نام به هر جا برو، چیزی روی مکعب بخواه، یا بگو کجا گیر کرده‌ای.',

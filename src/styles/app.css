@@ -127,6 +127,19 @@ button { font: inherit; color: inherit; }
 .grid.two { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
 .grid.three { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
 .split { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+/*
+ * A pair of cards that should end level.
+ *
+ * `.split` leaves its columns their natural height, which is right when one
+ * side is a figure and the other is prose. It is wrong for two cards that sit
+ * side by side and are read as a pair: whichever is shorter leaves a band of
+ * empty page under it, and the band changes size with the content - the Jev
+ * card loses its key field when the server supplies one, and a hole opens up
+ * where the field was. Stretching both means the page ends level whatever the
+ * content does. Text still starts at the top of each card.
+ */
+.split.level { align-items: stretch; }
+.split.level > .card, .split.level > .stack > .card { height: 100%; }
 .stack { display: grid; gap: 14px; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .row.tight { gap: 5px; }

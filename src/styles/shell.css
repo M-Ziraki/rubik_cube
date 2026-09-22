@@ -361,21 +361,88 @@
 
 /* ------------------------------------------------------- command palette --- */
 
+/*
+ * One list, whatever produced the rows. A name the application knows for
+ * certain and a suggestion that came back from a judgment sit in the same
+ * column, under headings, chosen with the same keys - the second is marked
+ * rather than moved somewhere else, because a person looking for an answer
+ * should not have to learn two ways of picking one.
+ */
 .palette { padding: 0; }
+
+.palette-field {
+  display: flex; align-items: center; gap: var(--s-3);
+  padding-inline: var(--s-4);
+  border-bottom: 1px solid var(--line);
+}
+.palette-glyph { display: flex; color: var(--ink-faint); flex: 0 0 auto; }
 .palette-input {
-  border: 0; border-bottom: 1px solid var(--line); border-radius: 0;
-  font-size: 1rem; padding: 14px 16px; background: transparent;
+  flex: 1; min-width: 0;
+  border: 0; border-radius: 0; background: transparent;
+  font-size: 1.0625rem; padding: var(--s-4) 0;
 }
-.palette-input:focus { outline: none; border-bottom-color: var(--accent); }
-.palette-list { list-style: none; margin: 0; padding: 6px; overflow-y: auto; flex: 1; }
-.palette-list li {
-  display: grid; gap: 1px; padding: 8px 10px; border-radius: var(--radius-s);
-  cursor: pointer; margin: 0;
+.palette-input:focus { outline: none; }
+/* The focus ring belongs on the whole field, or it draws a box round nothing. */
+.palette-field:focus-within { border-bottom-color: var(--accent); }
+.palette-clear {
+  flex: 0 0 auto;
+  width: 24px; height: 24px; border-radius: 50%;
+  border: 0; background: var(--paper-sunken); color: var(--ink-faint);
+  font-size: 1rem; line-height: 1; cursor: pointer;
 }
-.palette-list li.active { background: var(--accent-soft); }
-.palette-label { font-weight: 500; }
-.palette-empty { color: var(--ink-faint); font-style: italic; cursor: default; }
-.palette-foot { padding: 8px 16px; border-top: 1px solid var(--line); }
+.palette-clear:hover { color: var(--ink); }
+
+.palette-list { list-style: none; margin: 0; padding: var(--s-2); overflow-y: auto; flex: 1; }
+.palette-slot { margin: 0; }
+.palette-group {
+  margin: var(--s-3) 0 2px;
+  padding-inline: var(--s-3);
+  font-size: var(--text-xs); letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.palette-slot:first-child .palette-group { margin-top: 2px; }
+.palette-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  column-gap: var(--s-3);
+  padding: var(--s-3) var(--s-3);
+  border-radius: var(--radius-s);
+  cursor: pointer;
+}
+.palette-row .card-note {
+  grid-column: 1; font-size: var(--text-xs);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.palette-row.active { background: var(--accent-soft); }
+.palette-label { font-weight: 500; grid-column: 1; }
+.palette-mark { color: var(--jev); margin-inline-end: 6px; }
+.palette-conf { grid-column: 2; grid-row: 1 / span 2; color: var(--ink-faint); font-size: var(--text-xs); }
+
+/* Status, not a control: nothing here is waiting to be pressed. */
+.palette-state:empty { display: none; }
+.palette-note {
+  margin: 0; padding: var(--s-3) var(--s-4);
+  border-top: 1px solid var(--line);
+  color: var(--ink-faint); font-size: var(--text-s);
+}
+.palette-note.working { color: var(--ink-soft); }
+.palette-note .palette-mark { animation: palette-pulse 1.4s ease-in-out infinite; }
+@keyframes palette-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) {
+  .palette-note .palette-mark { animation: none; }
+}
+
+/* Changing the cube is the one thing a read sentence may not do by itself. */
+.palette-confirm {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--line);
+  background: var(--paper-sunken);
+}
+
+.palette-foot { padding: var(--s-3) var(--s-4); border-top: 1px solid var(--line); }
 
 /* -------------------------------------------------------- phone tab bar --- */
 
@@ -563,7 +630,7 @@ input[type='range'] { min-height: 26px; }
 .welcome-door:focus-visible,
 .assistant-dock:focus-visible,
 .palette-input:focus-visible,
-.palette-list li:focus-visible,
+.palette-row:focus-visible,
 .sheet :focus-visible,
 details > summary:focus-visible,
 input:focus-visible,
@@ -665,10 +732,3 @@ html {
 .btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
 .btn.danger:hover:not(:disabled) { background: var(--danger); filter: brightness(1.08); }
 
-/* The model-backed offers, shown only when the deterministic list is empty. */
-.palette-ask {
-  display: grid; gap: var(--s-2);
-  padding: var(--s-3) var(--s-4);
-  border-top: 1px solid var(--line);
-  background: var(--paper-sunken);
-}

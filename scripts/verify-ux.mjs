@@ -817,7 +817,7 @@ const ROUTES = ['learn', 'cube', 'practise', 'explore', 'settings'];
   await page.waitForTimeout(350);
   check('M1. a name matches without asking anything',
     (await page.$('[data-palette="ask"]')) === null
-    && (await page.$$eval('.palette-list li', (e) => e.length)) > 0);
+    && (await page.$$eval('.palette-row', (e) => e.length)) > 0);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
 
@@ -826,10 +826,11 @@ const ROUTES = ['learn', 'cube', 'practise', 'explore', 'settings'];
   await page.waitForSelector('.palette', { timeout: 8000 });
   await page.keyboard.type('my corners keep twisting the wrong way');
   await page.waitForTimeout(400);
-  const empty = await page.textContent('.palette-empty').catch(() => '');
+  await page.waitForTimeout(400);
+  const empty = await page.textContent('[data-palette="nokey"]').catch(() => '');
   check('M2. an unmatched sentence is answered honestly with no key',
-    empty.length > 0 && (await page.$('[data-palette="ask"]')) === null,
-    empty.slice(0, 60));
+    empty.length > 0 && (await page.$('[data-palette="go"]')) === null,
+    empty.replace(/\s+/g, ' ').slice(0, 60));
 
   // The panel points at the same input rather than offering its own.
   await page.keyboard.press('Escape');
@@ -916,10 +917,9 @@ if (WITH_JEV) {
     await page.keyboard.press('Control+k');
     await page.waitForSelector('.palette', { timeout: 8000 });
     await page.fill('.palette-input', text);
-    await page.waitForTimeout(400);
-    await page.click('[data-palette="stuck"]');
-    // Wait for an outcome rather than a fixed sleep: the three ways this can
-    // end are all visible in the DOM, so there is nothing to guess at.
+    // Nothing is pressed: the sentence is read on its own once the typing
+    // stops. Wait for an outcome rather than a fixed sleep - the three ways
+    // this can end are all visible in the DOM, so there is nothing to guess.
     await page.waitForSelector(
       '[data-palette="go"], [data-palette="detail"], [data-palette="none"]',
       { timeout: 30000 },
@@ -931,14 +931,17 @@ if (WITH_JEV) {
   await page.waitForSelector('.palette', { timeout: 8000 });
   await page.fill('.palette-input', 'I can get the first layer and then I am just guessing');
   await page.waitForTimeout(450);
-  check('J7. an unmatched sentence offers to be read', (await page.$('[data-palette="ask"]')) !== null);
+  check('J7. an unmatched sentence is read without being told to',
+    (await page.$('[data-palette="ask"]')) !== null
+    && (await page.$('[data-palette="do"], [data-palette="stuck"]')) === null,
+    'no button to press');
   await page.keyboard.press('Escape');
   await page.waitForTimeout(250);
 
   await describe('I can get the first layer and then I am just guessing moves');
   check('J8. a specific description is routed to an activity',
     (await page.$('[data-palette="go"]')) !== null,
-    (await page.textContent('.palette-ask')).replace(/\s+/g, ' ').slice(0, 70));
+    (await page.textContent('.palette')).replace(/\s+/g, ' ').slice(0, 70));
 
   /*
    * This learner has finished notation and answered its question, so the
@@ -960,7 +963,7 @@ if (WITH_JEV) {
   check('J10. and one about something else is declined rather than routed',
     (await page.$('[data-palette="none"]')) !== null
     && (await page.$('[data-palette="go"]')) === null,
-    (await page.textContent('.palette-ask').catch(() => '(none)'))
+    (await page.textContent('.palette').catch(() => '(none)'))
       .replace(/\s+/g, ' ').slice(0, 70));
 
   await page.context().close();

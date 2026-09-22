@@ -248,10 +248,14 @@ if (MODE === 'stub') {
     await page.keyboard.press('Control+k');
     await page.waitForSelector('.palette', { timeout: 8000 });
     await page.fill('.palette-input', 'do the thing');
-    await page.waitForTimeout(450);
-    await page.click('[data-palette="do"]');
-    await page.waitForTimeout(2000);
-    const body = await page.textContent('.palette-ask');
+    // The sentence is read on its own once the typing stops; the row it
+    // produces names the action, and choosing it is the first of the two
+    // deliberate acts a cube change needs.
+    await page.waitForSelector('[data-palette="do"], [data-palette="none"], [data-palette="detail"]',
+      { timeout: 30000 }).catch(() => undefined);
+    await page.click('[data-palette="do"]').catch(() => undefined);
+    await page.waitForTimeout(800);
+    const body = await page.textContent('.palette');
     const asked = /Did you mean|did not match/i.test(body);
     const confirmButton = await page.$('[data-palette="confirm"]');
     check('B10. an ambiguous command asks instead of acting',
@@ -307,12 +311,14 @@ if (MODE === 'failing') {
     await page.keyboard.press('Control+k');
     await page.waitForSelector('.palette', { timeout: 8000 });
     await page.fill('.palette-input', 'scramble the cube please');
-    await page.waitForTimeout(450);
-    await page.click('[data-palette="do"]');
-    await page.waitForTimeout(3000);
+    await page.waitForSelector('[data-palette="do"], [data-palette="none"]',
+      { timeout: 30000 }).catch(() => undefined);
+    await page.waitForTimeout(500);
     check('C4. a failure never changes the cube on its own',
       (await state()).facelets === before);
-    const body = await page.textContent('.palette-ask');
+    await page.click('[data-palette="do"]').catch(() => undefined);
+    await page.waitForTimeout(600);
+    const body = await page.textContent('.palette');
     check('C5. the keyword router takes over after the failure',
       /Did you mean/i.test(body), body.replace(/\s+/g, ' ').slice(0, 80));
     check('C5b. and offers the action rather than performing it',

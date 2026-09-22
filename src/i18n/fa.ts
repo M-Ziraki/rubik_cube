@@ -24,7 +24,6 @@ export const fa: Record<string, string> = {
   'chrome.theme.dark': 'تیره',
   'chrome.language': 'زبان',
   'chrome.solverReady': 'حل‌کننده آماده است',
-  'chrome.buildingTables': 'ساخت جدول‌های جست‌وجو · {stage}',
 
   /* ------------------------------------------------------------ common --- */
   'common.scramble': 'به‌هم‌ریختن',
@@ -1324,4 +1323,25 @@ export const fa: Record<string, string> = {
   'assist.act.settings.note': 'زبان، پوسته، پیشرفت و کلید.',
   'assist.act.aiLab': 'ببین مدل چطور آزموده می‌شود',
   'assist.act.aiLab.note': 'پرسش‌هایی که از آن می‌شود و پاسخ‌هایی که می‌دهد.',
+  'chrome.buildingSolver': 'در حال ساخت جدول‌های حل‌کننده',
+  'chrome.percentDone': '{n} درصد کامل شد',
+  /* ------------------------------------------------- the plan and stuck --- */
+  'assist.plan.now': 'اکنون',
+  'assist.plan.then': 'سپس',
+  'assist.next.ready': 'آمادهٔ تمرین',
+  'assist.next.support': 'پشتیبانی پیشنهادی',
+  'assist.stuck.title': 'کجا گیر کرده‌ای؟',
+  'assist.stuck.placeholder': 'لایهٔ اول را می‌توانم، بعدش فقط حدس می‌زنم',
+  'assist.stuck.send': 'چیزی برایم پیدا کن',
+  'assist.stuck.notThat': 'این نبود',
+  'assist.stuck.moreDetail': 'کمی بیشتر بگو چه چیزی اشتباه پیش می‌رود تا بتواند جای مشخصی را نشان بدهد.',
+  'assist.stuck.noMatch': 'هیچ‌چیز در این دوره مستقیم به آن نمی‌پردازد. پیشنهاد بالا همچنان ارزش دیدن دارد.',
+  'assist.stuck.failed': 'چیزی خوانده نشد. پیشنهاد بالا فقط از روی سابقهٔ تو آمده است.',
+  'lab2.cat.stuck': 'توصیف یک دشواری',
+  'lab2.cat.stuckNote': 'نمونه‌های پشت «کجا گیر کرده‌ای؟»، از جمله سه موردی که نباید به هیچ‌جا هدایت شوند',
+  'lab2.cat.outcome.route': 'هدایت به یک فعالیت',
+  'lab2.cat.outcome.detail': 'درخواست توضیح بیشتر',
+  'lab2.cat.outcome.off': 'موضوع این برنامه نیست',
+  'lab2.cat.lang.en': 'انگلیسی',
+  'lab2.cat.lang.fa': 'فارسی',
 };

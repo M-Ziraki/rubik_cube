@@ -39,6 +39,7 @@ import { session } from './state/session';
 import { AssistantDock } from './components/Assistant';
 import { CommandPalette } from './components/CommandPalette';
 import { Sheet } from './components/Sheet';
+import { CubeMark, FaceletLoader } from './components/CubeMark';
 
 const PAGES: Record<string, () => JSX.Element> = {
   atlas: () => <AtlasPage />,
@@ -56,7 +57,6 @@ export function App(): JSX.Element {
   const { t } = useI18n();
   const route = useRoute();
   const tablesReady = useAppState((s) => s.tablesReady);
-  const stage = useAppState((s) => s.tableStage);
   const fraction = useAppState((s) => s.tableFraction);
   const lessonsDone = useAppState((s) => s.progress.lessonsDone);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -105,7 +105,7 @@ export function App(): JSX.Element {
       <aside className="sidebar">
         <div className="brand">
           <button className="brand-mark" onClick={() => go('#/atlas')}>
-            <CubeGlyph />
+            <CubeMark size={28} />
             <span>
               <span className="brand-title">{t('app.title')}</span>
               <span className="brand-sub">{t('app.tagline')}</span>
@@ -132,7 +132,7 @@ export function App(): JSX.Element {
             <span>{t('palette.title')}</span>
             <kbd className="mono-ltr">Ctrl K</kbd>
           </button>
-          <TableStatus ready={tablesReady} stage={stage} fraction={fraction} />
+          <TableStatus ready={tablesReady} fraction={fraction} />
           <JevStatus />
           <LanguagePicker />
           <ThemePicker />
@@ -148,7 +148,7 @@ export function App(): JSX.Element {
       */}
       <div className="topbar">
         <button className="topbar-home" onClick={() => go('#/atlas')} aria-label={t('app.title')}>
-          <CubeGlyph />
+          <CubeMark size={26} />
         </button>
         <span className="topbar-where">
           <span className="card-note">{t(`nav.section.${active.section}`)}</span>
@@ -237,17 +237,16 @@ function NavItem({ route, active, badge }: {
   );
 }
 
-function TableStatus({ ready, stage, fraction }: { ready: boolean; stage: string; fraction: number }): JSX.Element {
+function TableStatus({ ready, fraction }: { ready: boolean; fraction: number }): JSX.Element {
   const { t } = useI18n();
   if (ready) return <span className="tag ok">{t('chrome.solverReady')}</span>;
-  return (
-    <div>
-      <div className="card-note" style={{ marginBottom: 4 }}>
-        {t('chrome.buildingTables', { stage })}
-      </div>
-      <div className="meter"><i style={{ width: `${Math.round(fraction * 100)}%` }} /></div>
-    </div>
-  );
+  /*
+   * The stage name the solver reports - "distance table: flip x twist" - is
+   * a debugging string, not a sentence, and it was being shown to learners in
+   * both languages. What they need is that it is working and how far it has
+   * got; what it is called is in the console.
+   */
+  return <FaceletLoader fraction={fraction} label={t('chrome.buildingSolver')} />;
 }
 
 /**
@@ -313,17 +312,3 @@ function ThemePicker({ compact = false }: { compact?: boolean }): JSX.Element {
   );
 }
 
-function CubeGlyph(): JSX.Element {
-  return (
-    <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true">
-      <g fill="none" strokeWidth="1.4" stroke="currentColor" opacity="0.85">
-        <path d="M14 2.6 24.6 8 14 13.4 3.4 8 14 2.6Z" />
-        <path d="M3.4 8v12L14 25.4V13.4" />
-        <path d="M24.6 8v12L14 25.4" />
-      </g>
-      <circle cx="14" cy="8" r="1.7" fill="var(--f)" />
-      <circle cx="8.4" cy="16.4" r="1.7" fill="var(--r)" />
-      <circle cx="19.6" cy="16.4" r="1.7" fill="var(--b)" />
-    </svg>
-  );
-}

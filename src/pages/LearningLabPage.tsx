@@ -10,7 +10,7 @@ import { askJev, JevError } from '../jev/client';
 import { learnerSignals } from '../jev/signals';
 import { eligibleActivities, ruleBasedCommand, ruleBasedNextStep } from '../jev/decisions';
 import { ACTIVITIES, MISCONCEPTION_PROMPTS, THRESHOLDS } from '../jev/questions';
-import { MISCONCEPTION_CASES, COMMAND_CASES } from '../../evals/dataset';
+import { MISCONCEPTION_CASES, COMMAND_CASES, STUCK_CASES } from '../../evals/dataset';
 import {
   MISCONCEPTION_LABELS, type MisconceptionDecision, type MisconceptionLabel,
   type NextStepDecision, type TracedAnswer,
@@ -445,6 +445,37 @@ function CategoriesView(): JSX.Element {
                         action: t(`jev.action.${ruleBasedCommand(c.utterance, c.language)}`),
                       })}
                     </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      {/*
+        The hardest cases in the set, and the ones most worth showing: three of
+        them have "do not route this" as the right answer, which is the part of
+        the design a reader is most likely to doubt.
+      */}
+      <Card title={t('lab2.cat.stuck')} note={t('lab2.cat.stuckNote')}>
+        <div className="scroll-x">
+          <table className="data">
+            <thead>
+              <tr><th>{t('lab2.eval.case')}</th><th>{t('lab2.eval.expected')}</th></tr>
+            </thead>
+            <tbody>
+              {STUCK_CASES.map((c) => (
+                <tr key={c.id}>
+                  <td>
+                    <bdi>{c.description}</bdi>
+                    <div className="card-note">{c.note}</div>
+                  </td>
+                  <td>
+                    {c.expected === 'none'
+                      ? t(`lab2.cat.outcome.${c.outcome ?? 'route'}`)
+                      : t(`jev.activity.${c.expected}`)}
+                    <div className="card-note">{t(`lab2.cat.lang.${c.language}`)}</div>
                   </td>
                 </tr>
               ))}

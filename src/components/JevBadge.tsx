@@ -15,7 +15,7 @@ export function JevBadge({ source, confidence }: {
   source: DecisionSource; confidence?: number;
 }): JSX.Element {
   const { t } = useI18n();
-  const tone = source === 'jev' ? '' : source === 'jev-uncertain' ? 'warn' : '';
+  const tone = source === 'jev' ? 'jev' : source === 'jev-uncertain' ? 'warn' : '';
   const label = source === 'jev'
     ? t('jev.badge.jev')
     : source === 'jev-uncertain'

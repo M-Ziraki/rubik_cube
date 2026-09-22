@@ -63,6 +63,37 @@ design with the integration off.
 The whole application is available in **English and Persian**, with the layout
 mirrored properly in Persian rather than merely right-aligned.
 
+## The design system
+
+Identity and restraint pull against each other in an application like this, so
+one rule settles it: **identity scales inversely with density.** The welcome
+card, a lesson header and an empty state carry the cube; the Atlas and the
+training runner carry almost none of it. There are exactly two pieces of cube
+iconography in the product - the isometric mark, and a nine-cell grid that
+fills as the solver builds its tables - and everything else that makes it feel
+like one product comes from geometry and a reserved palette.
+
+Three directions were weighed. *Minimal mathematical laboratory* was close to
+what was already there, which was the problem: there was no identity to lose.
+*Expressive learning environment* was the richest and the most likely to end in
+a workspace nobody can read. **Modular cube system** was chosen: structure
+taken from the cube itself, with the expressive typography allowed on reading
+pages only and the restraint enforced in the workspaces.
+
+- **Scale.** Every spacing and radius step is a multiple of three, because the
+  cube is three. It replaced about a dozen unrelated pixel values.
+- **Colour.** Two layers: a palette that components never touch, and a semantic
+  layer that is all they may use. Dark mode redefines the semantic layer, so a
+  component cannot be right in one theme and wrong in the other. The six
+  sticker colours are the engine's own values and appear only where they carry
+  meaning; a swatch in the inspector is the same colour as the sticker it names.
+- **Contrast.** Every text colour is measured against the surface it sits on,
+  and `npm run verify:contrast` re-measures all of them in both themes, three
+  viewports and both languages. It found about 1,890 failures in the palette
+  this replaced; it now reports none.
+- **Motion.** One curve, borrowed from a face turn: fast, then settling. It is
+  used for panels and disclosures, and for nothing that pretends to be a cube.
+
 ## Finding your way around
 
 **Study help** is one affordance in the same corner of every page. It knows
@@ -345,6 +376,32 @@ Every judgment is labelled in the interface as an AI judgment, an AI judgment
 the application declined to act on, or a computed result — with the
 confidence, when there is one.
 
+### The study plan, and describing a difficulty
+
+Two of the four features ask several questions at once. The documentation is
+explicit that independent questions about the same state should go in one
+request: they run in parallel, they cannot see one another's answers, and one
+round trip costs one latency.
+
+**What to do next** is therefore a plan rather than a pick. One request asks
+three things about the same record - which activity helps most now, whether
+reading has stopped paying and practice would pay more, and how much
+scaffolding the work should carry - and code composes them into two ordered
+steps under a rule you can read in `planSecondStep`. The model is never asked
+"what should the plan be", a question with no checkable answer; it is asked
+three narrow ones whose answers combine.
+
+**What are you stuck on?** is the one thing here no rule could do. "I can get
+the first layer and then I'm just guessing" is specific and useful, and no
+keyword in it maps to an activity. The description goes to the model; the list
+of places it may send them is computed from their prerequisites first; and two
+further judgments decide between routing, asking for more detail, and saying
+plainly that the course does not cover it. A vague sentence gets a request for
+more rather than a confident route to the wrong lesson, and a sentence about
+the weather is declined. It is the only feature that disappears entirely
+without a key, because a keyword matcher pretending to read a sentence would
+be worse than saying this part needs a model.
+
 ### When it is off, or fails
 
 The integration is off unless a key exists *and* the switch is on. In every
@@ -473,6 +530,13 @@ and nine arcs, six clean groups when solved, twenty stickers lit by a move
 preview, a turn and its inverse restoring the map, four quarter turns restoring
 it, and picking a dot naming the right sticker.
 
+`npm run verify:contrast` measures the WCAG 2.2 contrast ratio of every piece
+of text against the background actually painted behind it, in twelve
+combinations of theme, viewport and language, and reports horizontal overflow
+while it is there. It exists because a review by eye had missed roughly 160
+failures per page in both themes - one token, wrong, in about nineteen hundred
+places.
+
 `npm run verify:ux` tests the interface as journeys rather than as components,
 because a page can render every one of its parts and still be unusable. A first
 visit that starts from one of the four doors, finishes a lesson and is sent to
@@ -499,6 +563,7 @@ npm run acceptance   # check the sticker map against the reference figure
 npm run i18n:report  # translation coverage, and any English left hardcoded
 npm run verify:jev   # the Jev integration, with and without a key
 npm run verify:ux    # the user journeys, the measurements and the phone layout
+npm run verify:contrast  # text contrast in both themes, three widths, both languages
 npm run jev:eval     # run the evaluation set against the live API
 npm run jev:eval -- --dry   # print what a request would contain, and send nothing
 npm run serve        # the production server, which holds the optional API key

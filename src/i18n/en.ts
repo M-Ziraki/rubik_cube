@@ -19,7 +19,6 @@ export const en = {
   'chrome.theme.dark': 'Dark',
   'chrome.language': 'Language',
   'chrome.solverReady': 'solver ready',
-  'chrome.buildingTables': 'Building lookup tables · {stage}',
 
   /* ------------------------------------------------------------ common --- */
   'common.scramble': 'Scramble',
@@ -1319,4 +1318,25 @@ export const en = {
   'assist.act.settings.note': 'Language, theme, progress and the key.',
   'assist.act.aiLab': 'See how the model is tested',
   'assist.act.aiLab.note': 'The questions it is asked and how it answers them.',
+  'chrome.buildingSolver': 'Building the solver tables',
+  'chrome.percentDone': '{n} per cent complete',
+  /* ------------------------------------------------- the plan and stuck --- */
+  'assist.plan.now': 'Now',
+  'assist.plan.then': 'Then',
+  'assist.next.ready': 'Ready for practice',
+  'assist.next.support': 'Support suggested',
+  'assist.stuck.title': 'What are you stuck on?',
+  'assist.stuck.placeholder': 'I can do the first layer and then I am just guessing',
+  'assist.stuck.send': 'Find me something',
+  'assist.stuck.notThat': 'That is not it',
+  'assist.stuck.moreDetail': 'Say a little more about what goes wrong, and it can point somewhere specific.',
+  'assist.stuck.noMatch': 'Nothing in the course addresses that directly. The recommendation above is still worth a look.',
+  'assist.stuck.failed': 'Nothing was read. The recommendation above came from your record alone.',
+  'lab2.cat.stuck': 'Describing a difficulty',
+  'lab2.cat.stuckNote': 'the cases behind "what are you stuck on?", including the three that must not be routed anywhere',
+  'lab2.cat.outcome.route': 'Route to an activity',
+  'lab2.cat.outcome.detail': 'Ask for more detail',
+  'lab2.cat.outcome.off': 'Not this subject',
+  'lab2.cat.lang.en': 'English',
+  'lab2.cat.lang.fa': 'Persian',
 } as const;

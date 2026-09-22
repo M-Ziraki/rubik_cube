@@ -26,8 +26,8 @@ import type { JevDecision, JevErrorBody } from '../src/jev/protocol';
 const choice = (label: string, confidence: number, probabilities: Record<string, number> = {}) =>
   ({ type: 'choice' as const, choice: label, confidence, probabilities });
 const noul = (p: number) => ({ type: 'noul' as const, noul: p });
-const score = (s: number, confidence: number) =>
-  ({ type: 'score' as const, score: s, confidence, legend: {}, probabilities: {} });
+const score = (s: number, confidence: number, legend: Record<string, string> = {}) =>
+  ({ type: 'score' as const, score: s, confidence, legend, probabilities: {} });
 
 /** A client that returns whatever answers a test hands it. */
 function stubClient(answers: Record<string, unknown>, opts: { throws?: unknown } = {}) {
@@ -262,6 +262,135 @@ describe('next step', () => {
     }));
     if (d.kind !== 'next-step') throw new Error('wrong kind');
     expect(d.activity).toBe(d.deterministicChoice);
+  });
+
+  /*
+   * The two supporting questions ride along in the same request. They are
+   * genuinely optional: a plan that loses them is still a plan, and the
+   * recommendation a learner asked for must not depend on them arriving.
+   */
+  it('composes a second step from the supporting judgments', async () => {
+    const d = await runTask(body, stubClient({
+      next: choice('lesson-pieces', 0.9),
+      ready_to_practise: noul(0.85),
+      support: score(1.2, 0.7, { 1: 'Solving things but not cleanly.' }),
+    }));
+    if (d.kind !== 'next-step') throw new Error('wrong kind');
+    expect(d.thenActivity).toBe('practice-efficiency');
+    expect(d.readyToPractise).toBeCloseTo(0.85);
+    expect(d.support).toBe(1);
+    expect(d.supportLegend).toBe('Solving things but not cleanly.');
+  });
+
+  it('still produces a plan when the supporting answers are missing', async () => {
+    const d = await runTask(body, stubClient({ next: choice('lesson-pieces', 0.9) }));
+    if (d.kind !== 'next-step') throw new Error('wrong kind');
+    expect(d.activity).toBe('lesson-pieces');
+    expect(d.readyToPractise).toBeUndefined();
+    expect(d.support).toBeUndefined();
+    // Course order, which is what the rules alone would say.
+    expect(d.thenActivity).toBe('lesson-sticker-map');
+  });
+
+  it('ignores a malformed supporting answer rather than failing the plan', async () => {
+    const d = await runTask(body, stubClient({
+      next: choice('lesson-pieces', 0.9),
+      ready_to_practise: { type: 'choice', choice: 'yes' },
+      support: { type: 'noul', noul: 0.5 },
+    }));
+    if (d.kind !== 'next-step') throw new Error('wrong kind');
+    expect(d.activity).toBe('lesson-pieces');
+    expect(d.readyToPractise).toBeUndefined();
+  });
+});
+
+describe('a described difficulty', () => {
+  const body = {
+    task: 'stuck' as const,
+    description: 'I keep losing track of which way round R prime goes',
+    signals: {
+      lessonsDone: 2, lessonsTotal: 12, exercisesDone: 1, attempts: 0,
+      optimalSolves: 0, avgWasted: 0, lastWasted: null, hintsLastAttempt: 0,
+      strugglingWith: [],
+    },
+    candidates: ['lesson-pieces', 'practice-efficiency', 'lesson-sticker-map'],
+    language: 'en' as const,
+  };
+
+  it('routes a specific, on-topic description', async () => {
+    const d = await runTask(body, stubClient({
+      activity: choice('lesson-pieces', 0.82),
+      on_topic: noul(0.95),
+      specificity: score(1.8, 0.7),
+    }));
+    if (d.kind !== 'stuck') throw new Error('wrong kind');
+    expect(d.activity).toBe('lesson-pieces');
+    expect(d.needsDetail).toBe(false);
+    expect(d.source).toBe('jev');
+  });
+
+  it('asks for more detail rather than guessing at a vague one', async () => {
+    const d = await runTask(body, stubClient({
+      activity: choice('lesson-pieces', 0.9),
+      on_topic: noul(0.9),
+      specificity: score(0.2, 0.7),
+    }));
+    if (d.kind !== 'stuck') throw new Error('wrong kind');
+    expect(d.activity).toBeNull();
+    expect(d.needsDetail).toBe(true);
+  });
+
+  it('refuses to route something off the subject', async () => {
+    const d = await runTask(body, stubClient({
+      activity: choice('lesson-pieces', 0.99),
+      on_topic: noul(0.02),
+      specificity: score(2, 0.9),
+    }));
+    if (d.kind !== 'stuck') throw new Error('wrong kind');
+    expect(d.activity).toBeNull();
+    expect(d.needsDetail).toBe(false);
+  });
+
+  it('never routes outside the candidate list', async () => {
+    const d = await runTask(body, stubClient({
+      activity: choice('lesson-gods-number', 0.99),
+      on_topic: noul(0.95),
+      specificity: score(2, 0.9),
+    }));
+    if (d.kind !== 'stuck') throw new Error('wrong kind');
+    expect(d.activity).toBeNull();
+  });
+
+  it('asks for more when an answer is missing entirely', async () => {
+    const d = await runTask(body, stubClient({ activity: choice('lesson-pieces', 0.9) }));
+    if (d.kind !== 'stuck') throw new Error('wrong kind');
+    expect(d.activity).toBeNull();
+    expect(d.needsDetail).toBe(true);
+    expect(d.source).toBe('jev-uncertain');
+  });
+
+  it('always reports where the rules alone would have sent them', async () => {
+    const d = await runTask(body, stubClient({
+      activity: choice('lesson-pieces', 0.82),
+      on_topic: noul(0.95),
+      specificity: score(1.8, 0.7),
+    }));
+    if (d.kind !== 'stuck') throw new Error('wrong kind');
+    expect(body.candidates).toContain(d.deterministicChoice);
+  });
+
+  it('rejects an oversized description, like every other free-text field', () => {
+    // Rejected rather than truncated: silently cutting a learner's sentence in
+    // half and judging the half is worse than telling them it was too long.
+    expect(() => parseRequest({ ...body, description: 'x'.repeat(LIMITS.answerChars + 1) }))
+      .toThrow();
+    const ok = parseRequest({ ...body, description: 'x'.repeat(LIMITS.answerChars) });
+    if (ok.task !== 'stuck') throw new Error('wrong task');
+    expect(ok.description.length).toBe(LIMITS.answerChars);
+  });
+
+  it('refuses a stuck request with no candidates', () => {
+    expect(() => parseRequest({ ...body, candidates: [] })).toThrow();
   });
 });
 

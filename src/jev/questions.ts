@@ -39,6 +39,14 @@ export const THRESHOLDS = {
   misconceptionOnTopic: 0.35,
   /** Below this, the deterministic recommendation is used instead. */
   nextStepConfidence: 0.40,
+  /** Above this, the plan's second step is practice rather than reading. */
+  readyToPractise: 0.55,
+  /** Below this, a described difficulty is not routed at all. */
+  stuckConfidence: 0.45,
+  /** Below this probability the description is treated as off-topic. */
+  stuckOnTopic: 0.40,
+  /** Below this score the learner is asked to say more instead. */
+  stuckSpecificity: 0.75,
   /** Below this, the hint ladder escalates by its own rule. */
   hintConfidence: 0.35,
   /** A command that changes the cube needs at least this much confidence. */
@@ -332,6 +340,51 @@ export function nextStepQuestions(candidates: readonly string[]): QuestionSpec {
     if (activity) criteria[id] = activity.description;
   }
   return {
+    /*
+     * Two further questions about the same record, asked in the same request.
+     *
+     * They run in parallel and cannot see the choice above, which is the
+     * point: `ready_to_practise` is an independent second opinion on whether
+     * reading has stopped paying, not a justification of whatever activity was
+     * picked. Code combines all three into an ordered plan.
+     */
+    ready_to_practise: {
+      type: 'noul',
+      instructions:
+        'Would this learner now gain more from practising on real positions than from '
+        + 'reading another lesson?',
+      criteria: {
+        true:
+          'They have covered enough ground that the next gain is in applying it: lessons '
+          + 'finished, few or no unresolved comprehension failures, and either no attempts yet '
+          + 'or attempts that show they can solve but not efficiently.',
+        false:
+          'There is a concept still missing. They have read little, or they failed a '
+          + 'comprehension question they have not gone back to, or they leaned heavily on '
+          + 'hints, which is a sign the idea rather than the practice is absent.',
+      },
+    },
+    support: {
+      type: 'score',
+      instructions: {
+        task:
+          'How much scaffolding should this learner\'s next piece of work carry?',
+        principle:
+          'Judge the support the work should offer, not the learner\'s ability. Someone new '
+          + 'to the subject needs a worked example; someone wasting three moves an attempt '
+          + 'needs a target, not an explanation.',
+      },
+      criteria: [
+        'They are working independently and efficiently. Give them a harder problem and stay '
+        + 'out of the way.',
+        'They are solving things but not cleanly. An occasional nudge and a measurable target '
+        + 'will do more than more explanation.',
+        'They can follow the material but not yet apply it. A worked demonstration they can '
+        + 'watch and repeat is the right size of help.',
+        'They are at the beginning, or something fundamental has not landed. Step-by-step '
+        + 'material with the reasoning spelled out.',
+      ],
+    },
     next: {
       type: 'choice',
       instructions: {
@@ -350,6 +403,98 @@ export function nextStepQuestions(candidates: readonly string[]): QuestionSpec {
           + 'lesson. Prefer consolidating a shaky concept over introducing a new one.',
       },
       criteria,
+    },
+  };
+}
+
+/* ----------------------------------------- 2b. "what are you stuck on?" --- */
+
+export interface StuckState {
+  difficulty: string;
+  learner: LearnerSignals;
+  available_activities: { id: string; description: string }[];
+}
+
+export function stuckState(
+  description: string, signals: LearnerSignals, candidates: readonly string[],
+): StuckState {
+  const byId = new Map(ACTIVITIES.map((a) => [a.id, a]));
+  return {
+    difficulty: description,
+    learner: signals,
+    available_activities: candidates
+      .map((id) => byId.get(id))
+      .filter((a): a is Activity => a !== undefined)
+      .map((a) => ({ id: a.id, description: a.description })),
+  };
+}
+
+/**
+ * Three independent readings of one sentence a learner wrote.
+ *
+ * This is the question a rule cannot answer. "I keep losing track of which way
+ * round R prime goes" and "I get the first layer and then I'm guessing" are
+ * different problems with different answers, and neither contains a keyword
+ * worth matching on. So the model reads the sentence - but it chooses only
+ * from activities the prerequisite filter has already approved, it is given a
+ * `none` to take when nothing fits, and two further questions decide whether
+ * the sentence was worth routing at all.
+ *
+ * `specificity` earns its place by changing what happens rather than what is
+ * displayed: a vague description gets a request for more detail instead of a
+ * confident route to the wrong lesson.
+ */
+export function stuckQuestions(candidates: readonly string[]): QuestionSpec {
+  const byId = new Map(ACTIVITIES.map((a) => [a.id, a]));
+  const criteria: Record<string, string> = {
+    none: 'Nothing in the list addresses what they described.',
+  };
+  for (const id of candidates) {
+    const activity = byId.get(id);
+    if (activity) criteria[id] = activity.description;
+  }
+  return {
+    activity: {
+      type: 'choice',
+      instructions: {
+        task:
+          'A learner working through a course on the Rubik\'s Cube described, in their own '
+          + 'words, what they are finding difficult. Which of the available activities '
+          + 'addresses that difficulty?',
+        judge:
+          'Match on what the difficulty is about, not on words it shares with an activity '
+          + 'description. Choose `none` rather than the nearest thing when nothing addresses it.',
+        note:
+          'The description may be written in a language other than English. Judge the meaning, '
+          + 'not the fluency, spelling or vocabulary.',
+      },
+      criteria,
+    },
+    on_topic: {
+      type: 'noul',
+      instructions:
+        'Is `difficulty` about learning the Rubik\'s Cube, its notation, its mathematics or '
+        + 'solving it?',
+      criteria: {
+        true: 'It describes something about the cube or the course, however vaguely.',
+        false:
+          'It is about something else entirely, is empty of content, or is an instruction to '
+          + 'the application rather than a description of a difficulty.',
+      },
+    },
+    specificity: {
+      type: 'score',
+      instructions:
+        'How specific is `difficulty` about what the learner cannot do?',
+      criteria: [
+        'A general statement of being lost, with nothing to act on: "it is hard", "I do not '
+        + 'get it", "help".',
+        'A named area but no particular difficulty: "the notation", "the maths part", "solving '
+        + 'it".',
+        'A particular thing that goes wrong, which points at one activity: which way a prime '
+        + 'turn goes, what happens after the first layer, why a shortest solution is different '
+        + 'from any solution.',
+      ],
     },
   };
 }

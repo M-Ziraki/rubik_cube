@@ -12,6 +12,7 @@
  */
 
 import { Card } from './ui';
+import { CubeMark } from './CubeMark';
 import { useI18n } from '../i18n/I18nProvider';
 import { go } from '../state/navigation';
 import { session } from '../state/session';
@@ -39,6 +40,7 @@ export function Welcome(): JSX.Element {
   return (
     <Card className="welcome" style={{ marginBottom: 18 }}>
       <div className="welcome-head">
+        <CubeMark size={40} />
         <div>
           <div className="eyebrow">{t('welcome.eyebrow')}</div>
           <h2 className="welcome-title">{t('welcome.title')}</h2>

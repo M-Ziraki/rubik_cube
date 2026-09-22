@@ -50,12 +50,29 @@ button { font: inherit; color: inherit; }
 }
 .brand-mark { display: flex; align-items: center; gap: 10px; }
 .brand-title { font-family: var(--serif); font-size: 1.12rem; font-weight: 700; letter-spacing: -0.015em; }
-.brand-sub { font-size: 0.72rem; color: var(--ink-faint); letter-spacing: 0.06em; text-transform: uppercase; margin-top: 4px; }
+.brand-sub {
+  font-size: var(--text-2xs); color: var(--ink-faint);
+  letter-spacing: 0.06em; text-transform: uppercase; margin-top: 4px;
+  white-space: nowrap;
+}
 
 .nav { padding: 12px 10px; flex: 1; }
+/*
+ * A section label, with the cube's only structural motif: three short rules
+ * standing for the three layers of a face. It is drawn in the quiet grey
+ * rather than the text grey because it is a divider that happens to have a
+ * word in it, and the word itself meets AA on its own.
+ */
 .nav-group-title {
-  font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase;
-  color: var(--ink-faint); padding: 14px 10px 6px;
+  display: flex; align-items: center; gap: var(--s-2);
+  font-size: var(--text-2xs); letter-spacing: var(--tracking-label);
+  text-transform: uppercase; color: var(--ink-faint);
+  padding: var(--s-5) var(--s-3) var(--s-2);
+}
+.nav-group-title::after {
+  content: ''; flex: 1; height: 3px; opacity: 0.65;
+  background: repeating-linear-gradient(
+    to right, var(--line-strong) 0 6px, transparent 6px 9px);
 }
 .nav-item {
   display: flex; align-items: center; gap: 10px; width: 100%;
@@ -66,7 +83,7 @@ button { font: inherit; color: inherit; }
 .nav-item:hover { background: var(--paper-sunken); color: var(--ink); }
 .nav-item[aria-current='true'] { background: var(--accent-soft); color: var(--ink); font-weight: 500; }
 .nav-item .glyph { width: 18px; text-align: center; opacity: 0.8; font-size: 0.95rem; }
-.nav-badge { margin-inline-start: auto; font-size: 0.7rem; color: var(--ink-faint); font-family: var(--mono); }
+.nav-badge { margin-inline-start: auto; font-size: var(--text-xs); color: var(--ink-faint); font-family: var(--mono); }
 
 .sidebar-foot { padding: 12px; border-top: 1px solid var(--line); display: grid; gap: 8px; }
 
@@ -77,7 +94,10 @@ button { font: inherit; color: inherit; }
   max-width: 1400px; width: 100%; margin: 0 auto;
 }
 .page-head { margin-bottom: 28px; }
-.page-head .eyebrow { font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-faint); }
+.page-head .eyebrow {
+  font-size: var(--text-xs); letter-spacing: var(--tracking-label);
+  text-transform: uppercase; color: var(--ink-faint);
+}
 .lede { font-size: 1.04rem; color: var(--ink-soft); max-width: min(62ch, 100%); }
 
 /* -------------------------------------------------------------- cards --- */
@@ -94,7 +114,7 @@ button { font: inherit; color: inherit; }
 .card-head > * { min-width: 0; }
 .card-head > :last-child:not(:first-child) { flex: 0 0 auto; }
 .card-title { font-family: var(--serif); font-weight: 600; font-size: 1rem; }
-.card-note { font-size: 0.78rem; color: var(--ink-faint); }
+.card-note { font-size: var(--text-xs); color: var(--ink-faint); }
 
 /* Grid and flex children default to min-width:auto, which lets a wide canvas
    or table push a column past the viewport. Everything here is allowed to
@@ -137,10 +157,10 @@ button { font: inherit; color: inherit; }
 .btn:focus-visible, .seg button:focus-visible, .move-chip:focus-visible {
   outline: 2px solid var(--accent); outline-offset: 2px;
 }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 /* The generic hover rule is more specific than .btn.primary, so the primary
    hover has to restate its own background or it turns white-on-white. */
-.btn.primary:hover:not(:disabled) { background: var(--accent); filter: brightness(1.12); }
+.btn.primary:hover:not(:disabled) { background: var(--accent-strong); border-color: var(--accent-strong); }
 .btn.ghost { border-color: transparent; background: transparent; }
 .btn.ghost:hover:not(:disabled) { background: var(--paper-sunken); }
 .btn.small { padding: 3px 10px; min-height: 28px; font-size: 0.78rem; }
@@ -177,28 +197,30 @@ label.field { display: grid; gap: 4px; font-size: 0.8rem; color: var(--ink-soft)
   cursor: pointer; min-width: 34px; min-height: 28px; text-align: center;
 }
 .move-chip:hover { background: var(--paper-sunken); }
-.move-chip.current { background: var(--accent); border-color: var(--accent); color: #fff; }
+.move-chip.current { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .move-chip.done { opacity: 0.45; }
 .move-chip.plain { cursor: default; }
 
 .seq { display: flex; flex-wrap: wrap; gap: 4px; font-family: var(--mono); }
-.seq-empty { color: var(--ink-faint); font-size: 0.85rem; font-style: italic; }
+.seq-empty { color: var(--ink-faint); font-size: var(--text-s); font-style: italic; }
 
 .tag {
   display: inline-flex; align-items: center; gap: 5px; justify-self: start; width: fit-content;
-  font-size: 0.72rem; letter-spacing: 0.02em; padding: 2px 8px;
+  font-size: var(--text-xs); letter-spacing: 0.02em; padding: 2px var(--s-3);
   border-radius: 999px; border: 1px solid var(--line-strong); color: var(--ink-soft);
 }
-.tag.ok { border-color: var(--ok); color: var(--ok); }
-.tag.warn { border-color: var(--warn); color: var(--warn); }
-.tag.danger { border-color: var(--danger); color: var(--danger); }
-.tag.solid { background: var(--accent); border-color: var(--accent); color: #fff; }
+.tag.ok { border-color: var(--ok); color: var(--ok); background: var(--ok-soft); }
+.tag.warn { border-color: var(--warn); color: var(--warn); background: var(--warn-soft); }
+.tag.danger { border-color: var(--danger); color: var(--danger); background: var(--danger-soft); }
+.tag.solid { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+/* A judgment, marked in Jev's own colour rather than the app's accent. */
+.tag.jev { border-color: var(--jev); color: var(--jev); background: var(--jev-soft); }
 
 /* ---------------------------------------------------------- data bits --- */
 
 .stat { display: grid; gap: 2px; }
 .stat .value { font-family: var(--serif); font-size: 1.55rem; font-weight: 600; line-height: 1.1; }
-.stat .label { font-size: 0.74rem; color: var(--ink-faint); letter-spacing: 0.04em; text-transform: uppercase; }
+.stat .label { font-size: var(--text-xs); color: var(--ink-faint); letter-spacing: 0.04em; text-transform: uppercase; }
 .stat .sub { font-size: 0.78rem; color: var(--ink-soft); }
 
 .meter { height: 6px; background: var(--paper-sunken); border-radius: 999px; overflow: hidden; }
@@ -206,7 +228,7 @@ label.field { display: grid; gap: 4px; font-size: 0.8rem; color: var(--ink-soft)
 
 table.data { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 table.data th, table.data td { text-align: start; padding: 6px 10px; border-bottom: 1px solid var(--line); }
-table.data th { font-weight: 600; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); }
+table.data th { font-weight: 600; font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); }
 table.data td.num, table.data th.num { text-align: end; font-family: var(--mono); font-variant-numeric: tabular-nums; }
 
 .scene-host { width: 100%; aspect-ratio: 1 / 1; min-height: 260px; border-radius: var(--radius); overflow: hidden; background: radial-gradient(circle at 50% 38%, var(--paper-raised), var(--paper-sunken)); }
@@ -219,8 +241,8 @@ table.data td.num, table.data th.num { text-align: end; font-family: var(--mono)
   border-start-end-radius: var(--radius-s); border-end-end-radius: var(--radius-s);
   font-size: 0.9rem;
 }
-.callout.warn { border-color: var(--warn); background: color-mix(in srgb, var(--warn) 9%, transparent); }
-.callout.danger { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 9%, transparent); }
+.callout.warn { border-color: var(--warn); background: var(--warn-soft); }
+.callout.danger { border-color: var(--danger); background: var(--danger-soft); }
 .callout h4 { margin: 0 0 4px; font-size: 0.92rem; }
 .callout p:last-child { margin-bottom: 0; }
 

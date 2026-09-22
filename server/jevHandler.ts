@@ -23,11 +23,13 @@ import {
 } from '@typesafe-ai/sdk';
 import {
   commandQuestions, commandState, hintQuestions, hintState, misconceptionQuestions,
-  misconceptionState, nextStepQuestions, nextStepState, type QuestionSpec,
+  misconceptionState, nextStepQuestions, nextStepState, stuckQuestions, stuckState,
+  type QuestionSpec,
 } from '../src/jev/questions';
 import {
-  eligibleActivities, resolveCommand, resolveHintLevel, resolveMisconception,
-  resolveNextStep, ruleBasedCommand, ruleBasedHintLevel, ruleBasedNextStep,
+  eligibleActivities, planSecondStep, resolveCommand, resolveHintLevel,
+  resolveMisconception, resolveNextStep, resolveStuck, ruleBasedCommand,
+  ruleBasedHintLevel, ruleBasedNextStep,
 } from '../src/jev/decisions';
 import {
   COMMAND_ACTIONS, type CommandAction, type HintSituation, type JevDecision,
@@ -121,7 +123,7 @@ export function parseRequest(body: unknown): JevRequest {
     };
   }
 
-  if (task === 'next-step') {
+  if (task === 'next-step' || task === 'stuck') {
     const raw = body.signals;
     if (!isRecord(raw)) throw new BadRequest('signals must be an object');
     const struggling = Array.isArray(raw.strugglingWith)
@@ -145,6 +147,15 @@ export function parseRequest(body: unknown): JevRequest {
       .filter((x): x is string => typeof x === 'string')
       .slice(0, LIMITS.candidates);
     if (candidates.length === 0) throw new BadRequest('candidates must not be empty');
+    if (task === 'stuck') {
+      return {
+        task,
+        description: str(body.description, 'description', LIMITS.answerChars),
+        signals,
+        candidates,
+        language: lang(body.language),
+      };
+    }
     return { task, signals, candidates, language: lang(body.language) };
   }
 
@@ -202,7 +213,10 @@ function readChoice(
 
 function readScore(
   answers: Record<string, unknown>, name: string,
-): { score: number; confidence: number; probabilities: Record<string, number> } | null {
+): {
+  score: number; confidence: number; probabilities: Record<string, number>;
+  legend: Record<string, string>;
+} | null {
   const a = answers[name];
   if (!isRecord(a) || a.type !== 'score') return null;
   if (typeof a.score !== 'number' || !Number.isFinite(a.score)) return null;
@@ -214,7 +228,23 @@ function readScore(
       if (typeof v === 'number' && Number.isFinite(v)) probabilities[k] = v;
     }
   }
-  return { score: a.score, confidence, probabilities };
+  // The rubric comes back with the answer. Showing the model's own wording for
+  // the level it picked is more honest than restating it in ours, and it costs
+  // nothing: it is the text we sent, echoed against the level chosen.
+  const legend: Record<string, string> = {};
+  if (isRecord(a.legend)) {
+    for (const [k, v] of Object.entries(a.legend)) {
+      if (typeof v === 'string') legend[k] = v.slice(0, 400);
+    }
+  }
+  return { score: a.score, confidence, probabilities, legend };
+}
+
+/** The rubric line for a rounded score, when the model returned one. */
+function legendOf(
+  answer: { legend: Record<string, string> }, level: number,
+): string | undefined {
+  return answer.legend[String(level)];
 }
 
 function readNoul(answers: Record<string, unknown>, name: string): number | null {
@@ -337,11 +367,23 @@ export async function runTask(
       client, nextStepState(request.signals, request.candidates), spec, signal,
     );
     const trace = traceOf(result, Date.now() - started);
-    const next = readChoice(result.answers as Record<string, unknown>, 'next');
+    const raw = result.answers as Record<string, unknown>;
+    const next = readChoice(raw, 'next');
+    // The two supporting judgments are optional in the strictest sense: a plan
+    // missing them is still a plan, and a malformed answer must never cost the
+    // learner the recommendation they asked for.
+    const ready = readNoul(raw, 'ready_to_practise');
+    const support = readScore(raw, 'support');
+    const supportLevel = support ? Math.round(support.score) : null;
+
     if (!next) {
       return {
         kind: 'next-step', activity: fallback, source: 'jev-uncertain',
-        deterministicChoice: fallback, trace,
+        deterministicChoice: fallback,
+        thenActivity: planSecondStep(fallback, request.candidates, ready, supportLevel),
+        readyToPractise: ready ?? undefined,
+        support: supportLevel ?? undefined,
+        trace,
       };
     }
     const resolved = resolveNextStep(next.choice, next.confidence, request.candidates, fallback);
@@ -350,6 +392,49 @@ export async function runTask(
       activity: resolved.activity,
       source: resolved.used ? 'jev' : 'jev-uncertain',
       confidence: next.confidence,
+      deterministicChoice: fallback,
+      thenActivity: planSecondStep(resolved.activity, request.candidates, ready, supportLevel),
+      readyToPractise: ready ?? undefined,
+      support: supportLevel ?? undefined,
+      supportLegend: supportLevel !== null && support
+        ? legendOf(support, supportLevel) : undefined,
+      trace,
+    };
+  }
+
+  if (request.task === 'stuck') {
+    // Always computed first, exactly as everywhere else: a learner who
+    // described their difficulty gets an answer even if nothing else works.
+    const fallback = ruleBasedNextStep(request.signals, request.candidates);
+    const spec = stuckQuestions(request.candidates);
+    const result = await ask(
+      client,
+      stuckState(request.description, request.signals, request.candidates),
+      spec,
+      signal,
+    );
+    const trace = traceOf(result, Date.now() - started);
+    const raw = result.answers as Record<string, unknown>;
+    const activity = readChoice(raw, 'activity');
+    const onTopic = readNoul(raw, 'on_topic');
+    const specificity = readScore(raw, 'specificity');
+    if (!activity || onTopic === null || !specificity) {
+      return {
+        kind: 'stuck', activity: null, source: 'jev-uncertain',
+        needsDetail: true, deterministicChoice: fallback, trace,
+      };
+    }
+    const resolved = resolveStuck(
+      activity.choice, activity.confidence, onTopic, specificity.score, request.candidates,
+    );
+    return {
+      kind: 'stuck',
+      activity: resolved.activity,
+      source: resolved.used ? 'jev' : 'jev-uncertain',
+      confidence: activity.confidence,
+      onTopic,
+      specificity: specificity.score,
+      needsDetail: resolved.needsDetail,
       deterministicChoice: fallback,
       trace,
     };

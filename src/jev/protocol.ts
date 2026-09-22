@@ -9,7 +9,8 @@
  */
 
 /** The tasks the server is willing to ask Jev about. */
-export type JevTask = 'misconception' | 'next-step' | 'hint-level' | 'command';
+export type JevTask =
+  | 'misconception' | 'next-step' | 'hint-level' | 'command' | 'stuck';
 
 /** Where a judgment came from. Shown in the UI; never guessed at. */
 export type DecisionSource =
@@ -60,6 +61,25 @@ export interface NextStepRequest {
   language: 'en' | 'fa';
 }
 
+/**
+ * A learner describing, in their own words, what they are finding hard.
+ *
+ * The one thing here that no rule can do. "I keep losing track of which way
+ * round R prime goes" and "I can get the first layer but then I'm guessing"
+ * are different problems with different answers, and neither contains a
+ * keyword worth matching on. The description goes to the model; the list of
+ * things it may route to is computed first and is not negotiable.
+ */
+export interface StuckRequest {
+  task: 'stuck';
+  /** The learner's own words. Length-capped by the server. */
+  description: string;
+  /** Activity ids the deterministic prerequisite filter has already approved. */
+  candidates: string[];
+  signals: LearnerSignals;
+  language: 'en' | 'fa';
+}
+
 export interface HintLevelRequest {
   task: 'hint-level';
   situation: HintSituation;
@@ -73,7 +93,8 @@ export interface CommandRequest {
 }
 
 export type JevRequest =
-  | MisconceptionRequest | NextStepRequest | HintLevelRequest | CommandRequest;
+  | MisconceptionRequest | NextStepRequest | HintLevelRequest | CommandRequest
+  | StuckRequest;
 
 /**
  * Everything the tutor knows about a learner, as numbers.
@@ -140,6 +161,16 @@ export const MISCONCEPTION_LABELS = [
 ] as const;
 export type MisconceptionLabel = (typeof MISCONCEPTION_LABELS)[number];
 
+/**
+ * A plan rather than a single pick.
+ *
+ * Three independent judgments are asked about the same learner record in one
+ * request - what to do now, whether reading has stopped paying and practice
+ * would pay more, and how much support the work should carry. They cannot see
+ * one another's answers, which is what makes the second and third useful
+ * rather than restatements of the first, and code composes them into two
+ * ordered steps. One round trip, one latency, three things worth knowing.
+ */
 export interface NextStepDecision {
   kind: 'next-step';
   /** One of the candidate ids the client supplied. Never anything else. */
@@ -147,6 +178,38 @@ export interface NextStepDecision {
   source: DecisionSource;
   confidence?: number;
   /** What the deterministic rule would have chosen, always computed. */
+  deterministicChoice: string;
+  /** The step after this one, chosen in code from the judgments below. */
+  thenActivity: string | null;
+  /** Probability that practice would now help more than more reading. */
+  readyToPractise?: number;
+  /** 0..3: how much scaffolding the next piece of work should carry. */
+  support?: number;
+  /** The model's own words for the support level it picked. */
+  supportLegend?: string;
+  trace?: JevTrace;
+}
+
+/**
+ * Where a described difficulty should send the learner.
+ *
+ * `activity` is null when the model was not confident, the description was
+ * not about learning the cube, or it was too vague to act on - three different
+ * situations the interface reports differently, because "say a bit more" and
+ * "that isn't something this application covers" are different answers.
+ */
+export interface StuckDecision {
+  kind: 'stuck';
+  activity: string | null;
+  source: DecisionSource;
+  confidence?: number;
+  /** Probability the description is about learning this subject at all. */
+  onTopic?: number;
+  /** 0..2: how specific the description was. */
+  specificity?: number;
+  /** True when the application should ask for more detail rather than route. */
+  needsDetail: boolean;
+  /** Always computed: where the rules alone would have sent them. */
   deterministicChoice: string;
   trace?: JevTrace;
 }
@@ -195,7 +258,8 @@ export interface CommandDecision {
 }
 
 export type JevDecision =
-  | MisconceptionDecision | NextStepDecision | HintLevelDecision | CommandDecision;
+  | MisconceptionDecision | NextStepDecision | HintLevelDecision | CommandDecision
+  | StuckDecision;
 
 /* --------------------------------------------------------------- errors --- */
 

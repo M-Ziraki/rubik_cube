@@ -9,8 +9,8 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  MAX_HINT_LEVEL, eligibleActivities, resolveCommand, resolveHintLevel,
-  resolveMisconception, resolveNextStep, ruleBasedCommand, ruleBasedHintLevel,
+  MAX_HINT_LEVEL, eligibleActivities, planSecondStep, resolveCommand, resolveHintLevel,
+  resolveMisconception, resolveNextStep, resolveStuck, ruleBasedCommand, ruleBasedHintLevel,
   ruleBasedNextStep,
 } from './decisions';
 import {
@@ -501,5 +501,79 @@ describe('the transport', () => {
     const controller = new AbortController();
     await askJev({ task: 'command', utterance: 'x', language: 'en' }, controller.signal);
     expect(fetchMock).toHaveBeenCalledOnce();
+  });
+});
+
+/* ======================================== the plan and the stuck routing === */
+
+describe('the second step of a plan', () => {
+  const candidates = ['lesson-graph', 'practice-efficiency', 'explore-map', 'lesson-distance'];
+
+  it('is nothing when there is only one thing to do', () => {
+    expect(planSecondStep('lesson-graph', ['lesson-graph'], 0.9, 1)).toBeNull();
+  });
+
+  it('follows reading with practice when practice would now pay more', () => {
+    expect(planSecondStep('lesson-graph', candidates, 0.8, 0)).toBe('practice-efficiency');
+  });
+
+  it('follows reading with more reading when it would not', () => {
+    expect(planSecondStep('lesson-graph', candidates, 0.2, 0)).toBe('lesson-distance');
+  });
+
+  it('offers a demonstration instead when the support level is high', () => {
+    expect(planSecondStep('lesson-graph', candidates, 0.2, 3)).toBe('explore-map');
+  });
+
+  it('falls back to course order when no judgment arrived', () => {
+    // The two supporting questions are allowed to fail without costing the
+    // learner the recommendation they actually asked for.
+    expect(planSecondStep('lesson-graph', candidates, null, null)).toBe('lesson-distance');
+  });
+
+  it('never repeats the first step', () => {
+    for (const ready of [0, 0.5, 1]) {
+      for (const support of [0, 1, 2, 3]) {
+        expect(planSecondStep('practice-efficiency', candidates, ready, support))
+          .not.toBe('practice-efficiency');
+      }
+    }
+  });
+});
+
+describe('routing a described difficulty', () => {
+  const candidates = ['lesson-notation', 'practice-efficiency', 'compare-solvers'];
+
+  it('routes a specific, on-topic description', () => {
+    expect(resolveStuck('lesson-notation', 0.8, 0.95, 1.9, candidates))
+      .toEqual({ activity: 'lesson-notation', needsDetail: false, used: true });
+  });
+
+  it('refuses to route something that is not about the subject', () => {
+    // Off-topic outranks everything, including a confident choice: a sentence
+    // about the weather has no right answer among the lessons.
+    expect(resolveStuck('lesson-notation', 0.95, 0.05, 2, candidates))
+      .toEqual({ activity: null, needsDetail: false, used: true });
+  });
+
+  it('asks for more when the description is too vague to act on', () => {
+    expect(resolveStuck('lesson-notation', 0.9, 0.9, 0.3, candidates))
+      .toEqual({ activity: null, needsDetail: true, used: true });
+  });
+
+  it('accepts the model saying nothing fits', () => {
+    expect(resolveStuck('none', 0.9, 0.9, 1.9, candidates))
+      .toEqual({ activity: null, needsDetail: false, used: true });
+  });
+
+  it('never routes to an activity that was not a candidate', () => {
+    // The prerequisite filter runs first and is not negotiable; a label
+    // outside the list is evidence of nothing.
+    expect(resolveStuck('lesson-gods-number', 0.99, 0.99, 2, candidates).activity).toBeNull();
+  });
+
+  it('asks for more rather than acting on a low-confidence route', () => {
+    const out = resolveStuck('lesson-notation', 0.2, 0.9, 1.9, candidates);
+    expect(out).toEqual({ activity: null, needsDetail: true, used: false });
   });
 });

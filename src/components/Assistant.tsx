@@ -39,7 +39,7 @@ import {
 import { ACTIVITIES } from '../jev/questions';
 import {
   MUTATING_ACTIONS,
-  type CommandAction, type CommandDecision, type NextStepDecision,
+  type CommandAction, type CommandDecision, type NextStepDecision, type StuckDecision,
 } from '../jev/protocol';
 
 /* ------------------------------------------------------------ the state --- */
@@ -157,6 +157,7 @@ function AssistantPanel({ open, status, onHardFailure }: {
 
         <div className="assistant-body">
           <NextStepSection onHardFailure={onHardFailure} />
+          <StuckSection />
           {ctx.commandSink ? <CommandSection sink={ctx.commandSink} /> : null}
           {ctx.actions.length ? (
             <section className="assistant-section" data-assistant="page-actions">
@@ -234,6 +235,9 @@ function NextStepSection({ onHardFailure }: { onHardFailure: (v: boolean) => voi
   const decision = task.decision;
   const chosen = decision?.activity ?? ruleChoice;
   const activity = ACTIVITIES.find((a) => a.id === chosen);
+  const then = decision?.thenActivity
+    ? ACTIVITIES.find((a) => a.id === decision.thenActivity) ?? null
+    : null;
   const source = decision ? decision.source : 'deterministic';
   const disagreed = decision !== null && decision.deterministicChoice !== decision.activity;
 
@@ -258,8 +262,26 @@ function NextStepSection({ onHardFailure }: { onHardFailure: (v: boolean) => voi
         {asked && task.phase !== 'thinking' && activity ? (
           <div className="assistant-result">
             <JevBadge source={source} confidence={decision?.confidence} />
-            <strong className="assistant-answer">{t(`jev.activity.${activity.id}`)}</strong>
-            <p className="card-note assistant-p">{t(`jev.activity.${activity.id}.why`)}</p>
+            <ol className="plan">
+              <li>
+                <span className="plan-when">{t('assist.plan.now')}</span>
+                <strong className="assistant-answer">{t(`jev.activity.${activity.id}`)}</strong>
+                <span className="card-note">{t(`jev.activity.${activity.id}.why`)}</span>
+              </li>
+              {/*
+                The second step exists only when the model answered the two
+                supporting questions, because it is derived from them. A plan
+                with one step is what the rules alone can offer, and the panel
+                says so rather than inventing a second.
+              */}
+              {then ? (
+                <li>
+                  <span className="plan-when">{t('assist.plan.then')}</span>
+                  <strong>{t(`jev.activity.${then.id}`)}</strong>
+                  <span className="card-note">{t(`jev.activity.${then.id}.why`)}</span>
+                </li>
+              ) : null}
+            </ol>
             <div className="row tight">
               <button
                 className="btn primary"
@@ -318,8 +340,30 @@ function ExplainNextStep({ signals, candidates, decision }: {
               <td>{t('assist.next.eligible')}</td>
               <td className="num">{candidates.length}</td>
             </tr>
+            {decision?.readyToPractise !== undefined ? (
+              <tr>
+                <td>{t('assist.next.ready')}</td>
+                <td className="num">{Math.round(decision.readyToPractise * 100)}%</td>
+              </tr>
+            ) : null}
+            {decision?.support !== undefined ? (
+              <tr>
+                <td>{t('assist.next.support')}</td>
+                <td className="num">{decision.support} / 3</td>
+              </tr>
+            ) : null}
           </tbody>
         </table>
+        {/*
+          The rubric line the model picked, in the model's own words rather
+          than ours. It is the text we sent, echoed back against the level it
+          chose, so it is a quotation and not a paraphrase.
+        */}
+        {decision?.supportLegend ? (
+          <p className="card-note assistant-p" style={{ marginTop: 8 }}>
+            <em>{decision.supportLegend}</em>
+          </p>
+        ) : null}
         {probs && probs.type === 'choice' ? (
           <div style={{ marginTop: 10 }}>
             <div className="card-note" style={{ marginBottom: 4 }}>{t('assist.next.spread')}</div>
@@ -341,6 +385,111 @@ function ExplainNextStep({ signals, candidates, decision }: {
         </p>
       </div>
     </details>
+  );
+}
+
+/* --------------------------------------------------- a described problem --- */
+
+/**
+ * "What are you stuck on?"
+ *
+ * The one thing in this panel that no rule could do. A learner who writes "I
+ * can do the first layer and then I'm just guessing" has said something
+ * specific and useful, and no keyword in that sentence maps to an activity.
+ * The model reads it; the list of places it may send them is computed from
+ * their prerequisites first; and three independent judgments decide between
+ * routing, asking for more, and admitting the course does not cover it.
+ *
+ * Without a key it is not shown at all, because there is nothing honest to
+ * put in its place: a keyword matcher pretending to read a sentence would be
+ * worse than the panel saying plainly that this part needs a model.
+ */
+function StuckSection(): JSX.Element | null {
+  const { t, lang } = useI18n();
+  const state = useAppState((s) => s);
+  const task = useJevTask<StuckDecision>();
+  const [text, setText] = useState('');
+  const [sent, setSent] = useState(false);
+
+  const signals = learnerSignals(state);
+  const candidates = eligibleActivities(signals, state.progress.lessonsDone);
+
+  if (!task.available) return null;
+
+  const submit = async (e: React.FormEvent): Promise<void> => {
+    e.preventDefault();
+    const description = text.trim();
+    if (description.length < 3) return;
+    setSent(true);
+    await task.run({ task: 'stuck', description, candidates, signals, language: lang });
+  };
+
+  const decision = task.decision;
+  const routed = decision?.activity
+    ? ACTIVITIES.find((a) => a.id === decision.activity) ?? null
+    : null;
+  const failed = task.phase === 'failed' && task.error !== 'disabled';
+
+  return (
+    <section className="assistant-section" data-assistant="stuck">
+      <h3 className="assistant-h">{t('assist.stuck.title')}</h3>
+      <form onSubmit={submit} className="stack" style={{ gap: 6 }}>
+        <textarea
+          data-jev="stuck-text"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={t('assist.stuck.placeholder')}
+          aria-label={t('assist.stuck.title')}
+          maxLength={600}
+          rows={3}
+        />
+        <div className="row tight">
+          <button className="btn" type="submit" data-jev="stuck" disabled={text.trim().length < 3}>
+            {t('assist.stuck.send')}
+          </button>
+        </div>
+      </form>
+
+      <div aria-live="polite">
+        {task.phase === 'thinking' ? <JevThinking /> : null}
+        {failed ? (
+          <>
+            <JevFailure code={task.error ?? 'server'} retryAfter={task.retryAfter} />
+            <p className="card-note assistant-p">{t('assist.stuck.failed')}</p>
+          </>
+        ) : null}
+
+        {sent && decision ? (
+          <div className="assistant-result">
+            <JevBadge source={decision.source} confidence={decision.confidence} />
+            {routed ? (
+              <>
+                <strong className="assistant-answer">{t(`jev.activity.${routed.id}`)}</strong>
+                <p className="card-note assistant-p">{t(`jev.activity.${routed.id}.why`)}</p>
+                <div className="row tight">
+                  <button
+                    className="btn primary" data-assistant="stuck-go"
+                    onClick={() => { go(routed.route); session.setAssistantOpen(false); }}
+                  >
+                    {t('jev.tutor.go')}
+                  </button>
+                  <button
+                    className="btn ghost small" data-assistant="stuck-again"
+                    onClick={() => { setSent(false); task.cancel(); }}
+                  >
+                    {t('assist.stuck.notThat')}
+                  </button>
+                </div>
+              </>
+            ) : decision.needsDetail ? (
+              <p className="assistant-p" data-assistant="stuck-detail">{t('assist.stuck.moreDetail')}</p>
+            ) : (
+              <p className="assistant-p" data-assistant="stuck-none">{t('assist.stuck.noMatch')}</p>
+            )}
+          </div>
+        ) : null}
+      </div>
+    </section>
   );
 }
 

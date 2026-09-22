@@ -283,3 +283,100 @@ export const COMMAND_CASES: CommandCase[] = [
     note: 'Too vague to act on. Even if routed, it must need confirmation.',
   },
 ];
+
+/* ------------------------------------- a learner describing a difficulty --- */
+
+/**
+ * The cases for "what are you stuck on?".
+ *
+ * These are the hardest to write honestly, because several of them have no
+ * single right answer - "I can do the first layer and then I'm guessing" could
+ * fairly go to efficiency practice or to the method lesson - so `tolerant`
+ * does more work here than anywhere else. What is *not* negotiable is the
+ * three cases at the end: a sentence about nothing, a sentence about something
+ * else, and a sentence too vague to act on each have exactly one right answer,
+ * and routing them to a lesson would be a failure however plausible the lesson.
+ */
+export interface StuckCase {
+  id: string;
+  language: 'en' | 'fa';
+  description: string;
+  /** The activity id, or 'none' to mean "do not route this". */
+  expected: string;
+  tolerant?: string[];
+  /** 'detail' when the right behaviour is to ask for more, 'off' when off-topic. */
+  outcome?: 'route' | 'detail' | 'off';
+  note: string;
+}
+
+export const STUCK_CASES: StuckCase[] = [
+  {
+    id: 'stuck-prime-en', language: 'en',
+    description: "I keep losing track of which way round R prime is supposed to go",
+    expected: 'lesson-notation', outcome: 'route',
+    note: 'Specific, and maps to exactly one lesson. The baseline case.',
+  },
+  {
+    id: 'stuck-prime-fa', language: 'fa',
+    description: 'همیشه یادم می‌رود جهت R وارون به کدام طرف است',
+    expected: 'lesson-notation', outcome: 'route',
+    note: 'The same difficulty in Persian, to compare the two languages directly.',
+  },
+  {
+    id: 'stuck-plan-en', language: 'en',
+    description: 'I can get the first layer and then I am just guessing moves',
+    expected: 'practice-efficiency', tolerant: ['lesson-human-vs-machine'], outcome: 'route',
+    note: 'Two defensible destinations; either is a good answer, none is not.',
+  },
+  {
+    id: 'stuck-plan-fa', language: 'fa',
+    description: 'لایهٔ اول را می‌توانم ولی بعدش فقط حدس می‌زنم',
+    expected: 'practice-efficiency', tolerant: ['lesson-human-vs-machine'], outcome: 'route',
+    note: 'The Persian pair for the case above.',
+  },
+  {
+    id: 'stuck-shortest-en', language: 'en',
+    description: 'I do not understand why a solution can be right but not the shortest one',
+    expected: 'compare-solvers', tolerant: ['lesson-distance', 'lesson-gods-number'],
+    outcome: 'route',
+    note: 'The any-versus-shortest confusion, described rather than named.',
+  },
+  {
+    id: 'stuck-graph-fa', language: 'fa',
+    description: 'فرق نقشهٔ برچسب‌ها با گراف حالت‌ها را نمی‌فهمم',
+    expected: 'lesson-sticker-map', tolerant: ['lesson-graph'], outcome: 'route',
+    note: 'The two-pictures confusion, in Persian.',
+  },
+  {
+    id: 'stuck-vague-en', language: 'en', description: 'it is hard',
+    expected: 'none', outcome: 'detail',
+    note: 'Nothing to act on. Must ask for more rather than route to a guess.',
+  },
+  {
+    id: 'stuck-vague-fa', language: 'fa', description: 'سخت است',
+    expected: 'none', outcome: 'detail',
+    note: 'The same, in Persian, where a shorter sentence is more natural.',
+  },
+  {
+    id: 'stuck-off-en', language: 'en',
+    description: 'my internet keeps dropping out while I am on the train',
+    expected: 'none', outcome: 'off',
+    note: 'Not about the subject at all. Must not be routed to anything.',
+  },
+  {
+    id: 'stuck-off-fa', language: 'fa', description: 'امروز هوا خیلی سرد است',
+    expected: 'none', outcome: 'off',
+    note: 'The Persian off-topic case.',
+  },
+  {
+    id: 'stuck-area-en', language: 'en', description: 'the maths part',
+    expected: 'none', tolerant: ['lesson-graph', 'lesson-distance'], outcome: 'detail',
+    note: 'A named area but no difficulty: the middle rung of the specificity rubric.',
+  },
+  {
+    id: 'stuck-hints-en', language: 'en',
+    description: 'I only ever solve these by taking every hint, I want to stop doing that',
+    expected: 'practice-efficiency', tolerant: ['practice-inverse'], outcome: 'route',
+    note: 'Describes a habit rather than a gap; should still find practice.',
+  },
+];

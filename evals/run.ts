@@ -13,10 +13,31 @@
 
 import { TypeSafeClient, type Questions } from '@typesafe-ai/sdk';
 import {
-  commandQuestions, commandState, misconceptionQuestions, misconceptionState, THRESHOLDS,
+  ACTIVITIES, commandQuestions, commandState, misconceptionQuestions, misconceptionState,
+  stuckQuestions, stuckState, THRESHOLDS,
 } from '../src/jev/questions';
-import { resolveCommand, resolveMisconception, ruleBasedCommand } from '../src/jev/decisions';
-import { COMMAND_CASES, MISCONCEPTION_CASES } from './dataset';
+import {
+  resolveCommand, resolveMisconception, resolveStuck, ruleBasedCommand,
+} from '../src/jev/decisions';
+import { COMMAND_CASES, MISCONCEPTION_CASES, STUCK_CASES } from './dataset';
+import type { LearnerSignals } from '../src/jev/protocol';
+
+/**
+ * The learner these cases are judged against.
+ *
+ * Someone partway through with a mixed record, so that every activity is a
+ * live candidate and the routing is not decided by the prerequisite filter
+ * before the model sees anything. A blank profile would make most of the
+ * cases untestable.
+ */
+const EVAL_LEARNER: LearnerSignals = {
+  lessonsDone: 5, lessonsTotal: 12, exercisesDone: 3,
+  attempts: 6, optimalSolves: 1, avgWasted: 2.5, lastWasted: 3,
+  hintsLastAttempt: 1, strugglingWith: [],
+};
+
+/** Every activity, so routing is judged rather than the filter. */
+const EVAL_CANDIDATES = ACTIVITIES.map((a) => a.id);
 
 const dry = process.argv.includes('--dry');
 
@@ -52,7 +73,15 @@ async function main(): Promise<void> {
       state: commandState(COMMAND_CASES[0].utterance, 'en'),
       questions: commandQuestions(),
     }, null, 2));
-    console.log(`\ncases: ${MISCONCEPTION_CASES.length} misconception, ${COMMAND_CASES.length} command`);
+    console.log('\n--- one "what are you stuck on" request ---');
+    console.log(JSON.stringify({
+      state: stuckState(STUCK_CASES[0].description, EVAL_LEARNER, EVAL_CANDIDATES),
+      questions: stuckQuestions(EVAL_CANDIDATES),
+    }, null, 2));
+    console.log(
+      `\ncases: ${MISCONCEPTION_CASES.length} misconception, ${COMMAND_CASES.length} command, `
+      + `${STUCK_CASES.length} stuck`,
+    );
     console.log('thresholds:', JSON.stringify(THRESHOLDS));
     return;
   }
@@ -106,14 +135,44 @@ async function main(): Promise<void> {
     });
   }
 
+  for (const c of STUCK_CASES) {
+    const { answers } = await client.systemOne({
+      state: stuckState(c.description, EVAL_LEARNER, EVAL_CANDIDATES) as never,
+      questions: stuckQuestions(EVAL_CANDIDATES) as unknown as Questions,
+    });
+    const activity = answers.activity as { choice: string; confidence: number };
+    const onTopic = (answers.on_topic as { noul: number }).noul;
+    const specificity = (answers.specificity as { score: number }).score;
+    const resolved = resolveStuck(
+      activity.choice, activity.confidence, onTopic, specificity, EVAL_CANDIDATES,
+    );
+    // A case whose right answer is "ask for more" or "not this subject" is
+    // scored on the outcome, not on which activity was nearly chosen.
+    const outcome = resolved.activity === null
+      ? (resolved.needsDetail ? 'detail' : 'off') : 'route';
+    const got = resolved.activity ?? 'none';
+    const wanted = c.outcome ?? 'route';
+    const right = outcome === wanted
+      && (wanted !== 'route' || got === c.expected || Boolean(c.tolerant?.includes(got)));
+    rows.push({
+      id: c.id,
+      language: c.language,
+      expected: `${c.expected}/${wanted}`,
+      got: `${got}/${outcome}`,
+      confidence: activity.confidence,
+      extra: `onTopic=${onTopic.toFixed(2)} specificity=${specificity.toFixed(2)}`,
+      verdict: right ? (got === c.expected ? 'hit' : 'tolerated') : 'miss',
+    });
+  }
+
   const pad = (s: string, n: number): string => s.padEnd(n).slice(0, n);
   console.log(
-    `${pad('case', 22)}${pad('lang', 5)}${pad('expected', 20)}${pad('got', 20)}`
+    `${pad('case', 22)}${pad('lang', 5)}${pad('expected', 28)}${pad('got', 28)}`
     + `${pad('conf', 6)}${pad('verdict', 11)}detail`,
   );
   for (const r of rows) {
     console.log(
-      `${pad(r.id, 22)}${pad(r.language, 5)}${pad(r.expected, 20)}${pad(r.got, 20)}`
+      `${pad(r.id, 22)}${pad(r.language, 5)}${pad(r.expected, 28)}${pad(r.got, 28)}`
       + `${pad(r.confidence.toFixed(2), 6)}${pad(r.verdict, 11)}${r.extra}`,
     );
   }
@@ -137,6 +196,7 @@ async function main(): Promise<void> {
   summarise('misconception', rows.filter((r) => r.id.startsWith('inv-') || r.id.startsWith('map-')
     || r.id.startsWith('god-') || r.id.startsWith('short-')));
   summarise('command', rows.filter((r) => r.id.startsWith('cmd-')));
+  summarise('stuck', rows.filter((r) => r.id.startsWith('stuck-')));
 
   if (rows.some((r) => r.verdict === 'miss')) process.exitCode = 1;
 }

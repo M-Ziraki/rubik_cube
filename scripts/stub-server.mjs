@@ -45,7 +45,47 @@ function stubAnswers(body) {
     const pick = body.candidates?.[body.candidates.length - 1] ?? body.candidates?.[0];
     const probabilities = {};
     for (const c of body.candidates ?? []) probabilities[c] = c === pick ? 0.62 : 0.38 / Math.max(1, body.candidates.length - 1);
-    return { next: { type: 'choice', choice: pick, confidence: 0.62, probabilities } };
+    // Three independent answers in one response, as the real service returns
+    // them, so the plan composition is exercised end to end.
+    const done = body.signals?.lessonsDone ?? 0;
+    return {
+      next: { type: 'choice', choice: pick, confidence: 0.62, probabilities },
+      ready_to_practise: { type: 'noul', noul: done >= 4 ? 0.81 : 0.22 },
+      support: {
+        type: 'score',
+        score: done >= 6 ? 0.9 : 2.2,
+        confidence: 0.64,
+        legend: {
+          0: 'Working independently and efficiently.',
+          1: 'Solving things but not cleanly.',
+          2: 'Can follow the material but not yet apply it.',
+          3: 'At the beginning, or something fundamental has not landed.',
+        },
+        probabilities: { 0: 0.1, 1: 0.3, 2: 0.4, 3: 0.2 },
+      },
+    };
+  }
+  if (body?.task === 'stuck') {
+    const text = String(body.description ?? '').toLowerCase();
+    const vague = text.trim().split(/\s+/).length < 4 || /^(help|hard|lost|stuck)/.test(text);
+    const offTopic = /weather|dinner|football|هوا/.test(text);
+    const pick = /prime|backwards|which way|جهت/.test(text) ? 'lesson-notation'
+      : /first layer|guess|plan|بعدش/.test(text) ? 'practice-efficiency'
+        : /shortest|optimal|کوتاه/.test(text) ? 'compare-solvers'
+          : (body.candidates ?? [])[0] ?? 'none';
+    const choice = (body.candidates ?? []).includes(pick) ? pick : 'none';
+    const probabilities = { [choice]: 0.78, none: 0.22 };
+    return {
+      activity: { type: 'choice', choice, confidence: 0.78, probabilities },
+      on_topic: { type: 'noul', noul: offTopic ? 0.05 : 0.93 },
+      specificity: {
+        type: 'score',
+        score: vague ? 0.3 : 1.8,
+        confidence: 0.7,
+        legend: { 0: 'General.', 1: 'A named area.', 2: 'A particular thing that goes wrong.' },
+        probabilities: { 0: 0.2, 1: 0.3, 2: 0.5 },
+      },
+    };
   }
   if (body?.task === 'hint-level') {
     return {

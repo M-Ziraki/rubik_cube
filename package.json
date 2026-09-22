@@ -21,7 +21,8 @@
     "serve": "vite-node server/index.ts",
     "jev:eval": "vite-node evals/run.ts --",
     "verify:jev": "node scripts/verify-jev.mjs",
-    "verify:ux": "node scripts/verify-ux.mjs"
+    "verify:ux": "node scripts/verify-ux.mjs",
+    "verify:contrast": "node scripts/verify-contrast.mjs"
   },
   "dependencies": {
     "@typesafe-ai/sdk": "0.6.0",

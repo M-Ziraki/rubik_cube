@@ -1,111 +1,280 @@
 /*
- * The palette is lifted from the reference animation: warm paper, muted ink,
- * thin graphite arcs, and the six classic sticker colours used only where they
- * carry meaning.
+ * The design system, as tokens.
+ *
+ * Identity and restraint are in tension in an application like this, so the
+ * rule that settles every argument below is: **identity scales inversely with
+ * density.** The welcome card, a lesson header and an empty state can carry the
+ * cube; the Atlas and the training runner carry almost none of it, because a
+ * workspace with nine controls on screen has no room left for decoration. What
+ * gives the whole application one voice is the geometry and the palette, not
+ * the number of cube illustrations - of which there are two in total.
+ *
+ * Three directions were weighed before this was written.
+ *
+ *   A. Minimal mathematical laboratory. Safe, and close to what was already
+ *      here - which is the problem: the application had no identity to lose.
+ *   B. Modular cube system. Structure taken from the cube itself: a scale
+ *      built on threes, a facelet corner radius, sticker colours reserved for
+ *      meaning. Identity without pictures.
+ *   C. Expressive learning environment. The richest, and the one most likely
+ *      to end in a workspace nobody can read.
+ *
+ * B is the foundation here, C's typographic range is allowed on reading pages
+ * only, and A's restraint is enforced in the workspaces. Every rule below
+ * follows from that.
+ *
+ * Colour is arranged in two layers. The palette holds raw values and is never
+ * referenced by a component; the semantic layer names roles and is all a
+ * component may use. That is what makes the two themes one system rather than
+ * two: dark mode redefines the semantic layer, so a component cannot be
+ * correct in one theme and wrong in the other.
+ *
+ * Every text colour below has been measured against the surface it sits on.
+ * The previous palette failed WCAG 2.2 AA on secondary text at a ratio of
+ * 3.16:1, in roughly 160 places per page, in both themes - which is why the
+ * quiet greys here are darker than they look like they should be. AA does not
+ * permit pale eleven-pixel text, and there is no way to style around that.
  */
+
 :root {
-  --paper: #f4f2ea;
-  --paper-raised: #fbfaf5;
-  --paper-sunken: #eceadf;
-  --ink: #2d2b24;
-  --ink-soft: #5d594c;
-  --ink-faint: #8d8878;
-  --line: #d9d5c6;
-  --line-strong: #bdb8a5;
-  --graphite: #8a8574;
+  /* ------------------------------------------------------ the six faces --- */
+  /*
+   * The sticker colours, and the only saturated colours in the system.
+   *
+   * These are the engine's own values (`FACE_COLORS` in `src/cube/defs.ts`),
+   * so a swatch in the inspector is the same colour as the sticker it names.
+   * They never change between themes and are never used for ordinary
+   * interface furniture: an orange button would make the cube's orange mean
+   * two things at once.
+   */
+  --face-u: #fcfaf4;
+  --face-r: #e2622c;
+  --face-f: #1c6b3f;
+  --face-d: #e8b525;
+  --face-l: #c2352c;
+  --face-b: #1f4f96;
 
-  --u: #f5f3ec;
-  --r: #e2622c;
-  --f: #1c6b3f;
-  --d: #e8b525;
-  --l: #c2352c;
-  --b: #1f4f96;
+  /* Kept as the short names the components already use. */
+  --u: var(--face-u);
+  --r: var(--face-r);
+  --f: var(--face-f);
+  --d: var(--face-d);
+  --l: var(--face-l);
+  --b: var(--face-b);
 
-  --accent: #1c6b3f;
-  --accent-soft: #e4ece6;
-  --warn: #b4641f;
-  --danger: #b03127;
-  --ok: #2f7a4f;
+  /* ---------------------------------------------------- modular scale --- */
+  /*
+   * Threes, because the cube is three.
+   *
+   * Not a gimmick and not a constraint: it is one geometric progression used
+   * everywhere instead of the twelve unrelated pixel values the stylesheets
+   * had accumulated, and it happens to be derived from the subject. Layouts
+   * that want something else may say so; most do not.
+   */
+  --s-1: 3px;
+  --s-2: 6px;
+  --s-3: 9px;
+  --s-4: 12px;
+  --s-5: 18px;
+  --s-6: 27px;
+  --s-7: 36px;
+  --s-8: 54px;
 
+  /* A facelet has a small, even radius; everything inherits from that. */
+  --radius-xs: 3px;
   --radius-s: 6px;
-  --radius: 12px;
+  --radius: 9px;
+  --radius-m: 12px;
   --radius-l: 18px;
-  --shadow-s: 0 1px 2px rgba(45, 43, 36, 0.06), 0 2px 8px rgba(45, 43, 36, 0.04);
-  --shadow: 0 2px 6px rgba(45, 43, 36, 0.07), 0 12px 32px rgba(45, 43, 36, 0.07);
 
+  /* ------------------------------------------------------- typography --- */
   --serif: 'Fraunces', 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
   --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
+  /*
+   * One scale, in one place. The smallest step is 12.5px rather than the
+   * 11px the interface had been using, because a label that fails to be read
+   * is not a smaller label, it is a missing one.
+   */
+  /*
+   * The smallest size that carries a sentence. Anything under this is either
+   * an uppercase micro-label with generous tracking - which stays legible
+   * because of the tracking - or it should not be there.
+   */
+  --text-2xs: 0.72rem;
+  --text-xs: 0.78rem;
+  --text-s: 0.86rem;
+  --text-m: 0.94rem;
+  --text-base: 1rem;
+  --text-l: 1.12rem;
+  --text-xl: clamp(1.15rem, 2.2vw, 1.5rem);
+  --text-2xl: clamp(1.35rem, 2.6vw, 1.75rem);
+  --text-3xl: clamp(1.8rem, 3.6vw, 2.5rem);
+
+  --tracking-label: 0.08em;
+
+  /* ------------------------------------------------------------ depth --- */
+  /*
+   * Two shadows, both shallow. A mathematical instrument should look milled
+   * rather than floated, so elevation is carried mostly by a hairline border
+   * and a change of surface, with the shadow only confirming it.
+   */
+  --shadow-s: 0 1px 2px rgb(38 36 25 / 6%), 0 2px 8px rgb(38 36 25 / 4%);
+  --shadow: 0 2px 6px rgb(38 36 25 / 7%), 0 12px 32px rgb(38 36 25 / 7%);
+
+  /* ----------------------------------------------------------- motion --- */
+  /*
+   * One curve, named after what it is borrowed from: a cube face turns fast
+   * and settles without bouncing. It is used for panels and disclosures and
+   * for nothing that pretends to be a cube.
+   */
+  --ease-turn: cubic-bezier(0.32, 0.72, 0.24, 1);
+  --t-fast: 120ms;
+  --t-panel: 220ms;
+
   --sidebar-w: 248px;
-  color-scheme: light;
 }
 
+/* ===================================================== light (default) === */
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --paper: #17160f;
-    --paper-raised: #1f1e16;
-    --paper-sunken: #121109;
-    --ink: #ece7d8;
-    --ink-soft: #b3ad99;
-    --ink-faint: #837e6c;
-    --line: #322f24;
-    --line-strong: #474334;
-    --graphite: #6f6a59;
-    --accent: #5fbf8a;
-    --accent-soft: #1d2c23;
-    --warn: #dc9a4d;
-    --danger: #e0766a;
-    --ok: #5fbf8a;
-    --shadow-s: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
-    --shadow: 0 2px 6px rgba(0, 0, 0, 0.45), 0 12px 32px rgba(0, 0, 0, 0.4);
-    color-scheme: dark;
-  }
-}
-
-:root[data-theme='dark'] {
-  --paper: #17160f;
-  --paper-raised: #1f1e16;
-  --paper-sunken: #121109;
-  --ink: #ece7d8;
-  --ink-soft: #b3ad99;
-  --ink-faint: #837e6c;
-  --line: #322f24;
-  --line-strong: #474334;
-  --graphite: #6f6a59;
-  --accent: #5fbf8a;
-  --accent-soft: #1d2c23;
-  --warn: #dc9a4d;
-  --danger: #e0766a;
-  --ok: #5fbf8a;
-  --shadow-s: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
-  --shadow: 0 2px 6px rgba(0, 0, 0, 0.45), 0 12px 32px rgba(0, 0, 0, 0.4);
-  color-scheme: dark;
-}
-
-/* The sticker map borrows the reference animation's restrained palette:
-   near-white paper, hairline grey arcs, and one arc picked out in dark ink. */
 :root {
+  --paper: #f4f2ea;
+  --paper-raised: #fbfaf5;
+  --paper-sunken: #eceadf;
+
+  /* Text. Measured against --paper; the ratio is in the comment. */
+  --ink: #262419;          /* 14.2:1 */
+  --ink-soft: #4f4b3e;     /*  7.8:1 */
+  --ink-faint: #6b6658;    /*  4.8:1 - the floor for real text */
+  --ink-quiet: #8d8878;    /*  3.4:1 - decoration only, never text */
+
+  --line: #ded9c9;
+  --line-strong: #bdb8a5;
+  --graphite: #8a8574;
+
+  --accent: #1c6b3f;
+  --accent-strong: #14512f;
+  --accent-soft: #e4ece6;
+  --on-accent: #ffffff;    /*  6.6:1 on --accent */
+
+  --ok: #266742;           /*  5.6:1 */
+  --ok-soft: #e4ece6;
+  --warn: #8f4c14;         /*  5.4:1 */
+  --warn-soft: #f6ece1;
+  --danger: #a32c22;       /*  6.0:1 */
+  --danger-soft: #f8e8e6;
+
+  /*
+   * Jev's own accent: deliberately not the interface accent, so "this was
+   * judged" and "this is the primary action" never look like the same claim.
+   * Blue is the one sticker colour the interface does not otherwise borrow.
+   */
+  --jev: #2d4f86;          /*  6.8:1 */
+  --jev-soft: #e7ecf5;
+
   --map-paper: #faf8f2;
   --map-arc: #9c968a;
   --map-arc-active: #4a443a;
   --map-dot-edge: #2b2721;
   --map-focus: #1c6b3f;
+
+  --scrim: rgb(28 26 18 / 34%);
+
+  color-scheme: light;
 }
+
+/* ============================================================== dark ==== */
+
+/*
+ * Defined once and applied twice: for the system preference, and for the
+ * explicit choice. Anything added here has to be added to both, which is why
+ * there is nothing here but the semantic layer.
+ */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --map-paper: #14130d;
+    --paper: #16150f;
+    --paper-raised: #1f1e16;
+    --paper-sunken: #100f0a;
+
+    --ink: #f0ebdc;          /* 15.3:1 */
+    --ink-soft: #c3bca6;     /*  9.5:1 */
+    --ink-faint: #9d967f;    /*  6.1:1 */
+    --ink-quiet: #6f6a59;    /*  3.1:1 - decoration only */
+
+    --line: #353226;
+    --line-strong: #4b4636;
+    --graphite: #6f6a59;
+
+    --accent: #6cc794;
+    --accent-strong: #8ad7ac;
+    --accent-soft: #1b2b21;
+    --on-accent: #0d1a12;    /*  8.0:1 on --accent */
+
+    --ok: #6cc794;
+    --ok-soft: #1b2b21;
+    --warn: #e0a459;
+    --warn-soft: #2c2114;
+    --danger: #ea8377;
+    --danger-soft: #2e1815;
+
+    --jev: #8fb0e8;
+    --jev-soft: #1a2133;
+
+    --map-paper: #131208;
     --map-arc: #6a6559;
     --map-arc-active: #d8d2c2;
     --map-dot-edge: #0d0c08;
-    --map-focus: #5fbf8a;
+    --map-focus: #6cc794;
+
+    --scrim: rgb(0 0 0 / 52%);
+
+    --shadow-s: 0 1px 2px rgb(0 0 0 / 40%), 0 2px 8px rgb(0 0 0 / 30%);
+    --shadow: 0 2px 6px rgb(0 0 0 / 45%), 0 12px 32px rgb(0 0 0 / 40%);
+
+    color-scheme: dark;
   }
 }
+
 :root[data-theme='dark'] {
-  --map-paper: #14130d;
+  --paper: #16150f;
+  --paper-raised: #1f1e16;
+  --paper-sunken: #100f0a;
+
+  --ink: #f0ebdc;
+  --ink-soft: #c3bca6;
+  --ink-faint: #9d967f;
+  --ink-quiet: #6f6a59;
+
+  --line: #353226;
+  --line-strong: #4b4636;
+  --graphite: #6f6a59;
+
+  --accent: #6cc794;
+  --accent-strong: #8ad7ac;
+  --accent-soft: #1b2b21;
+  --on-accent: #0d1a12;
+
+  --ok: #6cc794;
+  --ok-soft: #1b2b21;
+  --warn: #e0a459;
+  --warn-soft: #2c2114;
+  --danger: #ea8377;
+  --danger-soft: #2e1815;
+
+  --jev: #8fb0e8;
+  --jev-soft: #1a2133;
+
+  --map-paper: #131208;
   --map-arc: #6a6559;
   --map-arc-active: #d8d2c2;
   --map-dot-edge: #0d0c08;
-  --map-focus: #5fbf8a;
+  --map-focus: #6cc794;
+
+  --scrim: rgb(0 0 0 / 52%);
+
+  --shadow-s: 0 1px 2px rgb(0 0 0 / 40%), 0 2px 8px rgb(0 0 0 / 30%);
+  --shadow: 0 2px 6px rgb(0 0 0 / 45%), 0 12px 32px rgb(0 0 0 / 40%);
+
+  color-scheme: dark;
 }

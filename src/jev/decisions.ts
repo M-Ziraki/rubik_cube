@@ -122,6 +122,73 @@ export function resolveNextStep(
   return { activity: choice, used: true };
 }
 
+/**
+ * The second step of the plan, chosen in code from two independent judgments.
+ *
+ * This is where the fan-out earns its keep. The model is not asked "what
+ * should the plan be" - a question with no single right answer and no way to
+ * check it - but three narrow questions whose answers code can combine under
+ * a rule anybody can read: if practice would now pay more, follow the first
+ * step with practice; otherwise follow it with reading, and let the support
+ * level decide whether that reading comes with a demonstration attached.
+ */
+export function planSecondStep(
+  first: string,
+  candidates: readonly string[],
+  readyToPractise: number | null,
+  support: number | null,
+): string | null {
+  const rest = candidates.filter((id) => id !== first);
+  if (rest.length === 0) return null;
+  const practice = rest.filter((id) => id.startsWith('practice-') || id.startsWith('explore-'));
+  const reading = rest.filter((id) => id.startsWith('lesson-'));
+
+  // No judgment available: the next thing in course order, which is what the
+  // rules alone would say.
+  if (readyToPractise === null) return reading[0] ?? rest[0];
+
+  if (readyToPractise >= THRESHOLDS.readyToPractise) return practice[0] ?? rest[0];
+  // Reading, and a demonstration to watch if they need the scaffolding.
+  if (support !== null && support >= 2) {
+    const demo = rest.find((id) => id.startsWith('explore-'));
+    if (demo) return demo;
+  }
+  return reading[0] ?? rest[0];
+}
+
+/* -------------------------------------------- 2b. a described difficulty --- */
+
+/**
+ * Where to send someone who has said what they are stuck on.
+ *
+ * Four ways this ends, and they are genuinely different: a confident route, a
+ * request for more detail, an admission that the description was not about
+ * this subject, and an admission that nothing in the course addresses it. The
+ * last two are answers, not failures, and saying "that is not something this
+ * covers" is more useful than routing to the nearest lesson and hoping.
+ */
+export function resolveStuck(
+  choice: string,
+  confidence: number,
+  onTopic: number,
+  specificity: number,
+  candidates: readonly string[],
+): { activity: string | null; needsDetail: boolean; used: boolean } {
+  if (onTopic < THRESHOLDS.stuckOnTopic) {
+    return { activity: null, needsDetail: false, used: true };
+  }
+  if (specificity < THRESHOLDS.stuckSpecificity) {
+    return { activity: null, needsDetail: true, used: true };
+  }
+  if (choice === 'none' || !candidates.includes(choice)) {
+    return { activity: null, needsDetail: false, used: true };
+  }
+  if (confidence < THRESHOLDS.stuckConfidence) {
+    return { activity: null, needsDetail: true, used: false };
+  }
+  return { activity: choice, needsDetail: false, used: true };
+}
+
 /* --------------------------------------------------------- 3. hint level --- */
 
 /** The ladder has four rungs; this keeps every caller agreed on that. */

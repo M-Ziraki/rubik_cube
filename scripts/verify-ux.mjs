@@ -42,7 +42,7 @@ function watch(page) {
 }
 
 /** A page with a clean profile, so "first visit" means first visit. */
-async function fresh(viewport, { lang = 'en', welcomeSeen = true, touch = false } = {}) {
+async function fresh(viewport, { lang = 'en', welcomeSeen = true, touch = false, theme = 'light' } = {}) {
   const context = await browser.newContext({
     viewport,
     hasTouch: touch,
@@ -50,16 +50,17 @@ async function fresh(viewport, { lang = 'en', welcomeSeen = true, touch = false 
   });
   // Runs on every navigation, so it has to be idempotent: wiping storage each
   // time would erase the preferences the journey is checking survive.
-  await context.addInitScript(([l, seen]) => {
+  await context.addInitScript(([l, seen, th]) => {
     try {
       if (!sessionStorage.getItem('harness.seeded')) {
         localStorage.clear();
         localStorage.setItem('cube-atlas.lang.v1', l);
+        localStorage.setItem('cube-atlas.prefs.v1', JSON.stringify({ turnSpeed: 900, theme: th }));
         if (seen) localStorage.setItem('cube-atlas.welcome.v1', '1');
         sessionStorage.setItem('harness.seeded', '1');
       }
     } catch { /* blocked storage */ }
-  }, [lang, welcomeSeen]);
+  }, [lang, welcomeSeen, theme]);
   const page = watch(await context.newPage());
   return page;
 }
@@ -535,7 +536,122 @@ const ROUTES = ['atlas', 'course', 'lab', 'graph', 'solver', 'scan', 'training',
   await page.context().close();
 }
 
-/* ============ H. contextual help that actually does something (stub) ====== */
+/* ================================= H. an experienced user, moving fast ==== */
+{
+  const page = await fresh({ width: 1440, height: 1000 });
+  await ready(page);
+
+  // Every destination reachable from every page in two keystrokes plus a name.
+  const hops = [];
+  for (const [query, expect] of [
+    ['state space', '#/graph'], ['solvers', '#/solver'], ['training', '#/training'],
+    ['cube lab', '#/lab'], ['distance', '#/course/distance'],
+  ]) {
+    // The shortcut is bound when the shell mounts, so wait for the shell
+    // rather than for a fixed number of milliseconds; a page with a 3D scene
+    // on it can take longer than a timeout to become interactive.
+    await page.waitForSelector('.assistant-dock', { timeout: 20000 });
+    await page.keyboard.press('Control+k');
+    try {
+      await page.waitForSelector('.palette', { timeout: 4000 });
+    } catch {
+      await page.keyboard.press('Control+k');
+      await page.waitForSelector('.palette', { timeout: 8000 });
+    }
+    await page.keyboard.type(query);
+    await page.waitForTimeout(300);
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(1200);
+    hops.push({ query, url: page.url(), ok: page.url().includes(expect) });
+  }
+  check('H1. every section is reachable by name from wherever you are',
+    hops.every((h) => h.ok), hops.filter((h) => !h.ok).map((h) => h.query).join(','));
+  notes.push(`palette: ${hops.length}/${hops.length} destinations reached in one keystroke + name`);
+
+  // The Atlas remembers an expert's layout choice between visits.
+  await page.goto(BASE + '#/atlas');
+  await page.waitForTimeout(1300);
+  const open0 = (await page.$('#atlas-tools')) !== null;
+  if (open0) { await page.click('.tools-toggle'); await page.waitForTimeout(300); }
+  await page.goto(BASE + '#/graph');
+  await page.waitForTimeout(900);
+  await page.goto(BASE + '#/atlas');
+  await page.waitForTimeout(1300);
+  check('H2. the workspace keeps the layout an expert chose',
+    (await page.$('#atlas-tools')) === null);
+
+  // Moving between the two graphs does not disturb the position.
+  await page.click('.tools-toggle');
+  await page.waitForTimeout(300);
+  await page.click('[data-action="scramble"]');
+  await page.waitForTimeout(1600);
+  const before = await snapshot(page);
+  await page.goto(BASE + '#/graph');
+  await page.waitForTimeout(1400);
+  await page.goto(BASE + '#/lab');
+  await page.waitForTimeout(1400);
+  await page.goto(BASE + '#/atlas');
+  await page.waitForTimeout(1400);
+  const after = await snapshot(page);
+  check('H3. the position survives a tour of the other tools',
+    after.facelets === before.facelets, `${after.facelets.slice(0, 12)} vs ${before.facelets.slice(0, 12)}`);
+  await page.context().close();
+}
+
+/* ====================================== I. dark theme and tablet width ==== */
+{
+  const page = await fresh({ width: 1440, height: 1000 }, { theme: 'dark' });
+  await ready(page);
+  const themed = await page.evaluate(() => document.documentElement.dataset.theme);
+  check('I1. the stored theme is applied on load', themed === 'dark', String(themed));
+
+  // The sticker colours are mathematical, not decorative: they must be the
+  // same in both themes or the map means something different at night.
+  const dotsDark = await page.evaluate(() => {
+    const svg = document.querySelector('svg[aria-label]');
+    return [...svg.querySelectorAll('g > g > circle:last-child')]
+      .map((c) => getComputedStyle(c).fill).slice(0, 54);
+  });
+  await page.click('[data-theme-pick="light"]');
+  await page.waitForTimeout(700);
+  const dotsLight = await page.evaluate(() => {
+    const svg = document.querySelector('svg[aria-label]');
+    return [...svg.querySelectorAll('g > g > circle:last-child')]
+      .map((c) => getComputedStyle(c).fill).slice(0, 54);
+  });
+  check('I2. the sticker colours are identical in both themes',
+    dotsDark.length === 54 && dotsDark.join() === dotsLight.join(),
+    `${new Set(dotsDark).size} distinct`);
+
+  await page.click('[data-theme-pick="dark"]');
+  await page.waitForTimeout(500);
+  await page.reload();
+  await page.waitForTimeout(1400);
+  check('I3. the theme survives a reload',
+    (await page.evaluate(() => document.documentElement.dataset.theme)) === 'dark');
+  await page.context().close();
+
+  // A tablet is a third layout, not a narrow desktop or a wide phone.
+  const tab = await fresh({ width: 834, height: 1112 }, { touch: true });
+  await ready(tab);
+  const layout = await tab.evaluate(() => ({
+    sidebar: getComputedStyle(document.querySelector('.sidebar')).display,
+    tabbar: getComputedStyle(document.querySelector('.tabbar')).display,
+    topbar: getComputedStyle(document.querySelector('.topbar')).display,
+    overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  }));
+  check('I4. a tablet gets the compact navigation',
+    layout.sidebar === 'none' && layout.tabbar !== 'none' && layout.topbar !== 'none',
+    JSON.stringify(layout));
+  check('I5. and no horizontal overflow', layout.overflow <= 1, `${layout.overflow}px`);
+
+  await tab.tap('[data-action="scramble"]');
+  await tab.waitForTimeout(1700);
+  check('I6. the essential operations work at tablet width', !(await snapshot(tab)).solved);
+  await tab.context().close();
+}
+
+/* ============ J. contextual help that actually does something (stub) ====== */
 if (WITH_JEV) {
   const page = await fresh({ width: 1440, height: 1000 });
   await ready(page, '#/settings');
@@ -553,16 +669,84 @@ if (WITH_JEV) {
 
   await openAssistant(page);
   const hintAction = await page.$('[data-assistant-action="hint"]');
-  check('H1. the training page offers a hint through the panel', hintAction !== null);
+  check('J1. the training page offers a hint through the panel', hintAction !== null);
   if (hintAction) {
     const before = (await snapshot(page)).facelets;
     await hintAction.click();
     await page.waitForTimeout(2500);
     const body = await page.textContent('.card:has-text("Your attempt")');
-    check('H2. and asking for one produces a hint', /Hint/i.test(body ?? ''),
+    check('J2. and asking for one produces a hint', /Hint/i.test(body ?? ''),
       (body ?? '').replace(/\s+/g, ' ').slice(0, 80));
-    check('H3. without moving the cube', (await snapshot(page)).facelets === before);
+    check('J3. without moving the cube', (await snapshot(page)).facelets === before);
   }
+
+  /* ---- the plan: one request, several judgments, two ordered steps ------ */
+  /*
+   * A plan needs somewhere to go second, and a learner who has read nothing
+   * has exactly one eligible activity - the prerequisite filter sees to that.
+   * So this part of the journey belongs to someone partway through, which is
+   * also the only kind of learner a two-step plan is for.
+   */
+  await page.evaluate(() => {
+    localStorage.setItem('cube-atlas.progress.v1', JSON.stringify({
+      lessonsDone: ['notation', 'pieces', 'laws', 'sticker-map'],
+      exercisesDone: ['notation-q1'],
+      bestByDistance: {},
+      challengeRuns: [{ at: Date.now(), distance: 5, used: 8, optimal: 5 }],
+    }));
+  });
+  // The store reads the record once, at load. Changing a hash is not a load.
+  await page.goto(BASE + '#/course');
+  await page.reload();
+  await page.waitForTimeout(1800);
+  await openAssistant(page);
+  await page.click('[data-jev="recommend"]');
+  await page.waitForTimeout(2500);
+  const steps = await page.$$eval('.plan > li', (els) => els.map((e) => e.textContent.trim()));
+  check('J4. the recommendation is a plan with two ordered steps',
+    steps.length === 2, `${steps.length} steps`);
+  check('J5. and the two steps are different activities',
+    steps.length === 2 && steps[0] !== steps[1]);
+  const detail = await page.textContent('[data-assistant="next"]');
+  check('J6. the supporting judgments are labelled as judgments',
+    /AI judgment|judged/i.test(detail ?? ''), (detail ?? '').replace(/\s+/g, ' ').slice(0, 60));
+
+  /* ---- a described difficulty: route, ask for more, or decline ---------- */
+  const stuckBox = await page.$('[data-jev="stuck-text"]');
+  check('J7. the panel accepts a described difficulty', stuckBox !== null);
+
+  const describe = async (text) => {
+    await page.fill('[data-jev="stuck-text"]', text);
+    await page.click('[data-jev="stuck"]');
+    await page.waitForTimeout(2500);
+  };
+
+  await describe('I can get the first layer and then I am just guessing moves');
+  check('J8. a specific description is routed to an activity',
+    (await page.$('[data-assistant="stuck-go"]')) !== null,
+    (await page.textContent('[data-assistant="stuck"]')).replace(/\s+/g, ' ').slice(0, 70));
+
+  /*
+   * This learner has finished notation and answered its question, so the
+   * notation lesson is not one of the activities the prerequisite filter
+   * offers. A description that points straight at it must therefore be
+   * declined rather than routed: the filter runs first and the model does not
+   * get to overrule it.
+   */
+  await describe('I keep losing track of which way round R prime is supposed to go');
+  check('J8b. and never routed to an activity the filter excluded',
+    (await page.$('[data-assistant="stuck-go"]')) === null
+    && (await page.$('[data-assistant="stuck-none"]')) !== null);
+
+  await describe('help');
+  check('J9. a vague one is answered with a request for more',
+    (await page.$('[data-assistant="stuck-detail"]')) !== null);
+
+  await describe('the weather has been terrible all week');
+  check('J10. and one about something else is declined rather than routed',
+    (await page.$('[data-assistant="stuck-none"]')) !== null
+    && (await page.$('[data-assistant="stuck-go"]')) === null);
+
   await page.context().close();
 }
 

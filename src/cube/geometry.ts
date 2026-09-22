@@ -58,6 +58,61 @@ export function faceletAt(pos: Vec3, normal: Vec3): number {
   return -1;
 }
 
+/* ------------------------------------------------------------- dragging --- */
+
+/**
+ * The face turn a drag across a sticker means.
+ *
+ * `normal` is the outward normal of the sticker under the pointer and `pos`
+ * its cubie coordinate. The drag is given as the world axis the sticker is
+ * being pulled along (0, 1 or 2 for x, y, z) and which way along it. The
+ * renderer works those two out from the camera; everything after that is cube
+ * algebra with no view in it, which is why it lives here and can be checked
+ * against the engine's own move tables rather than by eye in a browser.
+ *
+ * Returns a move index, or -1 when the drag names no face turn: along the
+ * sticker's own normal, or across a middle slice, which no face turn moves.
+ */
+export function dragMove(
+  normal: Vec3, pos: Vec3, alongAxis: number, alongSign: number,
+): number {
+  const normalAxis = normal.findIndex((c) => c !== 0);
+  if (normalAxis < 0 || alongAxis < 0 || alongAxis > 2) return -1;
+  if (alongAxis === normalAxis) return -1;
+  // Three axes, two spoken for: the turn is about whichever is left.
+  const turnAxis = 3 - normalAxis - alongAxis;
+  const coord = pos[turnAxis];
+  if (coord === 0) return -1;
+
+  const faceNormal: Vec3 = [
+    turnAxis === 0 ? coord : 0,
+    turnAxis === 1 ? coord : 0,
+    turnAxis === 2 ? coord : 0,
+  ];
+  const face = FACE_NORMAL.findIndex(
+    (f) => f[0] === faceNormal[0] && f[1] === faceNormal[1] && f[2] === faceNormal[2],
+  );
+  if (face < 0) return -1;
+
+  /*
+   * Clockwise, seen from outside a face, is a *negative* rotation about that
+   * face's outward normal, so a clockwise turn carries a sticker at `pos` in
+   * the direction (-faceNormal) x pos. Asking which way that points settles
+   * the direction outright. The version this replaced instead multiplied four
+   * hand-derived signs together, two of which were the same sign written
+   * twice: they cancelled, and every drag on the U, R or F layers turned the
+   * wrong way while D, L and B turned the right way.
+   */
+  const w: Vec3 = [-faceNormal[0], -faceNormal[1], -faceNormal[2]];
+  const carried = [
+    w[1] * pos[2] - w[2] * pos[1],
+    w[2] * pos[0] - w[0] * pos[2],
+    w[0] * pos[1] - w[1] * pos[0],
+  ][alongAxis];
+  const power = Math.sign(carried) === Math.sign(alongSign) ? 1 : 3;
+  return face * 3 + (power - 1);
+}
+
 /* ------------------------------------------------------------ rotations --- */
 
 export type Mat3 = (v: Vec3) => Vec3;

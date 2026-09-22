@@ -5,6 +5,7 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
 page.on('console', (m) => { if (m.type() === 'error' && !/CERT_AUTHORITY/.test(m.text())) errors.push(m.text()); });
 page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
 const base = 'http://127.0.0.1:4173/';
+const MOVE_NAMES = ['U','U2',"U'",'R','R2',"R'",'F','F2',"F'",'D','D2',"D'",'L','L2',"L'",'B','B2',"B'"];
 const pass = [];
 const fail = [];
 const check = (name, ok, detail = '') => (ok ? pass : fail).push(`${name}${detail ? ' — ' + detail : ''}`);
@@ -134,6 +135,47 @@ await page.waitForTimeout(2500);
 const lessonH1 = await page.textContent('h1');
 check('9b. new lesson renders', lessonH1.includes('sticker map'), lessonH1);
 await page.screenshot({ path: '/tmp/shots/n-lesson.png' });
+
+// 10: a drag turns the layer the way the pointer pulled it, and the opposite
+// drag turns it back. The algebra is covered exhaustively by the unit tests;
+// what this checks is that the camera projection feeding it is wired up.
+await page.goto(base + '#/cube');
+await page.waitForTimeout(2200);
+await page.click('text=Not now').catch(() => {});
+await page.click('[data-speed="instant"]').catch(() => {});
+await page.waitForTimeout(400);
+await page.locator('canvas').first().scrollIntoViewIfNeeded();
+await page.waitForTimeout(700);
+{
+  const cb = await page.locator('canvas').first().boundingBox();
+  // A corner sticker: centres and edges sit in a middle slice on at least one
+  // axis, where a drag correctly turns nothing.
+  const sx = cb.x + cb.width * 0.68;
+  const sy = cb.y + cb.height * 0.43;
+  const dragged = async (ddx, ddy) => {
+    const before = (await page.evaluate(() => window.__cubeAtlasState().moves)).length;
+    await page.mouse.move(sx, sy);
+    await page.mouse.down();
+    for (let i = 1; i <= 10; i++) {
+      await page.mouse.move(sx + (ddx * i) / 10, sy + (ddy * i) / 10);
+      await page.waitForTimeout(16);
+    }
+    await page.mouse.up();
+    await page.waitForTimeout(500);
+    const moves = await page.evaluate(() => window.__cubeAtlasState().moves);
+    return moves.length > before ? moves[moves.length - 1] : -1;
+  };
+  const up = await dragged(0, -70);
+  const down = await dragged(0, 70);
+  const nameOf = (m) => (m < 0 ? '(none)' : MOVE_NAMES[m]);
+  check('10a. dragging a sticker turns a face', up >= 0 && down >= 0,
+    `${nameOf(up)} then ${nameOf(down)}`);
+  check('10b. and the opposite drag turns it back, not the same way again',
+    up >= 0 && down >= 0
+    && Math.floor(up / 3) === Math.floor(down / 3)
+    && (up % 3) + (down % 3) === 2,
+    `${nameOf(up)} vs ${nameOf(down)}`);
+}
 
 console.log('PASS:'); pass.forEach((p) => console.log('  ✓', p));
 if (fail.length) { console.log('FAIL:'); fail.forEach((f) => console.log('  ✗', f)); }

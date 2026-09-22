@@ -11,7 +11,7 @@
 
 import * as THREE from 'three';
 import { FACE_COLORS, FACE_NAMES, MOVE_FACE, MOVE_POWER } from '../cube/defs';
-import { FACE_NORMAL, faceletAt, type Vec3 } from '../cube/geometry';
+import { FACE_NORMAL, dragMove, faceletAt, type Vec3 } from '../cube/geometry';
 
 const CUBIE_SIZE = 0.96;
 const STICKER_INSET = 0.085;
@@ -422,51 +422,29 @@ export class CubeScene {
   /**
    * Work out which face turn a drag across a sticker means.
    *
-   * Project both in-plane directions of the touched sticker onto the screen,
-   * see which one the drag follows, and turn about the other one. The layer is
-   * whichever one contains the sticker you grabbed.
+   * All this does is read the camera: project the two in-plane directions of
+   * the touched sticker onto the screen and see which one the drag follows,
+   * and which way along it. Which layer that turns, and in which direction,
+   * is `dragMove` - cube algebra, kept out of here so it can be tested
+   * without a renderer.
    */
   private dragToMove(pick: { position: Vec3; normal: Vec3 }, dx: number, dy: number): number {
     const n = new THREE.Vector3(...pick.normal);
-    const candidates: { axis: THREE.Vector3; screen: THREE.Vector2 }[] = [];
-    for (const base of [new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1)]) {
+    const candidates: { axis: number; screen: THREE.Vector2 }[] = [];
+    for (let axis = 0; axis < 3; axis++) {
+      const base = new THREE.Vector3(+(axis === 0), +(axis === 1), +(axis === 2));
       if (Math.abs(base.dot(n)) > 0.5) continue;
-      candidates.push({ axis: base.clone(), screen: this.projectDirection(base) });
+      candidates.push({ axis, screen: this.projectDirection(base) });
     }
     if (candidates.length < 2) return -1;
 
     const drag = new THREE.Vector2(dx, -dy).normalize();
-    let bestIdx = 0;
-    let bestScore = -Infinity;
-    candidates.forEach((c, i) => {
-      const score = Math.abs(c.screen.dot(drag));
-      if (score > bestScore) { bestScore = score; bestIdx = i; }
-    });
-    const along = candidates[bestIdx];
-    const other = candidates[1 - bestIdx];
+    let along = candidates[0];
+    for (const c of candidates) {
+      if (Math.abs(c.screen.dot(drag)) > Math.abs(along.screen.dot(drag))) along = c;
+    }
     const sign = Math.sign(along.screen.dot(drag)) || 1;
-
-    // Turning about `other`, in the direction that carries `along` forwards.
-    const axis = other.axis;
-    // rotationAxis x alongAxis should point the way the sticker travels.
-    const cross = new THREE.Vector3().crossVectors(axis, along.axis);
-    const axisSign = cross.dot(n) > 0 ? 1 : -1;
-
-    const axisIndex = axis.x !== 0 ? 0 : axis.y !== 0 ? 1 : 2;
-    const coord = pick.position[axisIndex];
-    if (coord === 0) return -1; // middle slices are not face turns
-    const faceNormal: Vec3 = [
-      axisIndex === 0 ? coord : 0,
-      axisIndex === 1 ? coord : 0,
-      axisIndex === 2 ? coord : 0,
-    ];
-    const face = FACE_NORMAL.findIndex((f) => f[0] === faceNormal[0] && f[1] === faceNormal[1] && f[2] === faceNormal[2]);
-    if (face < 0) return -1;
-
-    // A clockwise turn of a face is a negative rotation about its own normal.
-    const direction = sign * axisSign * (coord > 0 ? 1 : -1) * (axis.dot(new THREE.Vector3(...faceNormal)) > 0 ? 1 : -1);
-    const power = direction > 0 ? 3 : 1;
-    return face * 3 + (power - 1);
+    return dragMove(pick.normal, pick.position, along.axis, sign);
   }
 
   private projectDirection(dir: THREE.Vector3): THREE.Vector2 {

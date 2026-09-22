@@ -24,6 +24,8 @@ interface Entry {
   id: string;
   label: string;
   hint: string;
+  /** Extra search terms, including names this destination used to have. */
+  alias?: string;
   run: () => void;
 }
 
@@ -52,14 +54,32 @@ export function CommandPalette(): JSX.Element | null {
       id: `go-${r.id}`,
       label: t(r.labelKey),
       hint: t(r.blurbKey),
+      alias: r.aliasKey ? t(r.aliasKey) : undefined,
       run: () => go(`#/${r.id}`),
     }));
+    /*
+     * The tabs, by name. Several of these used to be pages, and somebody who
+     * types "solvers" should still land on the solvers rather than being told
+     * there is no such thing - that is the whole bargain of folding nine
+     * destinations into five.
+     */
+    for (const route of ROUTES) {
+      for (const tab of route.tabs ?? []) {
+        out.push({
+          id: `tab-${route.id}-${tab.id}`,
+          label: t(tab.labelKey),
+          hint: t(route.labelKey),
+          alias: tab.aliasKey ? t(tab.aliasKey) : undefined,
+          run: () => go(`#/${route.id}/${tab.id}`),
+        });
+      }
+    }
     for (const lesson of LESSONS) {
       out.push({
         id: `lesson-${lesson.id}`,
         label: t(`lesson.${lesson.id}.title`),
         hint: t('palette.lessonHint'),
-        run: () => go(`#/course/${lesson.id}`),
+        run: () => go(`#/learn/${lesson.id}`),
       });
     }
     out.push({
@@ -72,7 +92,7 @@ export function CommandPalette(): JSX.Element | null {
       id: 'show-welcome',
       label: t('welcome.reopen'),
       hint: t('welcome.reopenHint'),
-      run: () => { session.showWelcome(); go('#/atlas'); },
+      run: () => { session.showWelcome(); go('#/cube'); },
     });
     return out;
   }, [t]);
@@ -81,7 +101,7 @@ export function CommandPalette(): JSX.Element | null {
     const q = query.trim().toLowerCase();
     if (!q) return entries.slice(0, 9);
     return entries
-      .filter((e) => `${e.label} ${e.hint}`.toLowerCase().includes(q))
+      .filter((e) => `${e.label} ${e.hint} ${e.alias ?? ''}`.toLowerCase().includes(q))
       .slice(0, 12);
   }, [entries, query]);
 

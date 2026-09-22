@@ -13,21 +13,21 @@ await page.waitForTimeout(3500);
 await page.screenshot({ path: '/tmp/shots/final-atlas.png' });
 
 // lesson measure + dark mode
-await page.goto(base + '#/course/ladder');
+await page.goto(base + '#/learn/ladder');
 await page.waitForTimeout(3500);
 await page.screenshot({ path: '/tmp/shots/final-lesson.png' });
 await page.click('.sidebar button:has-text("Dark")');
 await page.waitForTimeout(1200);
 await page.screenshot({ path: '/tmp/shots/final-lesson-dark.png' });
 
-await page.goto(base + '#/graph');
+await page.goto(base + '#/explore/state-space');
 await page.waitForTimeout(2000);
 await page.screenshot({ path: '/tmp/shots/final-graph-dark.png' });
 await page.click('.sidebar button:has-text("Light")');
 await page.waitForTimeout(800);
 
 // scan guided solve narrative
-await page.goto(base + '#/scan');
+await page.goto(base + '#/practise/your-cube');
 await page.waitForTimeout(1200);
 await page.click('button:has-text("Fill with a random cube")');
 await page.waitForTimeout(1200);

@@ -288,11 +288,15 @@ await boot();
   // The new AI surfaces have to be translated like everything else, and they
   // have to work with the integration switched off - which is how most people
   // will see them.
-  for (const [hash, needle] of [['#/settings', 'تنظیمات'], ['#/ai-lab', 'آزمایشگاه']]) {
+  // The Jev surfaces are a tab inside Setup now, so the heading names the
+  // section and the tab names the content. Both have to be translated.
+  for (const [hash, needle] of [['#/settings', 'تنظیمات'], ['#/settings/jev', 'Jev']]) {
     await page.goto(BASE + hash);
     await page.waitForTimeout(1500);
     const h1 = await page.textContent('h1');
-    check(`5j. ${hash} is translated`, h1.includes(needle), h1);
+    const tab = await page.textContent('[role="tab"][aria-selected="true"]').catch(() => '');
+    check(`5j. ${hash} is translated`,
+      h1.includes('تنظیمات') && (tab.includes(needle) || h1.includes(needle)), `${h1} / ${tab}`);
     const overflow = await page.evaluate(() =>
       document.documentElement.scrollWidth - document.documentElement.clientWidth);
     check(`5k. ${hash} has no RTL overflow`, overflow <= 1, `${overflow}px`);
@@ -307,7 +311,7 @@ await boot();
     (await page.evaluate(() => document.documentElement.lang)) === 'fa');
 
   // lessons and progress are still reachable in Persian
-  await page.goto(BASE + '#/course');
+  await page.goto(BASE + '#/learn');
   await page.waitForTimeout(1200);
   const courseH1 = await page.textContent('h1');
   check('5i. the course is translated', /[؀-ۿ]/.test(courseH1), courseH1);
@@ -354,20 +358,30 @@ await boot();
   const dots = await mapColours();
   check('7b. the sticker map still draws 54 dots', dots.length === 54, `${dots.length}`);
 
-  await page.goto(BASE + '#/graph');
+  /*
+   * The state-space graph and the sticker map are different objects - one has
+   * whole positions for vertices, the other has 54 stickers - and the check
+   * that they are never confused survives the restructure: the graph is now a
+   * tab under Explore rather than a page, so this asserts it is still its own
+   * destination with its own name and its own canvas.
+   */
+  await page.goto(BASE + '#/explore/state-space');
   await page.waitForTimeout(2500);
-  const graphH1 = await page.textContent('h1');
-  check('7c. the state-space graph is still its own page', /state space/i.test(graphH1), graphH1);
+  const graphTab = await page.textContent('[role="tab"][aria-selected="true"]');
+  check('7c. the state-space graph is still its own destination',
+    /state space/i.test(graphTab), graphTab);
   const canvas = await page.$$eval('canvas', (e) => e.length);
   check('7d. the state-space graph still renders', canvas > 0, `${canvas} canvases`);
 
-  for (const [hash, re] of [['#/course', /course/i], ['#/lab', /cube lab/i],
-    ['#/solver', /solvers/i], ['#/scan', /your cube/i], ['#/training', /training/i],
-    ['#/ai-lab', /learning lab/i], ['#/settings', /settings/i]]) {
+  // Every section, and every tab inside one, still reaches its own content.
+  for (const [hash, re] of [['#/learn', /learn/i], ['#/cube/sequences', /the cube/i],
+    ['#/explore/solvers', /solvers/i], ['#/practise/your-cube', /your cube/i],
+    ['#/practise', /challenges/i], ['#/settings/jev', /jev/i], ['#/settings', /general/i]]) {
     await page.goto(BASE + hash);
     await page.waitForTimeout(1800);
     const h1 = await page.textContent('h1');
-    check(`7e. ${hash} renders`, re.test(h1), h1);
+    const tab = await page.textContent('[role="tab"][aria-selected="true"]').catch(() => '');
+    check(`7e. ${hash} renders`, re.test(h1) || re.test(tab), `${h1} / ${tab}`);
   }
 }
 

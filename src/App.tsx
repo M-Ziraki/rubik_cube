@@ -21,20 +21,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { actions, useAppState } from './state/store';
 import { prepareTables } from './solver/client';
-import { AtlasPage } from './pages/AtlasPage';
-import { LabPage } from './pages/LabPage';
-import { GraphPage } from './pages/GraphPage';
-import { CoursePage } from './pages/CoursePage';
-import { SolverPage } from './pages/SolverPage';
-import { ScanPage } from './pages/ScanPage';
-import { TrainingPage } from './pages/TrainingPage';
-import { LearningLabPage } from './pages/LearningLabPage';
-import { SettingsPage } from './pages/SettingsPage';
+import {
+  LearnSection, CubeSection, PractiseSection, ExploreSection, SettingsSection,
+} from './pages/sections';
 import { LESSONS } from './lessons/registry';
 import { LANGUAGES, useI18n } from './i18n/I18nProvider';
 import { jevConfig, jevActive, useJevConfig } from './jev/config';
 import { probeJevStatus } from './jev/client';
-import { ROUTES, SECTIONS, go, routeById, useRoute, type RouteDef } from './state/navigation';
+import {
+  ROUTES, SECTIONS, go, redirectLegacy, routeById, useRoute, type RouteDef,
+} from './state/navigation';
 import { session, useSession } from './state/session';
 import { useNarrow } from './state/useMediaQuery';
 import { AssistantDock } from './components/Assistant';
@@ -43,15 +39,11 @@ import { Sheet } from './components/Sheet';
 import { CubeMark, FaceletLoader } from './components/CubeMark';
 
 const PAGES: Record<string, () => JSX.Element> = {
-  atlas: () => <AtlasPage />,
-  course: () => <CoursePage />,
-  lab: () => <LabPage />,
-  graph: () => <GraphPage />,
-  solver: () => <SolverPage />,
-  scan: () => <ScanPage />,
-  training: () => <TrainingPage />,
-  'ai-lab': () => <LearningLabPage />,
-  settings: () => <SettingsPage />,
+  learn: () => <LearnSection />,
+  cube: () => <CubeSection />,
+  practise: () => <PractiseSection />,
+  explore: () => <ExploreSection />,
+  settings: () => <SettingsSection />,
 };
 
 export function App(): JSX.Element {
@@ -76,6 +68,11 @@ export function App(): JSX.Element {
   // upstream call, costs nothing, and is the only request the application
   // sends without being asked - guessing instead would mean showing the wrong
   // configuration state on every page.
+  // An address from before the restructure lands in the right tab rather than
+  // on the default page. Done before the first paint so nobody sees the wrong
+  // section flash past.
+  useEffect(() => { redirectLegacy(); }, []);
+
   useEffect(() => {
     const controller = new AbortController();
     probeJevStatus(controller.signal)
@@ -115,7 +112,7 @@ export function App(): JSX.Element {
 
       <aside className="sidebar" data-overlay-blocks>
         <div className="brand">
-          <button className="brand-mark" onClick={() => go('#/atlas')}>
+          <button className="brand-mark" onClick={() => go('#/cube')}>
             <CubeMark size={28} />
             <span>
               <span className="brand-title">{t('app.title')}</span>
@@ -132,7 +129,7 @@ export function App(): JSX.Element {
                   key={r.id}
                   route={r}
                   active={r.id === active.id}
-                  badge={r.id === 'course' ? `${lessonsDone.length}/${LESSONS.length}` : undefined}
+                  badge={r.id === 'learn' ? `${lessonsDone.length}/${LESSONS.length}` : undefined}
                 />
               ))}
             </div>
@@ -158,7 +155,7 @@ export function App(): JSX.Element {
         is reachable from the tab bar or from "More".
       */}
       <div className="topbar" data-overlay-blocks>
-        <button className="topbar-home" onClick={() => go('#/atlas')} aria-label={t('app.title')}>
+        <button className="topbar-home" onClick={() => go('#/cube')} aria-label={t('app.title')}>
           <CubeMark size={26} />
         </button>
         <span className="topbar-where">
@@ -169,7 +166,7 @@ export function App(): JSX.Element {
       </div>
 
       <main className="main" id="main" tabIndex={-1} data-overlay-blocks>
-        <div className={`page page-${active.kind}`}>{(PAGES[active.id] ?? PAGES.atlas)()}</div>
+        <div className={`page page-${active.kind}`}>{(PAGES[active.id] ?? PAGES.cube)()}</div>
         <div className="tabbar-spacer" aria-hidden="true" />
       </main>
 
@@ -187,19 +184,24 @@ export function App(): JSX.Element {
             <span className="tab-label">{t(r.labelKey)}</span>
           </button>
         ))}
-        <button
-          className="tab"
-          aria-expanded={moreOpen}
-          aria-current={secondary.some((r) => r.id === active.id)}
-          onClick={() => setMoreOpen(true)}
-        >
-          <span className="tab-glyph" aria-hidden="true">⋯</span>
-          <span className="tab-label">{t('chrome.more')}</span>
-        </button>
+        {/* Five destinations fit. "More" only appears if something does not,
+            because a menu with one thing in it is a worse way to reach that
+            thing than putting it on the bar. */}
+        {secondary.length ? (
+          <button
+            className="tab"
+            aria-expanded={moreOpen}
+            aria-current={secondary.some((r) => r.id === active.id)}
+            onClick={() => setMoreOpen(true)}
+          >
+            <span className="tab-glyph" aria-hidden="true">⋯</span>
+            <span className="tab-label">{t('chrome.more')}</span>
+          </button>
+        ) : null}
       </nav>
 
       <Sheet
-        open={moreOpen}
+        open={moreOpen && secondary.length > 0}
         onClose={() => setMoreOpen(false)}
         label={t('chrome.more')}
         className="more-sheet"

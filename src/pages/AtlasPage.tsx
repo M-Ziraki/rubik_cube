@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Cube3D } from '../components/Cube3D';
 import { MovePad } from '../components/MovePad';
 import { EmptyState } from '../components/EmptyState';
@@ -36,7 +36,7 @@ import type { Solution } from '../solver/twophase';
  * Two views, one state, and no third copy of the cube anywhere: that part was
  * right and is untouched.
  */
-export function AtlasPage(): JSX.Element {
+export function AtlasPage({ tabs }: { tabs?: ReactNode } = {}): JSX.Element {
   const { t, dir } = useI18n();
   const state = useAppState((s) => s);
   const facelets = useMemo(
@@ -147,10 +147,10 @@ export function AtlasPage(): JSX.Element {
       case 'step-forward': player.stepForward(); break;
       case 'step-back': player.stepBack(); break;
       case 'show-sticker-map': setShowLabels(true); break;
-      case 'show-state-space': go('#/graph'); break;
-      case 'open-notation-lesson': go('#/course/notation'); break;
-      case 'open-training': go('#/training'); break;
-      case 'explain-inverse': go('#/course/notation'); break;
+      case 'show-state-space': go('#/explore/state-space'); break;
+      case 'open-notation-lesson': go('#/learn/notation'); break;
+      case 'open-training': go('#/practise'); break;
+      case 'explain-inverse': go('#/learn/notation'); break;
       default: break;
     }
   }, [scramble, reset, runSolve]);
@@ -172,7 +172,7 @@ export function AtlasPage(): JSX.Element {
       },
       {
         id: 'notation', labelKey: 'assist.act.notation', noteKey: 'assist.act.notation.note',
-        run: () => go('#/course/notation'),
+        run: () => go('#/learn/notation'),
       },
     ],
   }), [runCommand, scramble, runSolve]);
@@ -212,7 +212,7 @@ export function AtlasPage(): JSX.Element {
   return (
     <>
       <PageBar
-        title={t('nav.atlas')}
+        title={t('nav.cube')}
         status={(
           <span className={`tag ${solved ? 'ok' : ''}`}>
             {solved ? t('common.solved') : t('atlas.cube.movesFromStart', { n: state.cursor })}
@@ -250,6 +250,7 @@ export function AtlasPage(): JSX.Element {
           </div>
         )}
       >
+        {tabs}
         {errand ? (
           <ErrandBar
             fromKey={errand.fromKey}
@@ -377,7 +378,7 @@ export function AtlasPage(): JSX.Element {
               <div className="prose">
                 <p style={{ marginBottom: 0 }}>
                   <T k="atlas.reading.p2" />{' '}
-                  <a href="#/graph">{t('nav.graph')}</a>{' · '}
+                  <a href="#/explore/state-space">{t('nav.graph')}</a>{' · '}
                   <span className="mono-ltr">{formatBig(TOTAL_STATES)}</span>
                 </p>
               </div>

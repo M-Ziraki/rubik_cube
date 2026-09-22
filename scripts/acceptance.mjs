@@ -118,14 +118,18 @@ check('7b. solving returns to six clean groups',
 
 // 8: selecting a sticker highlights its counterpart
 // 9: other pages still work
-for (const [hash, needle] of [['#/course', 'The course'], ['#/graph', 'The state space'],
-  ['#/solver', 'Solvers'], ['#/scan', 'Your cube'], ['#/training', 'Training'], ['#/lab', 'Cube lab']]) {
+// Each destination is now a section and a tab, so both carry a name and
+// either one identifies the content.
+for (const [hash, needle] of [['#/learn', 'Lessons'], ['#/explore/state-space', 'State space'],
+  ['#/explore/solvers', 'Solvers'], ['#/practise/your-cube', 'Your cube'],
+  ['#/practise', 'Challenges'], ['#/cube/sequences', 'Sequences']]) {
   await page.goto(base + hash);
   await page.waitForTimeout(2200);
   const h1 = await page.textContent('h1');
-  check(`9. ${hash} still renders`, h1.includes(needle), h1);
+  const tab = await page.textContent('[role="tab"][aria-selected="true"]').catch(() => '');
+  check(`9. ${hash} still renders`, h1.includes(needle) || tab.includes(needle), `${h1} / ${tab}`);
 }
-await page.goto(base + '#/course/sticker-map');
+await page.goto(base + '#/learn/sticker-map');
 await page.waitForTimeout(2500);
 const lessonH1 = await page.textContent('h1');
 check('9b. new lesson renders', lessonH1.includes('sticker map'), lessonH1);

@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Cube3D } from '../components/Cube3D';
 import { TransportDock } from '../components/TransportDock';
 import { Callout, Card, Sequence, Segmented, Stat, formatNodes } from '../components/ui';
-import { PageHeader } from '../components/PageHeader';
 import { SolutionReport } from './LabPage';
 import { actions, currentFacelets, isSolved, useAppState } from '../state/store';
 import { player } from '../state/player';
@@ -26,9 +25,9 @@ export function SolverPage(): JSX.Element {
   // from here.
   usePublishAssistantContext(() => ({ labelKey: 'nav.solver', actions: [
       { id: 'lesson-search', labelKey: 'assist.act.searchLesson', noteKey: 'assist.act.searchLesson.note',
-        run: () => go('#/course/search') },
+        run: () => go('#/learn/search') },
       { id: 'lesson-gods', labelKey: 'assist.act.godsLesson', noteKey: 'assist.act.godsLesson.note',
-        run: () => go('#/course/gods-number') },
+        run: () => go('#/learn/gods-number') },
     ] }), []);
 
   const { t } = useI18n();
@@ -104,11 +103,6 @@ export function SolverPage(): JSX.Element {
 
   return (
     <>
-      <PageHeader
-        eyebrow={t('solver.eyebrow')}
-        title={t('solver.title')}
-        lede={t('solver.lede')}
-      />
 
       <div className="grid three" style={{ marginBottom: 20 }}>
         <Card title={t('solver.anyTitle')}>

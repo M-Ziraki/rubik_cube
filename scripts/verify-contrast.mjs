@@ -19,7 +19,7 @@
  */
 import { chromium } from 'playwright';
 const BASE='http://127.0.0.1:4173/';
-const routes=['atlas','course','lab','graph','solver','scan','training','ai-lab','settings'];
+const routes=['learn','cube','practise','explore','settings'];
 const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});
 let total = 0;
 let overflowPages = 0;

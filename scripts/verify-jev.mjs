@@ -92,9 +92,9 @@ if (MODE === 'nokey') {
 
   // Every section is reachable, including the two new ones.
   for (const [hash, re] of [
-    ['#/course', /course/i], ['#/lab', /cube lab/i], ['#/graph', /state space/i],
-    ['#/solver', /solvers/i], ['#/scan', /your cube/i], ['#/training', /training/i],
-    ['#/ai-lab', /learning lab/i], ['#/settings', /settings/i],
+    ['#/learn', /learn/i], ['#/cube/sequences', /the cube/i], ['#/explore', /explore/i],
+    ['#/explore/solvers', /explore/i], ['#/practise/your-cube', /practise/i], ['#/practise', /practise/i],
+    ['#/settings/jev', /settings/i], ['#/settings', /settings/i],
   ]) {
     await page.goto(BASE + hash);
     await page.waitForTimeout(1600);
@@ -119,7 +119,7 @@ if (MODE === 'nokey') {
   // The deterministic tutor still recommends something - and now does so from
   // the panel, which is on every page rather than only on the course index.
   {
-    await page.goto(BASE + '#/course');
+    await page.goto(BASE + '#/learn');
     await page.waitForTimeout(1500);
     await dismissWelcome();
     await openAssistant();
@@ -141,7 +141,7 @@ if (MODE === 'nokey') {
 
   // The concept check falls back to a self-check with the worked answer.
   {
-    await page.goto(BASE + '#/course/notation');
+    await page.goto(BASE + '#/learn/notation');
     await page.waitForTimeout(2000);
     await page.fill('.card:has-text("Explain it in your own words") textarea', 'they cancel out');
     await page.click('.card:has-text("Explain it in your own words") button.primary');
@@ -160,7 +160,7 @@ if (MODE === 'nokey') {
     await page.fill('[data-jev="command-text"]', 'open the state space graph');
     await page.click('[data-jev="command"]');
     await page.waitForTimeout(1200);
-    check('A12. the keyword router navigates', page.url().includes('#/graph'), page.url());
+    check('A12. the keyword router navigates', page.url().includes('#/explore/state-space'), page.url());
   }
 
   // Nothing reached TypeSafe.
@@ -195,7 +195,7 @@ if (MODE === 'stub') {
 
   // A confident diagnosis routes to the matching explanation.
   {
-    await page.goto(BASE + '#/course/notation');
+    await page.goto(BASE + '#/learn/notation');
     await page.waitForTimeout(2000);
     await page.fill('.card:has-text("Explain it in your own words") textarea',
       "R and R prime are the same move so it is like R2");
@@ -216,7 +216,7 @@ if (MODE === 'stub') {
 
   // The tutor shows both recommendations.
   {
-    await page.goto(BASE + '#/ai-lab');
+    await page.goto(BASE + '#/settings/jev');
     await page.waitForTimeout(1500);
     await page.click('[data-lab="compare"]');
     await page.waitForTimeout(1500);
@@ -274,7 +274,7 @@ if (MODE === 'failing') {
   }
 
   {
-    await page.goto(BASE + '#/course');
+    await page.goto(BASE + '#/learn');
     await page.waitForTimeout(1500);
     await dismissWelcome();
     await openAssistant();

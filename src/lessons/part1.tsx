@@ -260,7 +260,7 @@ export function LessonLaws(): JSX.Element {
               ))
             )}
             <div className="card-note">
-              {t('l.laws.sameCheck')} <a href="#/scan">{t('nav.scan')}</a>
+              {t('l.laws.sameCheck')} <a href="#/practise/your-cube">{t('nav.scan')}</a>
             </div>
           </div>
         </div>

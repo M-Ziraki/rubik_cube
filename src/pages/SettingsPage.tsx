@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { Callout, Card } from '../components/ui';
-import { PageHeader } from '../components/PageHeader';
 import { actions, useAppState } from '../state/store';
 import { LANGUAGES, T, useI18n } from '../i18n/I18nProvider';
 import { usePublishAssistantContext } from '../jev/assistantContext';
@@ -28,7 +27,7 @@ export function SettingsPage(): JSX.Element {
   // from here.
   usePublishAssistantContext(() => ({ labelKey: 'nav.settings', actions: [
       { id: 'ai-lab', labelKey: 'assist.act.aiLab', noteKey: 'assist.act.aiLab.note',
-        run: () => go('#/ai-lab') },
+        run: () => go('#/settings/jev') },
     ] }), []);
 
   const { t, lang, setLang } = useI18n();
@@ -78,11 +77,6 @@ export function SettingsPage(): JSX.Element {
 
   return (
     <>
-      <PageHeader
-        eyebrow={t('settings.eyebrow')}
-        title={t('settings.title')}
-        lede={t('settings.lede')}
-      />
 
       <div className="split">
         <div className="stack">

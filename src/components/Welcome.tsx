@@ -29,10 +29,10 @@ interface Door {
  * behind "skip", because skipping and choosing should cost the same.
  */
 const DOORS: Door[] = [
-  { id: 'learn', to: '#/course/notation', glyph: '▤' },
-  { id: 'explore', to: '#/atlas', glyph: '◎' },
-  { id: 'solve', to: '#/scan', glyph: '◧' },
-  { id: 'maths', to: '#/graph', glyph: '✳' },
+  { id: 'learn', to: '#/learn/notation', glyph: '▤' },
+  { id: 'explore', to: '#/cube', glyph: '◎' },
+  { id: 'solve', to: '#/practise/your-cube', glyph: '◧' },
+  { id: 'maths', to: '#/explore/state-space', glyph: '✳' },
 ];
 
 export function Welcome(): JSX.Element {

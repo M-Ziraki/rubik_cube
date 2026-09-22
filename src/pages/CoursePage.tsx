@@ -25,6 +25,17 @@ import { usePublishAssistantContext } from '../jev/assistantContext';
  * watches it happen rather than arriving after the fact. Lesson progress is
  * untouched by any of it.
  */
+/**
+ * The lesson the address names, if it names one.
+ *
+ * Exported so the section above can tell whether a lesson has taken over the
+ * page before it draws a tab strip the learner has already navigated past.
+ */
+export function openLesson(): Lesson | null {
+  const raw = readSubRoute();
+  return (raw && LESSONS.find((l) => l.id === raw)) || null;
+}
+
 export function CoursePage(): JSX.Element {
   const { t } = useI18n();
   const done = useAppState((s) => s.progress.lessonsDone);
@@ -65,13 +76,13 @@ export function CoursePage(): JSX.Element {
         id: 'resume',
         labelKey: 'assist.act.resume',
         noteKey: 'assist.act.resume.note',
-        run: () => go(`#/course/${resume.id}`),
+        run: () => go(`#/learn/${resume.id}`),
       }] : []),
       {
         id: 'practise',
         labelKey: 'assist.act.practise',
         noteKey: 'assist.act.practise.note',
-        run: () => go('#/training'),
+        run: () => go('#/practise'),
       },
     ],
   }), [open?.id, resume?.id]);
@@ -113,7 +124,7 @@ export function CoursePage(): JSX.Element {
                 {t(`lesson.${resume.id}.summary`)}
               </p>
             </div>
-            <button className="btn primary" data-course="resume" onClick={() => go(`#/course/${resume.id}`)}>
+            <button className="btn primary" data-course="resume" onClick={() => go(`#/learn/${resume.id}`)}>
               {done.length ? t('course.resume.continue') : t('course.start')}
             </button>
           </div>
@@ -126,7 +137,7 @@ export function CoursePage(): JSX.Element {
               <strong className="resume-title">{t('course.allDone')}</strong>
               <p className="card-note" style={{ margin: '2px 0 0' }}>{t('course.allDoneNote')}</p>
             </div>
-            <button className="btn primary" onClick={() => go('#/training')}>
+            <button className="btn primary" onClick={() => go('#/practise')}>
               {t('assist.act.practise')}
             </button>
           </div>
@@ -159,7 +170,7 @@ export function CoursePage(): JSX.Element {
                       <p style={{ marginBottom: 12 }}>{t(`lesson.${l.id}.summary`)}</p>
                       <button
                         className={`btn ${isNext ? 'primary' : ''}`}
-                        onClick={() => go(`#/course/${l.id}`)}
+                        onClick={() => go(`#/learn/${l.id}`)}
                       >
                         {isDone ? t('course.revisit') : t('course.start')}
                       </button>
@@ -188,10 +199,10 @@ function startDemo(lesson: Lesson): void {
   actions.setPosition(SOLVED_FACELETS, []);
   actions.queueMoves(moves);
   session.startErrand({
-    returnTo: `#/course/${lesson.id}`,
+    returnTo: `#/learn/${lesson.id}`,
     fromKey: `lesson.${lesson.id}.title`,
     aboutKey: `lesson.${lesson.id}.title`,
-  }, '#/atlas');
+  }, '#/cube');
 }
 
 function LessonView({ lesson, done }: { lesson: Lesson; done: string[] }): JSX.Element {
@@ -216,7 +227,7 @@ function LessonView({ lesson, done }: { lesson: Lesson; done: string[] }): JSX.E
                 {t('course.tryInAtlas')}
               </button>
             ) : null}
-            <button className="btn ghost" onClick={() => go('#/course')}>
+            <button className="btn ghost" onClick={() => go('#/learn')}>
               {t('course.allLessons')}
             </button>
           </>
@@ -244,7 +255,7 @@ function LessonView({ lesson, done }: { lesson: Lesson; done: string[] }): JSX.E
           data-lesson="complete"
           onClick={() => {
             actions.markLesson(lesson.id);
-            go(next ? `#/course/${next.id}` : '#/course');
+            go(next ? `#/learn/${next.id}` : '#/learn');
           }}
         >
           {isDone
@@ -254,12 +265,12 @@ function LessonView({ lesson, done }: { lesson: Lesson; done: string[] }): JSX.E
         {isDone ? <span className="tag ok">{t('course.complete')}</span> : null}
         <div className="spacer" />
         {prev ? (
-          <button className="btn small" onClick={() => go(`#/course/${prev.id}`)}>
+          <button className="btn small" onClick={() => go(`#/learn/${prev.id}`)}>
             <span className="tdir" aria-hidden="true">◀</span> {t(`lesson.${prev.id}.title`)}
           </button>
         ) : null}
         {next ? (
-          <button className="btn small" onClick={() => go(`#/course/${next.id}`)}>
+          <button className="btn small" onClick={() => go(`#/learn/${next.id}`)}>
             {t(`lesson.${next.id}.title`)} <span className="tdir" aria-hidden="true">▶</span>
           </button>
         ) : null}

@@ -1,9 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { Callout, Card, Segmented, Stat } from '../components/ui';
-import { PageHeader } from '../components/PageHeader';
 import { JevBadge, JevFailure, JevThinking } from '../components/JevBadge';
 import { T, useI18n } from '../i18n/I18nProvider';
-import { Tabs } from '../components/Tabs';
 import { usePublishAssistantContext } from '../jev/assistantContext';
 import { go } from '../state/navigation';
 import { useAppState } from '../state/store';
@@ -49,23 +47,16 @@ export function LearningLabPage(): JSX.Element {
   const active = jevActive(config);
 
   return (
-    <>
-      <PageHeader
-        eyebrow={t('lab2.eyebrow')}
-        title={t('lab2.title')}
-        lede={t('lab2.lede')}
-      >
-          <Tabs
-            value={tab}
-            onChange={setTab}
-            label={t('lab2.tabs')}
-            tabs={[
-              { id: 'compare', label: t('lab2.tab.compare') },
-              { id: 'evaluate', label: t('lab2.tab.evaluate') },
-              { id: 'categories', label: t('lab2.tab.categories') },
-            ]}
-          />
-      </PageHeader>
+    <div className="stack">
+      <Segmented
+        value={tab}
+        onChange={setTab}
+        options={[
+          { value: 'compare', label: t('lab2.tab.compare') },
+          { value: 'evaluate', label: t('lab2.tab.evaluate') },
+          { value: 'categories', label: t('lab2.tab.categories') },
+        ]}
+      />
 
       {!active ? (
         <Callout title={t('lab2.offTitle')}>
@@ -75,7 +66,7 @@ export function LearningLabPage(): JSX.Element {
       ) : null}
 
       {tab === 'compare' ? <CompareView /> : tab === 'evaluate' ? <EvaluateView /> : <CategoriesView />}
-    </>
+    </div>
   );
 }
 

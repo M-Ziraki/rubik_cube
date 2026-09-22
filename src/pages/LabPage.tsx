@@ -3,7 +3,6 @@ import { Cube3D } from '../components/Cube3D';
 import { MovePad } from '../components/MovePad';
 import { TransportDock } from '../components/TransportDock';
 import { Callout, Card, Sequence, Stat, formatNodes } from '../components/ui';
-import { PageHeader } from '../components/PageHeader';
 import { actions, currentFacelets, isSolved, useAppState } from '../state/store';
 import { player } from '../state/player';
 import { requestScramble, solve } from '../solver/client';
@@ -23,9 +22,9 @@ export function LabPage(): JSX.Element {
   // from here.
   usePublishAssistantContext(() => ({ labelKey: 'nav.lab', actions: [
       { id: 'lesson-groups', labelKey: 'assist.act.groupsLesson', noteKey: 'assist.act.groupsLesson.note',
-        run: () => go('#/course/groups') },
+        run: () => go('#/learn/groups') },
       { id: 'open-atlas', labelKey: 'assist.act.openAtlas', noteKey: 'assist.act.openAtlas.note',
-        run: () => go('#/atlas') },
+        run: () => go('#/cube') },
     ] }), []);
 
   const { t } = useI18n();
@@ -104,11 +103,6 @@ export function LabPage(): JSX.Element {
 
   return (
     <>
-      <PageHeader
-        eyebrow={t('lab.eyebrow')}
-        title={t('lab.title')}
-        lede={t('lab.lede')}
-      />
 
       <div className="split">
         <div className="stack">
@@ -308,7 +302,7 @@ export function SolutionReport({ solution, onApply, searching }: {
       {solution.guarantee !== 'proven-optimal' ? (
         <p className="card-note" style={{ margin: 0 }}>
           {t('solution.notOptimalNote')}{' '}
-          <a href="#/solver">{t('solution.solversPageNote')}</a>
+          <a href="#/explore/solvers">{t('solution.solversPageNote')}</a>
         </p>
       ) : null}
     </div>

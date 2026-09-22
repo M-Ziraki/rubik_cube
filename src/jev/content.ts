@@ -45,32 +45,32 @@ export const REMEDIES: Record<MisconceptionLabel, Remedy> = {
     // Watch R and R' land back where they started, twenty stickers at a time.
     explanation: 'jev.remedy.inverse',
     demo: "R R'",
-    route: '#/course/notation',
+    route: '#/learn/notation',
     routeLabel: 'lesson.notation.title',
   },
   'sticker-vs-state': {
     explanation: 'jev.remedy.stickerVsState',
     demo: 'U',
-    route: '#/course/sticker-map',
+    route: '#/learn/sticker-map',
     routeLabel: 'lesson.sticker-map.title',
   },
   'notation-direction': {
     // The same face, both ways, so the difference is the only thing moving.
     explanation: 'jev.remedy.direction',
     demo: "R R R R",
-    route: '#/course/notation',
+    route: '#/learn/notation',
     routeLabel: 'lesson.notation.title',
   },
   'any-vs-optimal': {
     explanation: 'jev.remedy.anyVsOptimal',
     demo: null,
-    route: '#/solver',
+    route: '#/explore/solvers',
     routeLabel: 'nav.solver',
   },
   'gods-number-human': {
     explanation: 'jev.remedy.godsNumber',
     demo: null,
-    route: '#/course/gods-number',
+    route: '#/learn/gods-number',
     routeLabel: 'lesson.gods-number.title',
   },
   insufficient: {
@@ -143,7 +143,7 @@ export function hintLadder(move: number): Hint[] {
       key: flips ? 'jev.hint.conceptOrientation' : 'jev.hint.conceptPermutation',
       params: {},
       emphasis: affected,
-      route: flips ? '#/course/heuristics' : '#/course/pieces',
+      route: flips ? '#/learn/heuristics' : '#/learn/pieces',
       routeLabel: flips ? 'lesson.heuristics.title' : 'lesson.pieces.title',
       revealsMove: false,
     },
@@ -164,8 +164,8 @@ export function hintLadder(move: number): Hint[] {
 /** Where each non-mutating command sends the learner. */
 export const COMMAND_ROUTES: Record<string, string> = {
   'show-sticker-map': '#/',
-  'show-state-space': '#/graph',
-  'open-notation-lesson': '#/course/notation',
-  'open-training': '#/training',
-  'explain-inverse': '#/course/notation',
+  'show-state-space': '#/explore/state-space',
+  'open-notation-lesson': '#/learn/notation',
+  'open-training': '#/practise',
+  'explain-inverse': '#/learn/notation',
 };

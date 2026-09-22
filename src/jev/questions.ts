@@ -223,7 +223,7 @@ export interface Activity {
 export const ACTIVITIES: readonly Activity[] = [
   {
     id: 'lesson-notation',
-    route: '#/course/notation',
+    route: '#/learn/notation',
     requires: [],
     description:
       'Read the lesson on move notation: the six face letters, the prime mark and the '
@@ -232,7 +232,7 @@ export const ACTIVITIES: readonly Activity[] = [
   },
   {
     id: 'lesson-pieces',
-    route: '#/course/pieces',
+    route: '#/learn/pieces',
     requires: ['notation'],
     description:
       'Read the lesson on pieces rather than stickers: twenty moving pieces, each with a '
@@ -240,7 +240,7 @@ export const ACTIVITIES: readonly Activity[] = [
   },
   {
     id: 'lesson-sticker-map',
-    route: '#/course/sticker-map',
+    route: '#/learn/sticker-map',
     requires: ['notation'],
     description:
       'Read the lesson on the sticker map: 54 dots, nine circles, and why it is not the graph '
@@ -248,7 +248,7 @@ export const ACTIVITIES: readonly Activity[] = [
   },
   {
     id: 'lesson-graph',
-    route: '#/course/graph',
+    route: '#/learn/graph',
     requires: ['notation'],
     description:
       'Read the lesson on positions as vertices: the state-space graph, its edges and its '
@@ -256,7 +256,7 @@ export const ACTIVITIES: readonly Activity[] = [
   },
   {
     id: 'lesson-distance',
-    route: '#/course/distance',
+    route: '#/learn/distance',
     requires: ['graph'],
     description:
       'Read the lesson on distance and diameter: where the cube actually lives, and what '
@@ -264,7 +264,7 @@ export const ACTIVITIES: readonly Activity[] = [
   },
   {
     id: 'lesson-gods-number',
-    route: '#/course/gods-number',
+    route: '#/learn/gods-number',
     requires: ['distance'],
     description:
       "Read the lesson on how God's number was proved. Right for a learner who confuses a "
@@ -272,7 +272,7 @@ export const ACTIVITIES: readonly Activity[] = [
   },
   {
     id: 'practice-inverse',
-    route: '#/course/notation',
+    route: '#/learn/notation',
     requires: ['notation'],
     description:
       'Practise inverse moves on a cube: undo a short sequence by reversing and negating it. '
@@ -280,7 +280,7 @@ export const ACTIVITIES: readonly Activity[] = [
   },
   {
     id: 'practice-efficiency',
-    route: '#/training',
+    route: '#/practise',
     requires: ['notation'],
     description:
       'Attempt a challenge at a verified distance and be graded against the proven optimum. '
@@ -288,7 +288,7 @@ export const ACTIVITIES: readonly Activity[] = [
   },
   {
     id: 'explore-state-space',
-    route: '#/graph',
+    route: '#/explore/state-space',
     requires: ['graph'],
     description:
       'Explore the state-space graph interactively: walk the neighbourhood of a position and '
@@ -297,7 +297,7 @@ export const ACTIVITIES: readonly Activity[] = [
   },
   {
     id: 'compare-solvers',
-    route: '#/solver',
+    route: '#/explore/solvers',
     requires: ['distance'],
     description:
       'Compare two-phase search with provably optimal search and see what each can promise. '

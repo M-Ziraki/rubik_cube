@@ -4,8 +4,7 @@ import { TransportDock } from '../components/TransportDock';
 import { PocketNet } from '../components/PocketNet';
 import { GraphCanvas } from '../graph/GraphCanvas';
 import { ShellCanvas } from '../graph/ShellCanvas';
-import { Callout, Card, Sequence, Stat, formatApprox } from '../components/ui';
-import { PageHeader } from '../components/PageHeader';
+import { Callout, Card, Segmented, Sequence, Stat, formatApprox } from '../components/ui';
 import { EmptyState } from '../components/EmptyState';
 import { actions, currentFacelets, useAppState } from '../state/store';
 import {
@@ -16,7 +15,6 @@ import { MOVE_NAMES, N_MOVES } from '../cube/defs';
 import { HTM_DISTANCE_DISTRIBUTION, TOTAL_STATES } from '../data/facts';
 import { player } from '../state/player';
 import { useI18n } from '../i18n/I18nProvider';
-import { Tabs, TabPanel } from '../components/Tabs';
 import { usePublishAssistantContext } from '../jev/assistantContext';
 import { go } from '../state/navigation';
 
@@ -28,35 +26,34 @@ export function GraphPage(): JSX.Element {
   // from here.
   usePublishAssistantContext(() => ({ labelKey: 'nav.graph', actions: [
       { id: 'lesson-graph', labelKey: 'assist.act.graphLesson', noteKey: 'assist.act.graphLesson.note',
-        run: () => go('#/course/graph') },
+        run: () => go('#/learn/graph') },
       { id: 'lesson-distance', labelKey: 'assist.act.distanceLesson', noteKey: 'assist.act.distanceLesson.note',
-        run: () => go('#/course/distance') },
+        run: () => go('#/learn/distance') },
       { id: 'try-atlas', labelKey: 'assist.act.openAtlas', noteKey: 'assist.act.openAtlas.note',
-        run: () => go('#/atlas') },
+        run: () => go('#/cube') },
     ] }), []);
 
   const { t } = useI18n();
   const [view, setView] = useState<View>('near');
+  /*
+   * A segmented control rather than tabs: these are three views of one
+   * visualisation, which is picking a value, and the section above already
+   * owns the tabs. Nesting one tablist inside another tells a screen-reader
+   * user there are two levels of navigation when there is one.
+   */
   return (
-    <>
-      <PageHeader
-        eyebrow={t('graph.eyebrow')}
-        title={t('graph.title')}
-        lede={t('graph.lede')}
-      >
-          <Tabs
-            value={view}
-            onChange={setView}
-            label={t('graph.tabs')}
-            tabs={[
-              { id: 'near', label: t('graph.tab.near') },
-              { id: 'pocket', label: t('graph.tab.pocket') },
-              { id: 'growth', label: t('graph.tab.growth') },
-            ]}
-          />
-      </PageHeader>
-      <TabPanel>{view === 'near' ? <NeighbourhoodView /> : view === 'pocket' ? <PocketView /> : <GrowthView />}</TabPanel>
-    </>
+    <div className="stack">
+      <Segmented
+        value={view}
+        onChange={setView}
+        options={[
+          { value: 'near', label: t('graph.tab.near') },
+          { value: 'pocket', label: t('graph.tab.pocket') },
+          { value: 'growth', label: t('graph.tab.growth') },
+        ]}
+      />
+      {view === 'near' ? <NeighbourhoodView /> : view === 'pocket' ? <PocketView /> : <GrowthView />}
+    </div>
   );
 }
 

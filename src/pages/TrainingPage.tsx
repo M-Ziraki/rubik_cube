@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Cube3D } from '../components/Cube3D';
 import { MovePad } from '../components/MovePad';
 import { Callout, Card, Sequence, Stat } from '../components/ui';
-import { PageHeader } from '../components/PageHeader';
 import { actions, currentCube, currentFacelets, isSolved, useAppState } from '../state/store';
 import { requestScramble, solve, solveOptimally } from '../solver/client';
 import { simplifySequence } from '../cube/notation';
@@ -11,7 +10,6 @@ import { report } from '../cube/analysis';
 import { LESSONS } from '../lessons/registry';
 import { player } from '../state/player';
 import { useI18n } from '../i18n/I18nProvider';
-import { Tabs, TabPanel } from '../components/Tabs';
 import { HintLadder } from '../components/HintLadder';
 import { Dialog } from '../components/Dialog';
 import { EmptyState } from '../components/EmptyState';
@@ -32,33 +30,13 @@ const CHALLENGES: Challenge[] = [
   { id: 'c11', distance: 11 },
 ];
 
-export function TrainingPage(): JSX.Element {
-  const { t } = useI18n();
-  const [tab, setTab] = useState<'challenge' | 'progress' | 'path'>('challenge');
-  return (
-    <>
-      <PageHeader
-        eyebrow={t('training.eyebrow')}
-        title={t('training.title')}
-        lede={t('training.lede')}
-      >
-          <Tabs
-            value={tab}
-            onChange={setTab}
-            label={t('training.tabs')}
-            tabs={[
-              { id: 'challenge', label: t('training.tab.challenge') },
-              { id: 'progress', label: t('training.tab.progress') },
-              { id: 'path', label: t('training.tab.path') },
-            ]}
-          />
-      </PageHeader>
-      <TabPanel>{tab === 'challenge' ? <ChallengeRunner /> : tab === 'progress' ? <ProgressView /> : <PathView />}</TabPanel>
-    </>
-  );
-}
-
-function ChallengeRunner(): JSX.Element {
+/*
+ * Three views that used to be tabs on a page of their own. They are now tabs
+ * on the section that owns them - and Progress went to Learn, because "what
+ * have I learned" is a different question from "give me something to do" and
+ * it was hidden one level down inside the answer to the second one.
+ */
+export function ChallengeRunner(): JSX.Element {
   const { t } = useI18n();
   const state = useAppState((s) => s);
   const facelets = useMemo(
@@ -188,7 +166,7 @@ function ChallengeRunner(): JSX.Element {
         id: 'method',
         labelKey: 'assist.act.method',
         noteKey: 'assist.act.method.note',
-        run: () => go('#/course/human-vs-machine'),
+        run: () => go('#/learn/human-vs-machine'),
       },
     ],
   }), [nextMove, challenge.id]);
@@ -367,7 +345,7 @@ function ChallengeRunner(): JSX.Element {
   );
 }
 
-function ProgressView(): JSX.Element {
+export function ProgressView(): JSX.Element {
   const { t } = useI18n();
   const progress = useAppState((s) => s.progress);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -468,7 +446,7 @@ function ProgressView(): JSX.Element {
   );
 }
 
-function PathView(): JSX.Element {
+export function PathView(): JSX.Element {
   const { t } = useI18n();
   return (
     <div className="stack">

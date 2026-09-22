@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Cube3D } from '../components/Cube3D';
 import { ColorGrid, ColorPalette } from '../scan/ColorGrid';
 import { Callout, Card, Sequence, Stat } from '../components/ui';
-import { PageHeader } from '../components/PageHeader';
 import { TransportDock } from '../components/TransportDock';
 import { actions, useAppState } from '../state/store';
 import { player } from '../state/player';
@@ -23,9 +22,9 @@ export function ScanPage(): JSX.Element {
   // from here.
   usePublishAssistantContext(() => ({ labelKey: 'nav.scan', actions: [
       { id: 'lesson-notation', labelKey: 'assist.act.notation', noteKey: 'assist.act.notation.note',
-        run: () => go('#/course/notation') },
+        run: () => go('#/learn/notation') },
       { id: 'lesson-method', labelKey: 'assist.act.method', noteKey: 'assist.act.method.note',
-        run: () => go('#/course/human-vs-machine') },
+        run: () => go('#/learn/human-vs-machine') },
     ] }), []);
 
   const { t } = useI18n();
@@ -94,11 +93,6 @@ export function ScanPage(): JSX.Element {
 
   return (
     <>
-      <PageHeader
-        eyebrow={t('scan.eyebrow')}
-        title={t('scan.title')}
-        lede={t('scan.lede')}
-      />
 
       <div className="split">
         <div className="stack">

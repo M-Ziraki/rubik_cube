@@ -94,6 +94,32 @@ pages only and the restraint enforced in the workspaces.
 - **Motion.** One curve, borrowed from a face turn: fast, then settling. It is
   used for panels and disclosures, and for nothing that pretends to be a cube.
 
+## How it is arranged
+
+Four sections and a setup page, where there used to be nine destinations.
+Nothing was removed: every page is still here, as a tab inside the section it
+belongs to, and all nine old addresses still resolve to the right tab.
+
+| Section | Tabs | What it answers |
+|---|---|---|
+| **Learn** | Lessons · Your record | What is this, and where am I in it |
+| **The cube** | Workspace · Sequences | Turn it, watch it, take a sequence apart |
+| **Practise** | Challenges · Your cube · Learning path | Give me something to do |
+| **Explore** | State space · Solvers | The mathematics, when you are ready for it |
+| **Setup** | General · How Jev is tested | The switches, and the evidence behind one |
+
+The merges are the ones the code was already asking for: the Atlas and the
+Cube lab were two addresses for the same cube state, and the Solvers page
+imported a component from the Cube lab. Progress left its tab on Training,
+because "what have I learned" was hidden one level down inside "give me
+something to do". The AI Learning Lab is documentation about the integration,
+so it sits beside the switch that turns the integration on rather than
+competing with the cube for a place in the navigation.
+
+Renaming something should not make it unfindable by the name you learned it
+under, so the palette still answers to "atlas", "cube lab", "training",
+"course" and "AI learning lab".
+
 ## Finding your way around
 
 **Study help** is one affordance in the same corner of every page. It knows

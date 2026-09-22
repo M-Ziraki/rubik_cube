@@ -81,7 +81,7 @@ async function openAssistant(page) {
   await page.waitForTimeout(350);
 }
 
-const ROUTES = ['atlas', 'course', 'lab', 'graph', 'solver', 'scan', 'training', 'ai-lab', 'settings'];
+const ROUTES = ['learn', 'cube', 'practise', 'explore', 'settings'];
 
 /* ====================================== A. a first-time learner arrives === */
 {
@@ -218,11 +218,11 @@ const ROUTES = ['atlas', 'course', 'lab', 'graph', 'solver', 'scan', 'training',
 /* ===================== C. a lesson hands the cube over, and takes it back = */
 {
   const page = await fresh({ width: 1440, height: 1000 });
-  await ready(page, '#/course/notation');
+  await ready(page, '#/learn/notation');
 
   await page.click('[data-lesson="demo"]');
   await page.waitForTimeout(1600);
-  check('C1. the lesson opens the Atlas', page.url().includes('#/atlas'), page.url());
+  check('C1. the lesson opens the Atlas', page.url().includes('#/cube'), page.url());
   const loaded = await snapshot(page);
   check('C2. with a real sequence queued and nothing applied yet',
     loaded.moves.length === 4 && loaded.cursor === 0 && loaded.solved,
@@ -239,7 +239,7 @@ const ROUTES = ['atlas', 'course', 'lab', 'graph', 'solver', 'scan', 'training',
   await page.click('[data-errand="return"]');
   await page.waitForTimeout(1400);
   check('C5. and the way back lands on the lesson it came from',
-    page.url().includes('#/course/notation'), page.url());
+    page.url().includes('#/learn/notation'), page.url());
   check('C6. with the lesson still there to finish',
     (await page.$('[data-lesson="complete"]')) !== null);
   check('C7. and the errand banner gone', (await page.$('[data-errand="bar"]')) === null);
@@ -274,7 +274,7 @@ const ROUTES = ['atlas', 'course', 'lab', 'graph', 'solver', 'scan', 'training',
   check('D3. and is a large enough target', big);
 
   // One interaction from anywhere, and it says plainly what it can do.
-  await page.goto(BASE + '#/graph');
+  await page.goto(BASE + '#/explore/state-space');
   await page.waitForTimeout(1200);
   await openAssistant(page);
   // "Not on" covers both shapes this journey runs in: no key anywhere, and a
@@ -298,7 +298,7 @@ const ROUTES = ['atlas', 'course', 'lab', 'graph', 'solver', 'scan', 'training',
   check('D7. and the answer is labelled as computed, not judged',
     /computed/i.test(badge), badge.trim());
 
-  await page.goto(BASE + '#/atlas');
+  await page.goto(BASE + '#/cube');
   await page.waitForTimeout(1200);
   await openAssistant(page);
   check('D8. the command box appears where there is a cube',
@@ -320,7 +320,7 @@ const ROUTES = ['atlas', 'course', 'lab', 'graph', 'solver', 'scan', 'training',
 
   const tabs = await page.$$eval('.tabbar .tab', (els) => els.map((e) => e.textContent.trim()));
   check('E1. the phone has a tab bar rather than a scrolling row',
-    tabs.length === 5, `${tabs.length} tabs`);
+    tabs.length === 5, `${tabs.length} tabs: ${tabs.join(' · ')}`);
   const current = await page.$$eval('.tabbar .tab[aria-current="true"]', (e) => e.length);
   check('E2. and says which section you are in', current === 1, `${current} marked`);
 
@@ -373,13 +373,18 @@ const ROUTES = ['atlas', 'course', 'lab', 'graph', 'solver', 'scan', 'training',
   await page.waitForTimeout(400);
   check('E9. and closes again', (await page.$('.assistant-panel')) === null);
 
-  // "More" reaches everything the tab bar does not.
-  await page.tap('.tabbar .tab:last-child');
-  await page.waitForSelector('.more-sheet', { timeout: 8000 });
-  const more = await page.$$eval('.more-list .btn', (e) => e.length);
-  check('E10. "more" reaches the remaining sections', more === 5, `${more} entries`);
-  check('E11. and carries the language control',
-    (await page.$('.more-foot [data-lang="fa"]')) !== null);
+  /*
+   * Five destinations fit on the bar, so there is no overflow menu at all.
+   * The check that matters is not "More works" but "nothing is unreachable",
+   * which is what this asserts: every section on the bar, and the language
+   * control still one tap away in the top bar rather than behind a menu.
+   */
+  const reachable = await page.$$eval('.tabbar .tab', (els) => els.map((e) => e.textContent.trim()));
+  check('E10. every section is on the tab bar, with no overflow menu',
+    reachable.length === 5 && !reachable.some((x) => /more|بیشتر/i.test(x)),
+    reachable.join(' · '));
+  check('E11. and the language control is still one tap away',
+    (await page.$('.topbar [data-lang="fa"]')) !== null);
 
   const overflow = await page.evaluate(() =>
     document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -482,7 +487,7 @@ const ROUTES = ['atlas', 'course', 'lab', 'graph', 'solver', 'scan', 'training',
   notes.push(`interactions to study help: 1 on all ${ROUTES.length} pages`);
 
   // The first tab stop is the skip link, and it goes somewhere.
-  await page.goto(BASE + '#/atlas');
+  await page.goto(BASE + '#/cube');
   await page.waitForTimeout(1200);
   await page.keyboard.press('Tab');
   const first = await page.evaluate(() => document.activeElement?.className ?? '');
@@ -511,14 +516,14 @@ const ROUTES = ['atlas', 'course', 'lab', 'graph', 'solver', 'scan', 'training',
   await page.keyboard.press('Control+k');
   await page.waitForTimeout(400);
   check('G5. the palette opens from the keyboard', (await page.$('.palette')) !== null);
-  await page.keyboard.type('training');
+  await page.keyboard.type('practise');
   await page.waitForTimeout(300);
   await page.keyboard.press('Enter');
   await page.waitForTimeout(1200);
-  check('G6. and navigates from the keyboard', page.url().includes('#/training'), page.url());
+  check('G6. and navigates from the keyboard', page.url().includes('#/practise'), page.url());
 
   // Interactive targets clear the 24px floor, inline links excepted.
-  await page.goto(BASE + '#/atlas');
+  await page.goto(BASE + '#/cube');
   await page.waitForTimeout(1300);
   const small = await page.evaluate(() => {
     const bad = [];
@@ -544,8 +549,8 @@ const ROUTES = ['atlas', 'course', 'lab', 'graph', 'solver', 'scan', 'training',
   // Every destination reachable from every page in two keystrokes plus a name.
   const hops = [];
   for (const [query, expect] of [
-    ['state space', '#/graph'], ['solvers', '#/solver'], ['training', '#/training'],
-    ['cube lab', '#/lab'], ['distance', '#/course/distance'],
+    ['state space', '#/explore/state-space'], ['solvers', '#/explore/solvers'], ['practise', '#/practise'],
+    ['cube lab', '#/cube/sequences'], ['distance', '#/learn/distance'],
   ]) {
     // The shortcut is bound when the shell mounts, so wait for the shell
     // rather than for a fixed number of milliseconds; a page with a 3D scene
@@ -569,13 +574,13 @@ const ROUTES = ['atlas', 'course', 'lab', 'graph', 'solver', 'scan', 'training',
   notes.push(`palette: ${hops.length}/${hops.length} destinations reached in one keystroke + name`);
 
   // The Atlas remembers an expert's layout choice between visits.
-  await page.goto(BASE + '#/atlas');
+  await page.goto(BASE + '#/cube');
   await page.waitForTimeout(1300);
   const open0 = (await page.$('#atlas-tools')) !== null;
   if (open0) { await page.click('.tools-toggle'); await page.waitForTimeout(300); }
-  await page.goto(BASE + '#/graph');
+  await page.goto(BASE + '#/explore/state-space');
   await page.waitForTimeout(900);
-  await page.goto(BASE + '#/atlas');
+  await page.goto(BASE + '#/cube');
   await page.waitForTimeout(1300);
   check('H2. the workspace keeps the layout an expert chose',
     (await page.$('#atlas-tools')) === null);
@@ -586,11 +591,11 @@ const ROUTES = ['atlas', 'course', 'lab', 'graph', 'solver', 'scan', 'training',
   await page.click('[data-action="scramble"]');
   await page.waitForTimeout(1600);
   const before = await snapshot(page);
-  await page.goto(BASE + '#/graph');
+  await page.goto(BASE + '#/explore/state-space');
   await page.waitForTimeout(1400);
-  await page.goto(BASE + '#/lab');
+  await page.goto(BASE + '#/cube/sequences');
   await page.waitForTimeout(1400);
-  await page.goto(BASE + '#/atlas');
+  await page.goto(BASE + '#/cube');
   await page.waitForTimeout(1400);
   const after = await snapshot(page);
   check('H3. the position survives a tour of the other tools',
@@ -654,7 +659,7 @@ const ROUTES = ['atlas', 'course', 'lab', 'graph', 'solver', 'scan', 'training',
 /* =========== K. a turn you can watch, a dialog, and a panel that docks ==== */
 {
   const page = await fresh({ width: 1440, height: 1000 });
-  await ready(page, '#/lab');
+  await ready(page, '#/cube/sequences');
 
   /*
    * The defect this covers: `applyMoves` jumps the cursor by several at once
@@ -689,18 +694,16 @@ const ROUTES = ['atlas', 'course', 'lab', 'graph', 'solver', 'scan', 'training',
   // Your cube is the exception, and deliberately: its transport belongs to
   // the guided solution, so it appears with one rather than sitting empty
   // while somebody is still typing in their colours.
-  await page.goto(BASE + '#/scan');
+  await page.goto(BASE + '#/practise/your-cube');
   await page.waitForTimeout(1400);
   check('K3b. your cube shows playback only once there is a solution to play',
     (await page.$('[data-transport="toggle"]')) === null);
 
   /* ---- a real dialog, not the browser's ---------------------------------- */
-  await page.goto(BASE + '#/training');
-  await page.waitForTimeout(1500);
-  for (const btn of await page.$$('button')) {
-    if (/Progress/i.test((await btn.textContent()).trim())) { await btn.click(); break; }
-  }
-  await page.waitForTimeout(700);
+  // The record moved to Learn, where "what have I learned" is asked, rather
+  // than staying one level down inside "give me something to do".
+  await page.goto(BASE + '#/learn/progress');
+  await page.waitForTimeout(1600);
   await page.click('[data-action="reset-progress"]');
   await page.waitForSelector('.dialog', { timeout: 8000 });
   check('K4. destroying progress asks in a real dialog',
@@ -725,7 +728,7 @@ const ROUTES = ['atlas', 'course', 'lab', 'graph', 'solver', 'scan', 'training',
     JSON.stringify(released));
 
   /* ---- the study panel is docked on a wide screen, not floated ----------- */
-  await page.goto(BASE + '#/atlas');
+  await page.goto(BASE + '#/cube');
   await page.waitForTimeout(1400);
   await openAssistant(page);
   const dock = await page.evaluate(() => {
@@ -760,7 +763,7 @@ if (WITH_JEV) {
   await page.click('.card:has-text("Jev") [data-jev="on"]');
   await page.waitForTimeout(400);
 
-  await page.goto(BASE + '#/training');
+  await page.goto(BASE + '#/practise');
   await page.waitForTimeout(1500);
   await page.click('.btn.block:has-text("Three moves out")');
   await page.waitForFunction(() => {
@@ -798,7 +801,7 @@ if (WITH_JEV) {
     }));
   });
   // The store reads the record once, at load. Changing a hash is not a load.
-  await page.goto(BASE + '#/course');
+  await page.goto(BASE + '#/learn');
   await page.reload();
   await page.waitForTimeout(1800);
   await openAssistant(page);

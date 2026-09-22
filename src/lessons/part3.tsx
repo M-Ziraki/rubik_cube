@@ -145,7 +145,7 @@ export function LessonLadder(): JSX.Element {
       </div>
 
       <p>
-        <T k="l.ladder.kociemba" /> <a href="#/solver">{t('nav.solver')}</a>
+        <T k="l.ladder.kociemba" /> <a href="#/explore/solvers">{t('nav.solver')}</a>
       </p>
 
       {stats ? (
@@ -312,7 +312,7 @@ export function LessonGodsNumber(): JSX.Element {
             <Stat value={formatApprox(pocket.states)} label={t('l.gods.checked')} />
           </div>
           <p style={{ marginBottom: 0 }} className="card-note">{t('l.gods.sameCertainty')}</p>
-          <a className="btn" href="#/graph">{t('l.gods.openAtlas')}</a>
+          <a className="btn" href="#/explore/state-space">{t('l.gods.openAtlas')}</a>
         </Card>
       ) : null}
 
@@ -366,13 +366,13 @@ export function LessonHumanVsMachine(): JSX.Element {
       <h3>{t('l.human.achievable')}</h3>
       <p>{t('l.human.achievableBody')}</p>
       <ul>
-        <li>{t('l.human.a1')} <a href="#/scan">{t('nav.scan')}</a></li>
+        <li>{t('l.human.a1')} <a href="#/practise/your-cube">{t('nav.scan')}</a></li>
         <li>{t('l.human.a2')}</li>
         <li>{t('l.human.a3')}</li>
         <li>{t('l.human.a4')}</li>
       </ul>
       <p>
-        {t('l.human.lastOne')} <a href="#/training">{t('nav.training')}</a>
+        {t('l.human.lastOne')} <a href="#/practise">{t('nav.training')}</a>
       </p>
 
       <Quiz

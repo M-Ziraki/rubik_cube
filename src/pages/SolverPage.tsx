@@ -23,7 +23,7 @@ export function SolverPage(): JSX.Element {
   // What the study panel offers from this page. The panel itself always
   // carries the universal help; these are the jumps that only make sense
   // from here.
-  usePublishAssistantContext(() => ({ labelKey: 'nav.solver', actions: [
+  usePublishAssistantContext(() => ({ labelKey: 'explore.tab.solvers', actions: [
       { id: 'lesson-search', labelKey: 'assist.act.searchLesson', noteKey: 'assist.act.searchLesson.note',
         run: () => go('#/learn/search') },
       { id: 'lesson-gods', labelKey: 'assist.act.godsLesson', noteKey: 'assist.act.godsLesson.note',

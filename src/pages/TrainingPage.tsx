@@ -184,7 +184,7 @@ export function ChallengeRunner(): JSX.Element {
   // What the study panel can offer from a challenge: a hint at the level the
   // learner has earned, a fresh position, and the lesson behind the skill.
   usePublishAssistantContext(() => ({
-    labelKey: 'nav.training',
+    labelKey: 'nav.practise',
     actions: [
       ...(nextMove !== null ? [{
         id: 'hint',

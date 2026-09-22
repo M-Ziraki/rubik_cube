@@ -24,7 +24,7 @@ export function GraphPage(): JSX.Element {
   // What the study panel offers from this page. The panel itself always
   // carries the universal help; these are the jumps that only make sense
   // from here.
-  usePublishAssistantContext(() => ({ labelKey: 'nav.graph', actions: [
+  usePublishAssistantContext(() => ({ labelKey: 'explore.tab.stateSpace', actions: [
       { id: 'lesson-graph', labelKey: 'assist.act.graphLesson', noteKey: 'assist.act.graphLesson.note',
         run: () => go('#/learn/graph') },
       { id: 'lesson-distance', labelKey: 'assist.act.distanceLesson', noteKey: 'assist.act.distanceLesson.note',

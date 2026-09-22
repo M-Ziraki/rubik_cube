@@ -36,7 +36,7 @@ export function LearningLabPage(): JSX.Element {
   // What the study panel offers from this page. The panel itself always
   // carries the universal help; these are the jumps that only make sense
   // from here.
-  usePublishAssistantContext(() => ({ labelKey: 'nav.aiLab', actions: [
+  usePublishAssistantContext(() => ({ labelKey: 'settings.tab.jev', actions: [
       { id: 'settings', labelKey: 'assist.act.settings', noteKey: 'assist.act.settings.note',
         run: () => go('#/settings') },
     ] }), []);

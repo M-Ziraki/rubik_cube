@@ -48,7 +48,7 @@ export interface AssistantContext {
   commandSink?: (action: CommandAction) => void;
 }
 
-const EMPTY: AssistantContext = { labelKey: 'nav.atlas', actions: [] };
+const EMPTY: AssistantContext = { labelKey: 'nav.cube', actions: [] };
 
 let current: AssistantContext = EMPTY;
 const listeners = new Set<() => void>();

@@ -20,7 +20,7 @@ export function ScanPage(): JSX.Element {
   // What the study panel offers from this page. The panel itself always
   // carries the universal help; these are the jumps that only make sense
   // from here.
-  usePublishAssistantContext(() => ({ labelKey: 'nav.scan', actions: [
+  usePublishAssistantContext(() => ({ labelKey: 'practise.tab.yourCube', actions: [
       { id: 'lesson-notation', labelKey: 'assist.act.notation', noteKey: 'assist.act.notation.note',
         run: () => go('#/learn/notation') },
       { id: 'lesson-method', labelKey: 'assist.act.method', noteKey: 'assist.act.method.note',

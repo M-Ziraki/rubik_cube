@@ -159,7 +159,7 @@ export function AtlasPage({ tabs }: { tabs?: ReactNode } = {}): JSX.Element {
   // screen and withdrawn when it leaves, so the panel never advertises an
   // action that would act on a page the learner has left.
   usePublishAssistantContext(() => ({
-    labelKey: 'nav.atlas',
+    labelKey: 'nav.cube',
     commandSink: runCommand,
     actions: [
       {

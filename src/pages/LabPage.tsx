@@ -20,7 +20,7 @@ export function LabPage(): JSX.Element {
   // What the study panel offers from this page. The panel itself always
   // carries the universal help; these are the jumps that only make sense
   // from here.
-  usePublishAssistantContext(() => ({ labelKey: 'nav.lab', actions: [
+  usePublishAssistantContext(() => ({ labelKey: 'cube.tab.sequences', actions: [
       { id: 'lesson-groups', labelKey: 'assist.act.groupsLesson', noteKey: 'assist.act.groupsLesson.note',
         run: () => go('#/learn/groups') },
       { id: 'open-atlas', labelKey: 'assist.act.openAtlas', noteKey: 'assist.act.openAtlas.note',

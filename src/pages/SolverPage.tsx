@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Cube3D } from '../components/Cube3D';
 import { TransportDock } from '../components/TransportDock';
 import { Callout, Card, Sequence, Segmented, Stat, formatNodes } from '../components/ui';
+import { PageHeader } from '../components/PageHeader';
 import { SolutionReport } from './LabPage';
 import { actions, currentFacelets, isSolved, useAppState } from '../state/store';
 import { player } from '../state/player';
@@ -103,11 +104,11 @@ export function SolverPage(): JSX.Element {
 
   return (
     <>
-      <header className="page-head">
-        <div className="eyebrow">{t('solver.eyebrow')}</div>
-        <h1>{t('solver.title')}</h1>
-        <p className="lede">{t('solver.lede')}</p>
-      </header>
+      <PageHeader
+        eyebrow={t('solver.eyebrow')}
+        title={t('solver.title')}
+        lede={t('solver.lede')}
+      />
 
       <div className="grid three" style={{ marginBottom: 20 }}>
         <Card title={t('solver.anyTitle')}>

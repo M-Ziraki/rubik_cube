@@ -1345,4 +1345,8 @@ export const fa: Record<string, string> = {
   'lab2.cat.lang.en': 'انگلیسی',
   'lab2.cat.lang.fa': 'فارسی',
   'training.resetConfirmAction': 'همه‌چیز پاک شود',
+  'training.tabs': 'نماهای تمرین',
+  'graph.tabs': 'نماهای فضای حالت',
+  'lab2.tabs': 'نماهای آزمایشگاه یادگیری',
+  'training.noAttemptsHelp': 'یک چالش را تمام کن تا همین‌جا در برابر راه‌حلی با بهینگی اثبات‌شده نمره بگیرد.',
 };

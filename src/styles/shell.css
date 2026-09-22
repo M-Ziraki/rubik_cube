@@ -397,10 +397,18 @@
 /* ----------------------------------------------------------- empty state --- */
 
 .empty-state {
-  display: grid; gap: 8px; justify-items: center; text-align: center;
-  padding: 22px 12px; color: var(--ink-faint);
+  display: grid; gap: var(--s-2); justify-items: center; text-align: center;
+  padding: var(--s-6) var(--s-4); color: var(--ink-faint);
 }
 .empty-glyph { font-size: 1.6rem; opacity: 0.45; }
+.empty-title { color: var(--ink); font-size: var(--text-m); }
+.empty-body { margin: 0; max-width: 42ch; }
+
+/* ------------------------------------------------------------------ tabs --- */
+
+.tabs { display: grid; gap: var(--s-2); justify-items: start; }
+.tabs-note { max-width: 62ch; }
+.tab-panel { margin-top: var(--s-4); }
 
 /* ------------------------------------------------------------ responsive --- */
 

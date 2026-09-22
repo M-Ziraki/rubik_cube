@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Cube3D } from '../components/Cube3D';
 import { MovePad } from '../components/MovePad';
-import { Callout, Card, Segmented, Sequence, Stat } from '../components/ui';
+import { Callout, Card, Sequence, Stat } from '../components/ui';
+import { PageHeader } from '../components/PageHeader';
 import { actions, currentCube, currentFacelets, isSolved, useAppState } from '../state/store';
 import { requestScramble, solve, solveOptimally } from '../solver/client';
 import { simplifySequence } from '../cube/notation';
@@ -10,8 +11,10 @@ import { report } from '../cube/analysis';
 import { LESSONS } from '../lessons/registry';
 import { player } from '../state/player';
 import { useI18n } from '../i18n/I18nProvider';
+import { Tabs, TabPanel } from '../components/Tabs';
 import { HintLadder } from '../components/HintLadder';
 import { Dialog } from '../components/Dialog';
+import { EmptyState } from '../components/EmptyState';
 import { usePublishAssistantContext } from '../jev/assistantContext';
 import { go } from '../state/navigation';
 
@@ -34,23 +37,23 @@ export function TrainingPage(): JSX.Element {
   const [tab, setTab] = useState<'challenge' | 'progress' | 'path'>('challenge');
   return (
     <>
-      <header className="page-head">
-        <div className="eyebrow">{t('training.eyebrow')}</div>
-        <h1>{t('training.title')}</h1>
-        <p className="lede">{t('training.lede')}</p>
-        <div style={{ marginTop: 12 }}>
-          <Segmented
+      <PageHeader
+        eyebrow={t('training.eyebrow')}
+        title={t('training.title')}
+        lede={t('training.lede')}
+      >
+          <Tabs
             value={tab}
             onChange={setTab}
-            options={[
-              { value: 'challenge', label: t('training.tab.challenge') },
-              { value: 'progress', label: t('training.tab.progress') },
-              { value: 'path', label: t('training.tab.path') },
+            label={t('training.tabs')}
+            tabs={[
+              { id: 'challenge', label: t('training.tab.challenge') },
+              { id: 'progress', label: t('training.tab.progress') },
+              { id: 'path', label: t('training.tab.path') },
             ]}
           />
-        </div>
-      </header>
-      {tab === 'challenge' ? <ChallengeRunner /> : tab === 'progress' ? <ProgressView /> : <PathView />}
+      </PageHeader>
+      <TabPanel>{tab === 'challenge' ? <ChallengeRunner /> : tab === 'progress' ? <ProgressView /> : <PathView />}</TabPanel>
     </>
   );
 }
@@ -442,7 +445,9 @@ function ProgressView(): JSX.Element {
 
       <Card title={t('training.recent')}>
         {recent.length === 0 ? (
-          <p className="card-note" style={{ margin: 0 }}>{t('training.noAttempts')}</p>
+          <EmptyState glyph="◈" title={t('training.noAttempts')}>
+            {t('training.noAttemptsHelp')}
+          </EmptyState>
         ) : (
           <div className="stack" style={{ gap: 6 }}>
             {recent.map((r, i) => (

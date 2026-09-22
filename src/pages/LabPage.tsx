@@ -3,6 +3,7 @@ import { Cube3D } from '../components/Cube3D';
 import { MovePad } from '../components/MovePad';
 import { TransportDock } from '../components/TransportDock';
 import { Callout, Card, Sequence, Stat, formatNodes } from '../components/ui';
+import { PageHeader } from '../components/PageHeader';
 import { actions, currentFacelets, isSolved, useAppState } from '../state/store';
 import { player } from '../state/player';
 import { requestScramble, solve } from '../solver/client';
@@ -103,11 +104,11 @@ export function LabPage(): JSX.Element {
 
   return (
     <>
-      <header className="page-head">
-        <div className="eyebrow">{t('lab.eyebrow')}</div>
-        <h1>{t('lab.title')}</h1>
-        <p className="lede">{t('lab.lede')}</p>
-      </header>
+      <PageHeader
+        eyebrow={t('lab.eyebrow')}
+        title={t('lab.title')}
+        lede={t('lab.lede')}
+      />
 
       <div className="split">
         <div className="stack">

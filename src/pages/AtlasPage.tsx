@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Cube3D } from '../components/Cube3D';
 import { MovePad } from '../components/MovePad';
+import { EmptyState } from '../components/EmptyState';
 import { TransportDock } from '../components/TransportDock';
 import { PageBar, ErrandBar } from '../components/PageBar';
 import { Welcome } from '../components/Welcome';
@@ -401,10 +402,7 @@ function StickerInspector({ facelet, isSelection }: { facelet: number | null; is
   if (facelet === null) {
     return (
       <Card title={t('atlas.inspector')} note={t('atlas.inspector.empty')}>
-        <div className="empty-state">
-          <span className="empty-glyph" aria-hidden="true">◎</span>
-          <p className="card-note" style={{ margin: 0 }}>{t('atlas.inspector.emptyHelp')}</p>
-        </div>
+        <EmptyState glyph="◎">{t('atlas.inspector.emptyHelp')}</EmptyState>
       </Card>
     );
   }

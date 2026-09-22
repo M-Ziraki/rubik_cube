@@ -4,7 +4,9 @@ import { TransportDock } from '../components/TransportDock';
 import { PocketNet } from '../components/PocketNet';
 import { GraphCanvas } from '../graph/GraphCanvas';
 import { ShellCanvas } from '../graph/ShellCanvas';
-import { Callout, Card, Segmented, Sequence, Stat, formatApprox } from '../components/ui';
+import { Callout, Card, Sequence, Stat, formatApprox } from '../components/ui';
+import { PageHeader } from '../components/PageHeader';
+import { EmptyState } from '../components/EmptyState';
 import { actions, currentFacelets, useAppState } from '../state/store';
 import {
   preparePocket, requestNeighbourhood, requestPocketStats, requestScramble, scramblePocket, solvePocketState,
@@ -14,6 +16,7 @@ import { MOVE_NAMES, N_MOVES } from '../cube/defs';
 import { HTM_DISTANCE_DISTRIBUTION, TOTAL_STATES } from '../data/facts';
 import { player } from '../state/player';
 import { useI18n } from '../i18n/I18nProvider';
+import { Tabs, TabPanel } from '../components/Tabs';
 import { usePublishAssistantContext } from '../jev/assistantContext';
 import { go } from '../state/navigation';
 
@@ -36,23 +39,23 @@ export function GraphPage(): JSX.Element {
   const [view, setView] = useState<View>('near');
   return (
     <>
-      <header className="page-head">
-        <div className="eyebrow">{t('graph.eyebrow')}</div>
-        <h1>{t('graph.title')}</h1>
-        <p className="lede">{t('graph.lede')}</p>
-        <div style={{ marginTop: 12 }}>
-          <Segmented
+      <PageHeader
+        eyebrow={t('graph.eyebrow')}
+        title={t('graph.title')}
+        lede={t('graph.lede')}
+      >
+          <Tabs
             value={view}
             onChange={setView}
-            options={[
-              { value: 'near', label: t('graph.tab.near') },
-              { value: 'pocket', label: t('graph.tab.pocket') },
-              { value: 'growth', label: t('graph.tab.growth') },
+            label={t('graph.tabs')}
+            tabs={[
+              { id: 'near', label: t('graph.tab.near') },
+              { id: 'pocket', label: t('graph.tab.pocket') },
+              { id: 'growth', label: t('graph.tab.growth') },
             ]}
           />
-        </div>
-      </header>
-      {view === 'near' ? <NeighbourhoodView /> : view === 'pocket' ? <PocketView /> : <GrowthView />}
+      </PageHeader>
+      <TabPanel>{view === 'near' ? <NeighbourhoodView /> : view === 'pocket' ? <PocketView /> : <GrowthView />}</TabPanel>
     </>
   );
 }
@@ -182,7 +185,7 @@ function NeighbourhoodView(): JSX.Element {
               </div>
             </>
           ) : (
-            <p className="card-note" style={{ margin: 0 }}>{t('graph.selectedHelp')}</p>
+            <EmptyState glyph="✳">{t('graph.selectedHelp')}</EmptyState>
           )}
         </Card>
 

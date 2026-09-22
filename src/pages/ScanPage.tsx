@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Cube3D } from '../components/Cube3D';
 import { ColorGrid, ColorPalette } from '../scan/ColorGrid';
 import { Callout, Card, Sequence, Stat } from '../components/ui';
+import { PageHeader } from '../components/PageHeader';
 import { TransportDock } from '../components/TransportDock';
 import { actions, useAppState } from '../state/store';
 import { player } from '../state/player';
@@ -93,11 +94,11 @@ export function ScanPage(): JSX.Element {
 
   return (
     <>
-      <header className="page-head">
-        <div className="eyebrow">{t('scan.eyebrow')}</div>
-        <h1>{t('scan.title')}</h1>
-        <p className="lede">{t('scan.lede')}</p>
-      </header>
+      <PageHeader
+        eyebrow={t('scan.eyebrow')}
+        title={t('scan.title')}
+        lede={t('scan.lede')}
+      />
 
       <div className="split">
         <div className="stack">

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Card, Meter } from '../components/ui';
+import { PageHeader } from '../components/PageHeader';
 import { PageBar } from '../components/PageBar';
 import { actions, useAppState } from '../state/store';
 import { LESSONS, LESSON_PARTS, lessonIndex, type Lesson } from '../lessons/registry';
@@ -79,18 +80,19 @@ export function CoursePage(): JSX.Element {
 
   return (
     <>
-      <header className="page-head">
-        <div className="eyebrow">{t('course.eyebrow')}</div>
-        <h1>{t('course.title')}</h1>
-        <p className="lede">{t('course.lede')}</p>
-        <div style={{ maxWidth: 360, marginTop: 14 }}>
+      <PageHeader
+        eyebrow={t('course.eyebrow')}
+        title={t('course.title')}
+        lede={t('course.lede')}
+      >
+        <div style={{ maxWidth: 360 }}>
           <Meter
             value={done.length}
             max={LESSONS.length}
             label={t('course.progress', { done: done.length, total: LESSONS.length })}
           />
         </div>
-      </header>
+      </PageHeader>
 
       {/*
         "Where was I" belongs on the course page and is answered from the

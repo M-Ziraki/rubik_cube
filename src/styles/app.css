@@ -93,7 +93,8 @@ button { font: inherit; color: inherit; }
   padding: var(--page-pad);
   max-width: 1400px; width: 100%; margin: 0 auto;
 }
-.page-head { margin-bottom: 28px; }
+.page-head { margin-bottom: var(--s-6); }
+.page-head-extra { margin-top: var(--s-4); }
 .page-head .eyebrow {
   font-size: var(--text-xs); letter-spacing: var(--tracking-label);
   text-transform: uppercase; color: var(--ink-faint);

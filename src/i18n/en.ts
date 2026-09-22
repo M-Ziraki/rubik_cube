@@ -1340,4 +1340,8 @@ export const en = {
   'lab2.cat.lang.en': 'English',
   'lab2.cat.lang.fa': 'Persian',
   'training.resetConfirmAction': 'Erase everything',
+  'training.tabs': 'Training views',
+  'graph.tabs': 'State-space views',
+  'lab2.tabs': 'Learning lab views',
+  'training.noAttemptsHelp': 'Finish a challenge and it will be graded against a proven optimal solution here.',
 } as const;

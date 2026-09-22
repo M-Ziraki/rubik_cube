@@ -21,7 +21,6 @@ import { useJevTask } from '../jev/useJevTask';
 import { REMEDIES } from '../jev/content';
 import { MISCONCEPTION_LABELS, type MisconceptionDecision, type MisconceptionLabel } from '../jev/protocol';
 import { parseSequence } from '../cube/notation';
-import { actions } from '../state/store';
 import { player } from '../state/player';
 
 export interface ConceptCheckProps {
@@ -66,7 +65,7 @@ export function ConceptCheck({ promptId, rubric }: ConceptCheckProps): JSX.Eleme
 
   const runDemo = (sequence: string): void => {
     player.yieldToUser();
-    actions.applyMoves(parseSequence(sequence).moves);
+    player.playSequence(parseSequence(sequence).moves);
   };
 
   return (

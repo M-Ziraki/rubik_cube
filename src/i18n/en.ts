@@ -1339,4 +1339,5 @@ export const en = {
   'lab2.cat.outcome.off': 'Not this subject',
   'lab2.cat.lang.en': 'English',
   'lab2.cat.lang.fa': 'Persian',
+  'training.resetConfirmAction': 'Erase everything',
 } as const;

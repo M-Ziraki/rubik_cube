@@ -551,13 +551,13 @@ const ROUTES = ['atlas', 'course', 'lab', 'graph', 'solver', 'scan', 'training',
     // rather than for a fixed number of milliseconds; a page with a 3D scene
     // on it can take longer than a timeout to become interactive.
     await page.waitForSelector('.assistant-dock', { timeout: 20000 });
-    await page.keyboard.press('Control+k');
-    try {
-      await page.waitForSelector('.palette', { timeout: 4000 });
-    } catch {
+    let opened = false;
+    for (let attempt = 0; attempt < 3 && !opened; attempt += 1) {
       await page.keyboard.press('Control+k');
-      await page.waitForSelector('.palette', { timeout: 8000 });
+      opened = await page.waitForSelector('.palette', { timeout: 4000 })
+        .then(() => true).catch(() => false);
     }
+    if (!opened) await page.waitForSelector('.palette', { timeout: 8000 });
     await page.keyboard.type(query);
     await page.waitForTimeout(300);
     await page.keyboard.press('Enter');
@@ -649,6 +649,108 @@ const ROUTES = ['atlas', 'course', 'lab', 'graph', 'solver', 'scan', 'training',
   await tab.waitForTimeout(1700);
   check('I6. the essential operations work at tablet width', !(await snapshot(tab)).solved);
   await tab.context().close();
+}
+
+/* =========== K. a turn you can watch, a dialog, and a panel that docks ==== */
+{
+  const page = await fresh({ width: 1440, height: 1000 });
+  await ready(page, '#/lab');
+
+  /*
+   * The defect this covers: `applyMoves` jumps the cursor by several at once
+   * and the turn clock deliberately snaps rather than animates a jump, so
+   * every "apply this algorithm" button in the product applied its algorithm
+   * instantly. Caught by looking at the cursor mid-flight, which is the only
+   * way to tell a played sequence from an applied one.
+   */
+  const field = await page.$('input[type="text"]');
+  await field.fill("R U R' U'");
+  for (const btn of await page.$$('button')) {
+    if (/^Apply/i.test((await btn.textContent()).trim())) { await btn.click(); break; }
+  }
+  await page.waitForTimeout(300);
+  const mid = await snapshot(page);
+  check('K1. a typed sequence plays rather than jumping',
+    mid.moves.length === 4 && mid.cursor < 4,
+    `cursor ${mid.cursor} of ${mid.moves.length}, turning ${mid.turning}`);
+  await page.waitForFunction(() => {
+    const s = window.__cubeAtlasState();
+    return s.cursor >= s.moves.length;
+  }, null, { timeout: 30000 });
+  check('K2. and arrives at the end of it', (await snapshot(page)).cursor === 4);
+
+  // Every page that can queue a sequence now has something to play it with.
+  for (const route of ['atlas', 'lab', 'graph', 'solver']) {
+    await page.goto(BASE + '#/' + route);
+    await page.waitForTimeout(1200);
+    const has = (await page.$('[data-transport="toggle"]')) !== null;
+    check(`K3. ${route} has playback controls`, has);
+  }
+  // Your cube is the exception, and deliberately: its transport belongs to
+  // the guided solution, so it appears with one rather than sitting empty
+  // while somebody is still typing in their colours.
+  await page.goto(BASE + '#/scan');
+  await page.waitForTimeout(1400);
+  check('K3b. your cube shows playback only once there is a solution to play',
+    (await page.$('[data-transport="toggle"]')) === null);
+
+  /* ---- a real dialog, not the browser's ---------------------------------- */
+  await page.goto(BASE + '#/training');
+  await page.waitForTimeout(1500);
+  for (const btn of await page.$$('button')) {
+    if (/Progress/i.test((await btn.textContent()).trim())) { await btn.click(); break; }
+  }
+  await page.waitForTimeout(700);
+  await page.click('[data-action="reset-progress"]');
+  await page.waitForSelector('.dialog', { timeout: 8000 });
+  check('K4. destroying progress asks in a real dialog',
+    (await page.$('[data-dialog="confirm"]')) !== null);
+
+  const blocked = await page.evaluate(() => ({
+    overflow: getComputedStyle(document.body).overflow,
+    inert: [...document.querySelectorAll('[data-overlay-blocks]')].map((e) => e.inert),
+  }));
+  check('K5. the page behind it cannot scroll', blocked.overflow === 'hidden', blocked.overflow);
+  check('K6. and cannot be reached, by tab or by screen reader',
+    blocked.inert.length > 0 && blocked.inert.every(Boolean), JSON.stringify(blocked.inert));
+
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(400);
+  const released = await page.evaluate(() => ({
+    overflow: getComputedStyle(document.body).overflow,
+    inert: [...document.querySelectorAll('[data-overlay-blocks]')].map((e) => e.inert),
+  }));
+  check('K7. and both are released when it closes',
+    released.overflow !== 'hidden' && released.inert.every((v) => v === false),
+    JSON.stringify(released));
+
+  /* ---- the study panel is docked on a wide screen, not floated ----------- */
+  await page.goto(BASE + '#/atlas');
+  await page.waitForTimeout(1400);
+  await openAssistant(page);
+  const dock = await page.evaluate(() => {
+    const main = document.querySelector('.main');
+    const panel = document.querySelector('.assistant-panel').getBoundingClientRect();
+    const page_ = document.querySelector('.page').getBoundingClientRect();
+    return {
+      reserved: parseFloat(getComputedStyle(main).paddingInlineEnd),
+      scrim: document.querySelector('.scrim') !== null,
+      overlap: Math.round(page_.right - panel.left),
+      shadow: getComputedStyle(document.querySelector('.assistant-panel')).boxShadow,
+    };
+  });
+  check('K8. the desktop panel reserves its own width', dock.reserved > 300, `${dock.reserved}px`);
+  check('K9. so nothing sits underneath it', dock.overlap <= 0, `${dock.overlap}px`);
+  check('K10. and it is not dressed as a modal', !dock.scrim && dock.shadow === 'none',
+    `scrim ${dock.scrim}, shadow ${dock.shadow}`);
+
+  // The point of not being modal: the work stays usable while you ask about it.
+  const before = (await snapshot(page)).facelets;
+  await page.click('[data-action="scramble"]');
+  await page.waitForTimeout(1700);
+  check('K11. and the cube can still be worked while it is open',
+    (await snapshot(page)).facelets !== before);
+  await page.context().close();
 }
 
 /* ============ J. contextual help that actually does something (stub) ====== */

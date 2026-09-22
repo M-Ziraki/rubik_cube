@@ -43,6 +43,30 @@ export function Sheet({ open, onClose, label, side = 'end', children, className 
     if (!open) return undefined;
     opener.current = document.activeElement as HTMLElement | null;
 
+    /*
+     * A modal overlay has to stop the page behind it, in three senses that
+     * are easy to confuse and were all missing:
+     *
+     *  - it must not scroll, or dismissing the dialog leaves you somewhere
+     *    else entirely;
+     *  - it must not be clickable, which the scrim already handles;
+     *  - it must not be *readable*, which the scrim does not handle at all.
+     *    `inert` is the only thing that takes the content behind out of the
+     *    accessibility tree as well as out of the tab order, so a screen
+     *    reader stops walking a page its user cannot act on.
+     */
+    // The overlay renders inside the same React tree as the page, so "every
+    // child of <body> that is not the panel" would match nothing. The shell
+    // marks the regions that a modal overlay covers instead.
+    const behind = modal
+      ? [...document.querySelectorAll<HTMLElement>('[data-overlay-blocks]')]
+      : [];
+    const scrollY = window.scrollY;
+    if (modal) {
+      for (const el of behind) el.inert = true;
+      document.body.style.overflow = 'hidden';
+    }
+
     // Focus the first thing inside, so the next Tab is inside too.
     const first = panel.current?.querySelector<HTMLElement>(FOCUSABLE);
     (first ?? panel.current)?.focus();
@@ -64,6 +88,12 @@ export function Sheet({ open, onClose, label, side = 'end', children, className 
     document.addEventListener('keydown', onKey, true);
     return () => {
       document.removeEventListener('keydown', onKey, true);
+      if (modal) {
+        for (const el of behind) el.inert = false;
+        document.body.style.overflow = '';
+        // Restoring `overflow` can nudge the scroll position; put it back.
+        window.scrollTo({ top: scrollY, behavior: 'instant' as ScrollBehavior });
+      }
       // Only take focus back if it is still somewhere in here; if the panel
       // sent the learner to a button on the page, leave them there.
       if (panel.current?.contains(document.activeElement)) opener.current?.focus();

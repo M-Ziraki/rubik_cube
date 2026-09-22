@@ -3,10 +3,11 @@ import { CubeTask, LessonBody, Quiz } from './framework';
 import { Callout, Card, Stat } from '../components/ui';
 import { StickerMap } from '../graph/StickerMap';
 import { Cube3D } from '../components/Cube3D';
+import { MovePad } from '../components/MovePad';
 import { CubieCube } from '../cube/cubie';
 import { faceletString, toFacelets } from '../cube/facelet';
 import { parseSequence } from '../cube/notation';
-import { FACE_NAMES, MOVE_NAMES } from '../cube/defs';
+import { FACE_NAMES } from '../cube/defs';
 import { MAP_CIRCLES, faceletsAffectedBy, nodeForFacelet } from '../graph/stickerGeometry';
 import { T, useI18n } from '../i18n/I18nProvider';
 import { ConceptCheck } from '../components/ConceptCheck';
@@ -63,33 +64,13 @@ export function LessonStickerMap(): JSX.Element {
               <div className="card-note" style={{ marginBottom: 6 }}>
                 {t('l.map.hoverATurn')}
               </div>
-              <div
-                className="move-pad"
-                onMouseLeave={() => setPreview(null)}
-                onPointerLeave={() => setPreview(null)}
-              >
-                {[0, 1, 2, 3, 4, 5].map((face) => (
-                  <div key={face} style={{ display: 'grid', gap: 3 }}>
-                    {[0, 1, 2].map((p) => {
-                      const m = face * 3 + p;
-                      return (
-                        <button
-                          key={m}
-                          className="move-chip mono-ltr"
-                          style={{ width: '100%' }}
-                          onMouseEnter={() => setPreview(m)}
-                          onMouseLeave={() => setPreview(null)}
-                          onFocus={() => setPreview(m)}
-                          onBlur={() => setPreview(null)}
-                          onClick={() => { setPreview(null); setMoves((x) => [...x, m]); }}
-                        >
-                          {MOVE_NAMES[m]}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
+              <MovePad
+                onMove={(m) => setMoves((x) => [...x, m])}
+                onPreview={setPreview}
+                header="letter"
+                keyboard={false}
+                hint={false}
+              />
             </div>
             <div className="row tight">
               <button

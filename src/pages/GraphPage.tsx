@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Cube3D } from '../components/Cube3D';
+import { TransportDock } from '../components/TransportDock';
 import { PocketNet } from '../components/PocketNet';
 import { GraphCanvas } from '../graph/GraphCanvas';
 import { ShellCanvas } from '../graph/ShellCanvas';
@@ -174,7 +175,7 @@ function NeighbourhoodView(): JSX.Element {
               <div className="row" style={{ marginTop: 10 }}>
                 <button
                   className="btn"
-                  onClick={() => { player.yieldToUser(); actions.applyMoves(movesToSelected); }}
+                  onClick={() => { player.playSequence(movesToSelected); }}
                 >
                   {t('graph.travelHere')}
                 </button>
@@ -187,6 +188,11 @@ function NeighbourhoodView(): JSX.Element {
 
         <Card title={t('graph.yourCube')}>
           <Cube3D onUserMove={(m) => { player.yieldToUser(); actions.applyMove(m); }} />
+          {/* Walking to a neighbouring position is the whole lesson here, so
+              it plays rather than jumps - and needs a control to replay it. */}
+          <div style={{ marginTop: 12 }}>
+            <TransportDock variant="inline" />
+          </div>
         </Card>
 
         <Callout title={t('graph.reading')}>

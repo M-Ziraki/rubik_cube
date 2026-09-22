@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Cube3D } from '../components/Cube3D';
+import { MovePad } from '../components/MovePad';
 import { TransportDock } from '../components/TransportDock';
 import { PageBar, ErrandBar } from '../components/PageBar';
 import { Welcome } from '../components/Welcome';
@@ -13,7 +14,6 @@ import {
   MAP_CIRCLES, faceletsAffectedBy, nodeForFacelet, siblingFacelets,
 } from '../graph/stickerGeometry';
 import { FACE_COLOR_NAMES, FACE_NAMES, MOVE_NAMES, GODS_NUMBER } from '../cube/defs';
-import { describeMove } from '../cube/notation';
 import { TOTAL_STATES } from '../data/facts';
 import { T, useI18n } from '../i18n/I18nProvider';
 import { go } from '../state/navigation';
@@ -352,7 +352,12 @@ export function AtlasPage(): JSX.Element {
           <div className="tools-body" id="atlas-tools">
             <div className="split">
               <Card title={t('lab.turnTheCube')} note={t('atlas.byHand')}>
-                <PreviewMovePad onPreview={setPreviewMove} onMove={manualMove} />
+                <MovePad
+                  onMove={manualMove}
+                  onPreview={setPreviewMove}
+                  header="letter"
+                  keyboard={false}
+                />
                 <div className="tools-sub">
                   <div className="card-note" style={{ marginBottom: 4 }}>{t('atlas.moveList')}</div>
                   <Sequence
@@ -380,53 +385,6 @@ export function AtlasPage(): JSX.Element {
         ) : null}
       </section>
     </>
-  );
-}
-
-/**
- * A move pad that reports hover, so a turn can be previewed before it is made.
- *
- * Every path out of a button clears the preview - leave, blur, and the click
- * itself - because a preview that outlives the pointer leaves the cube drawn
- * with twenty stickers lit and thirty-four faded.
- */
-function PreviewMovePad({ onPreview, onMove }: {
-  onPreview: (m: number | null) => void; onMove: (m: number) => void;
-}): JSX.Element {
-  const { t } = useI18n();
-  return (
-    <div
-      className="move-pad"
-      onMouseLeave={() => onPreview(null)}
-      onPointerLeave={() => onPreview(null)}
-    >
-      {[0, 1, 2, 3, 4, 5].map((face) => (
-        <div key={face} style={{ display: 'grid', gap: 4 }}>
-          <div className="card-note mono-ltr" style={{ textAlign: 'center' }}>
-            {FACE_NAMES[face]}
-          </div>
-          {[0, 1, 2].map((p) => {
-            const move = face * 3 + p;
-            return (
-              <button
-                key={move}
-                type="button"
-                className="move-chip mono-ltr"
-                style={{ width: '100%' }}
-                title={describeMove(move, t)}
-                onMouseEnter={() => onPreview(move)}
-                onMouseLeave={() => onPreview(null)}
-                onFocus={() => onPreview(move)}
-                onBlur={() => onPreview(null)}
-                onClick={() => { onPreview(null); onMove(move); }}
-              >
-                {MOVE_NAMES[move]}
-              </button>
-            );
-          })}
-        </div>
-      ))}
-    </div>
   );
 }
 

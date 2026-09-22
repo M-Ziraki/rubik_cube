@@ -129,6 +129,27 @@ export const player = {
   },
 
   /** Jump to a point in the move list, stopping playback first. */
+  /**
+   * Queue a sequence and watch it happen.
+   *
+   * The reason this exists: `actions.applyMoves(list)` jumps the cursor by
+   * several at once, and the turn clock deliberately snaps rather than
+   * animates anything that is not a single step - a jump is not a turn. So
+   * every "apply this algorithm" button in the application applied its
+   * algorithm instantly, which is exactly the wrong behaviour for a
+   * demonstration and was read as "some pages animate and some do not".
+   *
+   * This routes them through the path that already works instead of adding a
+   * second animation path beside it: append, then walk. One clock, one queue,
+   * one set of guarantees about a turn being committed before the next begins.
+   */
+  playSequence(moves: readonly number[]): void {
+    if (moves.length === 0) return;
+    player.stop();
+    actions.queueMoves([...moves]);
+    player.play();
+  },
+
   seek(cursor: number): void {
     this.stop();
     finishTurn();

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Cube3D } from '../components/Cube3D';
 import { MovePad } from '../components/MovePad';
-import { Transport } from '../components/Transport';
+import { TransportDock } from '../components/TransportDock';
 import { Callout, Card, Sequence, Stat, formatNodes } from '../components/ui';
 import { actions, currentFacelets, isSolved, useAppState } from '../state/store';
 import { player } from '../state/player';
@@ -77,7 +77,7 @@ export function LabPage(): JSX.Element {
     if (!parsed.moves.length) { setInputError(null); return; }
     setInputError(null);
     player.yieldToUser();
-    actions.applyMoves(parsed.moves);
+    player.playSequence(parsed.moves);
     setInput('');
   };
 
@@ -152,7 +152,7 @@ export function LabPage(): JSX.Element {
               onSeek={(i) => player.seek(i)}
               empty={t('lab.historyEmpty')}
             />
-            <Transport compact />
+            <TransportDock variant="inline" />
             {simplified.length !== state.cursor ? (
               <p className="card-note" style={{ margin: 0 }}>
                 {t('lab.simplifies', {

@@ -18,7 +18,16 @@ import { MOVE_NAMES } from '../cube/defs';
 import { describeMove } from '../cube/notation';
 import { useI18n } from '../i18n/I18nProvider';
 
-export function TransportDock(): JSX.Element {
+export interface TransportProps {
+  /**
+   * `dock` pins it to the bottom of the workspace, which is where a learner
+   * watching a solution wants it. `inline` puts it in the flow, for a page
+   * where playback is one thing among several rather than the main event.
+   */
+  variant?: 'dock' | 'inline';
+}
+
+export function TransportDock({ variant = 'dock' }: TransportProps): JSX.Element {
   const { t } = useI18n();
   const moves = useAppState((s) => s.moves);
   const cursor = useAppState((s) => s.cursor);
@@ -32,7 +41,11 @@ export function TransportDock(): JSX.Element {
   const empty = moves.length === 0;
 
   return (
-    <div className="transport-dock" role="group" aria-label={t('transport.label')}>
+    <div
+      className={`transport-dock${variant === 'inline' ? ' inline' : ''}`}
+      role="group"
+      aria-label={t('transport.label')}
+    >
       <div className="transport-buttons">
         <button
           className="btn icon" data-transport="restart" onClick={() => player.restart()}

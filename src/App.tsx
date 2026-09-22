@@ -35,7 +35,8 @@ import { LANGUAGES, useI18n } from './i18n/I18nProvider';
 import { jevConfig, jevActive, useJevConfig } from './jev/config';
 import { probeJevStatus } from './jev/client';
 import { ROUTES, SECTIONS, go, routeById, useRoute, type RouteDef } from './state/navigation';
-import { session } from './state/session';
+import { session, useSession } from './state/session';
+import { useNarrow } from './state/useMediaQuery';
 import { AssistantDock } from './components/Assistant';
 import { CommandPalette } from './components/CommandPalette';
 import { Sheet } from './components/Sheet';
@@ -60,6 +61,16 @@ export function App(): JSX.Element {
   const fraction = useAppState((s) => s.tableFraction);
   const lessonsDone = useAppState((s) => s.progress.lessonsDone);
   const [moreOpen, setMoreOpen] = useState(false);
+  /*
+   * On a wide screen the study panel is docked, not overlaid: you can keep
+   * turning the cube while you ask about it, which is the entire point of a
+   * companion. The shell reserves the width so nothing sits underneath it -
+   * a panel that floats over the work it is discussing looks like a modal
+   * that has forgotten to block, and that ambiguity was being read as a bug.
+   */
+  const narrow = useNarrow();
+  const assistantOpen = useSession((x) => x.assistantOpen);
+  const docked = assistantOpen && !narrow;
 
   // One cheap request to learn whether the server holds a key. It makes no
   // upstream call, costs nothing, and is the only request the application
@@ -99,10 +110,10 @@ export function App(): JSX.Element {
   const secondary = ROUTES.filter((r) => !r.primary);
 
   return (
-    <div className="app">
+    <div className="app" data-assistant={docked ? 'docked' : undefined}>
       <a className="skip-link" href="#main">{t('chrome.skip')}</a>
 
-      <aside className="sidebar">
+      <aside className="sidebar" data-overlay-blocks>
         <div className="brand">
           <button className="brand-mark" onClick={() => go('#/atlas')}>
             <CubeMark size={28} />
@@ -146,7 +157,7 @@ export function App(): JSX.Element {
         section they are in, and the language. Everything else in the sidebar
         is reachable from the tab bar or from "More".
       */}
-      <div className="topbar">
+      <div className="topbar" data-overlay-blocks>
         <button className="topbar-home" onClick={() => go('#/atlas')} aria-label={t('app.title')}>
           <CubeMark size={26} />
         </button>
@@ -157,14 +168,14 @@ export function App(): JSX.Element {
         <LanguagePicker compact />
       </div>
 
-      <main className="main" id="main" tabIndex={-1}>
+      <main className="main" id="main" tabIndex={-1} data-overlay-blocks>
         <div className={`page page-${active.kind}`}>{(PAGES[active.id] ?? PAGES.atlas)()}</div>
         <div className="tabbar-spacer" aria-hidden="true" />
       </main>
 
       {/* The phone's navigation. Four destinations, always visible, with the
           current one unmistakable; everything else behind one more tap. */}
-      <nav className="tabbar" aria-label={t('chrome.primaryNav')}>
+      <nav className="tabbar" aria-label={t('chrome.primaryNav')} data-overlay-blocks>
         {primary.map((r) => (
           <button
             key={r.id}

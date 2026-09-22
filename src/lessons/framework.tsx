@@ -226,7 +226,7 @@ export function TryOnTheCube({ sequence, label }: { sequence: string; label?: st
       <bdi className="mono-ltr">{sequence}</bdi>
       <button
         className="btn small ghost"
-        onClick={() => { player.yieldToUser(); actions.applyMoves(moves); }}
+        onClick={() => { player.playSequence(moves); }}
         title={t('lab.turnTheCube')}
       >
         {label ?? t('course.tryIt')}

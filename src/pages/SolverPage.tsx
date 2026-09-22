@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Cube3D } from '../components/Cube3D';
+import { TransportDock } from '../components/TransportDock';
 import { Callout, Card, Sequence, Segmented, Stat, formatNodes } from '../components/ui';
 import { SolutionReport } from './LabPage';
 import { actions, currentFacelets, isSolved, useAppState } from '../state/store';
@@ -143,6 +144,11 @@ export function SolverPage(): JSX.Element {
             )}
           >
             <Cube3D onUserMove={(m) => { player.yieldToUser(); actions.applyMove(m); }} />
+            {/* A solution this page found is queued, not applied. Without a
+                transport there was nothing on the page that could play it. */}
+            <div style={{ marginTop: 12 }}>
+              <TransportDock variant="inline" />
+            </div>
           </Card>
 
           <Card title={t('solver.knownPosition')}>

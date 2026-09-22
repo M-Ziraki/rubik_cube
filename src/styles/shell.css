@@ -145,6 +145,14 @@
   box-shadow: var(--shadow-s);
 }
 [dir='rtl'] .transport-dock { padding: 10px 14px 10px calc(14px + var(--dock-reserve, 0px)); }
+/* In the flow rather than pinned, and with no gutter to reserve because the
+   study-help pill is nowhere near it. */
+.transport-dock.inline {
+  position: static;
+  margin: 0;
+  padding: var(--s-3) var(--s-4);
+}
+[dir='rtl'] .transport-dock.inline { padding: var(--s-3) var(--s-4); }
 .transport-buttons { display: flex; gap: 6px; align-items: center; }
 .transport-play { min-width: 96px; }
 .transport-progress { flex: 1 1 220px; min-width: 160px; display: grid; gap: 4px; }
@@ -217,13 +225,25 @@
 }
 .sheet:focus { outline: none; }
 
+/*
+ * Docked rather than floating: an edge instead of a shadow, and the shell
+ * reserves the width so no content sits beneath it. The behaviour was always
+ * non-modal on a wide screen; this is the presentation finally saying so.
+ */
 .sheet-end {
   inset-block: 0;
   inset-inline-end: 0;
   width: var(--sheet-w);
   border-block: 0;
   border-inline-end: 0;
+  border-inline-start: 1px solid var(--line-strong);
+  box-shadow: none;
 }
+
+.app[data-assistant='docked'] .main { padding-inline-end: var(--sheet-w); }
+/* With the panel beside the work rather than over it, the gutter the
+   floating pill needed is no longer anyone's problem. */
+.app[data-assistant='docked'] { --dock-reserve: 0px; }
 
 .sheet-centre {
   top: 12vh;
@@ -432,11 +452,14 @@
 
   /* A bottom sheet on a phone: reachable with a thumb, and it never covers
      the tab bar the learner uses to leave it. */
+  /* On a phone it is a modal bottom sheet, and a sheet does have a shadow. */
   .sheet-end {
     inset-block: auto var(--tabbar-h, 0px);
     inset-inline: 0;
     width: 100%;
     max-height: 82dvh;
+    box-shadow: var(--shadow);
+    border-inline-start: 0;
     border-start-start-radius: var(--radius-l);
     border-start-end-radius: var(--radius-l);
     border-inline: 0;
@@ -615,3 +638,21 @@ html {
   text-transform: uppercase; color: var(--ink-faint);
 }
 .assistant-section textarea { min-height: 62px; font-size: var(--text-s); }
+
+
+/* --------------------------------------------------------------- dialog --- */
+
+.dialog { max-height: min(60vh, 520px); }
+.dialog-body { padding: var(--s-5); overflow-y: auto; }
+.dialog-title { font-size: var(--text-l); margin: 0 0 var(--s-3); }
+.dialog-body p { margin: 0 0 var(--s-3); }
+.dialog-body p:last-child { margin-bottom: 0; }
+.dialog-foot {
+  display: flex; justify-content: flex-end; gap: var(--s-2);
+  padding: var(--s-4) var(--s-5); border-top: 1px solid var(--line);
+  background: var(--paper-sunken);
+}
+
+/* Destructive confirmation. Named by colour and by word, never colour alone. */
+.btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn.danger:hover:not(:disabled) { background: var(--danger); filter: brightness(1.08); }

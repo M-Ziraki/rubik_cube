@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Cube3D } from '../components/Cube3D';
 import { ColorGrid, ColorPalette } from '../scan/ColorGrid';
 import { Callout, Card, Sequence, Stat } from '../components/ui';
-import { Transport } from '../components/Transport';
+import { TransportDock } from '../components/TransportDock';
 import { actions, useAppState } from '../state/store';
 import { player } from '../state/player';
 import { diagnose, faceletString, parseFaceletString, toFacelets } from '../cube/facelet';
@@ -232,7 +232,7 @@ function GuidedSolve({ solution, narrative, busy }: {
       className="stack"
     >
       <Sequence moves={moves} cursor={cursor} onSeek={(i) => player.seek(i)} />
-      <Transport />
+      <TransportDock variant="inline" />
 
       {step ? (
         <div className="callout">

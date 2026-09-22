@@ -1344,4 +1344,5 @@ export const fa: Record<string, string> = {
   'lab2.cat.outcome.off': 'موضوع این برنامه نیست',
   'lab2.cat.lang.en': 'انگلیسی',
   'lab2.cat.lang.fa': 'فارسی',
+  'training.resetConfirmAction': 'همه‌چیز پاک شود',
 };

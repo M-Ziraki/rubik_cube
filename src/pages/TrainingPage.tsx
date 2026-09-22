@@ -11,6 +11,7 @@ import { LESSONS } from '../lessons/registry';
 import { player } from '../state/player';
 import { useI18n } from '../i18n/I18nProvider';
 import { HintLadder } from '../components/HintLadder';
+import { Dialog } from '../components/Dialog';
 import { usePublishAssistantContext } from '../jev/assistantContext';
 import { go } from '../state/navigation';
 
@@ -366,6 +367,7 @@ function ChallengeRunner(): JSX.Element {
 function ProgressView(): JSX.Element {
   const { t } = useI18n();
   const progress = useAppState((s) => s.progress);
+  const [confirmReset, setConfirmReset] = useState(false);
   const runs = progress.challengeRuns;
   const recent = runs.slice(-24).reverse();
   const perfect = runs.filter((r) => r.used === r.optimal).length;
@@ -411,11 +413,32 @@ function ProgressView(): JSX.Element {
           </div>
         )}
         <div className="row" style={{ marginTop: 14 }}>
-          <button className="btn small ghost" onClick={() => {
-            if (confirm(t('training.resetConfirm'))) actions.resetProgress();
-          }}>{t('training.resetAll')}</button>
+          <button
+            className="btn small ghost"
+            data-action="reset-progress"
+            onClick={() => setConfirmReset(true)}
+          >
+            {t('training.resetAll')}
+          </button>
         </div>
       </Card>
+
+      {/*
+        Previously `window.confirm`, which cannot be translated, cannot be
+        themed, and blocks the main thread - which stops the turn clock
+        mid-animation. A Persian learner was being asked to discard their
+        progress in English.
+      */}
+      <Dialog
+        open={confirmReset}
+        onClose={() => setConfirmReset(false)}
+        title={t('training.resetAll')}
+        tone="danger"
+        confirmLabel={t('training.resetConfirmAction')}
+        onConfirm={() => actions.resetProgress()}
+      >
+        <p>{t('training.resetConfirm')}</p>
+      </Dialog>
 
       <Card title={t('training.recent')}>
         {recent.length === 0 ? (

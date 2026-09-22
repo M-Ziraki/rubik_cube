@@ -304,7 +304,10 @@ table.data td.num, table.data th.num { text-align: end; font-family: var(--mono)
 }
 [dir='rtl'] .seq, [dir='rtl'] .move-pad { justify-content: flex-end; }
 
-.move-pad { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+.move-pad { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--s-2); }
+.move-pad-col { display: grid; gap: 4px; }
+.move-pad-swatch { height: 4px; border-radius: 2px; }
+.move-pad-letter { text-align: center; }
 
 /* Transport buttons pair a glyph with a word; the word is what wraps away
    first on a narrow screen, never the control itself. */

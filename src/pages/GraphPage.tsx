@@ -148,6 +148,17 @@ function NeighbourhoodView(): JSX.Element {
           )}
         </Card>
 
+        {/* Under the picture it describes. It used to sit at the bottom of the
+            other column, below the cube, where it explained a figure that was
+            no longer on screen - and left this column ending 310 pixels short
+            of the other one. */}
+        <Callout title={t('graph.reading')}>
+          <p style={{ marginBottom: 0 }}>
+            {t('graph.reading.body')}{' '}
+            <bdi className="mono-ltr">U D U&rsquo; D&rsquo;</bdi>
+          </p>
+        </Callout>
+
         <Card title={t('graph.whyNot18')}>
           <p>{t('graph.whyNot18.p1')}</p>
           <p style={{ marginBottom: 0 }}>
@@ -195,12 +206,6 @@ function NeighbourhoodView(): JSX.Element {
           </div>
         </Card>
 
-        <Callout title={t('graph.reading')}>
-          <p style={{ marginBottom: 0 }}>
-            {t('graph.reading.body')}{' '}
-            <bdi className="mono-ltr">U D U&rsquo; D&rsquo;</bdi>
-          </p>
-        </Callout>
       </div>
     </div>
   );

@@ -7,3 +7,6 @@ dist/
 # Local credentials. Never commit these.
 .env
 .env.local
+
+# recordings made by scripts/record-demo.mjs
+demo-out/

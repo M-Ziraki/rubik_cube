@@ -4,6 +4,11 @@
   "version": "1.0.0",
   "type": "module",
   "description": "An interactive laboratory for the Rubik's Cube as a graph-theory problem.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/M-Ziraki/rubik_cube.git"
+  },
   "scripts": {
     "dev": "vite",
     "build": "node scripts/check-filenames.mjs && node scripts/i18n-report.mjs && tsc --noEmit && vite build",
